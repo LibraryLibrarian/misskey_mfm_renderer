@@ -1,0 +1,22 @@
+{
+  "debug.internalConsoleOptions": "openOnSessionStart",
+  "dart.flutterSdkPath": ".fvm/versions/3.38.7",
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "quickfix.insertSemicolon": "always",
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    },
+    "editor.formatOnType": true,
+    "editor.rulers": [
+      80
+    ],
+    "editor.selectionHighlight": false,
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
+  },
+  "editor.formatOnSaveMode": "file",
+  "dart.lineLength": 80
+}
