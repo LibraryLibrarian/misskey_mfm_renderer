@@ -1,12 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 void main() {
-  test('adds one to input values', () {
-    final calculator = Calculator();
-    expect(calculator.addOne(2), 3);
-    expect(calculator.addOne(-7), -6);
-    expect(calculator.addOne(0), 1);
+  group('MfmRenderConfig', () {
+    test('default values are correct', () {
+      const config = MfmRenderConfig();
+      expect(config.enableAdvancedMfm, true);
+      expect(config.enableAnimation, true);
+      expect(config.enableNyaize, false);
+      expect(config.baseTextStyle, null);
+    });
+
+    test('copyWith works correctly', () {
+      const config = MfmRenderConfig();
+      final newConfig = config.copyWith(enableAdvancedMfm: false);
+      expect(newConfig.enableAdvancedMfm, false);
+      expect(newConfig.enableAnimation, true);
+    });
   });
 }

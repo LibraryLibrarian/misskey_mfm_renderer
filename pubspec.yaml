@@ -11,10 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
   misskey_mfm_parser: ^2.0.0
+  timeago: ^3.7.1
 
 dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  pedantic_mono: ^1.33.0
 
 flutter:
