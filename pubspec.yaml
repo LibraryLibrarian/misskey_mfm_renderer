@@ -1,16 +1,20 @@
 name: misskey_mfm_renderer
+description: Flutter widget renderer for Misskey MFM (Misskey Flavored Markdown)
 version: 0.0.1
+repository: https://github.com/your-repo/misskey_mfm_renderer
+
 environment:
   sdk: ^3.10.0
-  flutter: ">=1.17.0"
-description: A new Flutter package project.
+  flutter: ">=3.0.0"
+
 dependencies:
   flutter:
     sdk: flutter
+  misskey_mfm_parser: ^2.0.0
+
 dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
-  pedantic_mono: ^1.35.0
-  pubspec_dependency_sorter: ^1.0.5
-flutter: null
+
+flutter:
