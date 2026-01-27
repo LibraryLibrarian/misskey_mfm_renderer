@@ -143,8 +143,9 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
 
   void _stopAnimation() {
     _delayTimer?.cancel();
-    _controller.stop();
-    _controller.reset();
+    _controller
+      ..stop()
+      ..reset();
   }
 
   @override
