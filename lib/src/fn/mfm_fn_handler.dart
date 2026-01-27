@@ -10,6 +10,7 @@ import '../utils/color_parser.dart';
 import 'animated/mfm_animated_wrapper.dart';
 import 'animated/mfm_bounce_widget.dart';
 import 'animated/mfm_jump_widget.dart';
+import 'animated/mfm_shake_widget.dart';
 import 'animated/mfm_spin_widget.dart';
 
 /// fn関数のハンドラー
@@ -58,6 +59,7 @@ class MfmFnHandler {
       case 'jelly':
       case 'twitch':
       case 'shake':
+        return _buildShake(node, builder);
       case 'spin':
         return _buildSpin(node, builder);
       case 'jump':
@@ -244,6 +246,34 @@ class MfmFnHandler {
 
     return WidgetSpan(
       child: MfmBounceWidget(
+        duration: duration,
+        delay: delay,
+        enabled: builder.config.enableAnimation,
+        child: RichText(
+          text: TextSpan(
+            style: builder.config.baseTextStyle,
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static InlineSpan _buildShake(FnNode node, MfmNodeBuilder builder) {
+    if (!builder.config.enableAnimation) {
+      return TextSpan(children: builder.buildNodes(node.children));
+    }
+
+    final args = node.args;
+    final duration =
+        MfmAnimatedWrapper.parseTime(args['speed']) ??
+        const Duration(milliseconds: 500);
+    final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
+
+    final children = builder.buildNodes(node.children);
+
+    return WidgetSpan(
+      child: MfmShakeWidget(
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
