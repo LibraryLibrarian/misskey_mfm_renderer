@@ -7,6 +7,7 @@ typedef MfmAnimatedBuilder =
       BuildContext context,
       Widget child,
       AnimationController controller,
+      Animation<double> progress,
     );
 
 /// MFMアニメーションの共通ラッパー
@@ -25,6 +26,8 @@ class MfmAnimatedWrapper extends StatefulWidget {
     this.enabled = true,
     this.repeat = true,
     this.reverse = false,
+    this.curve = Curves.linear,
+    this.reverseCurve,
   });
 
   final Widget child;
@@ -34,6 +37,8 @@ class MfmAnimatedWrapper extends StatefulWidget {
   final bool enabled;
   final bool repeat;
   final bool reverse;
+  final Curve curve;
+  final Curve? reverseCurve;
 
   /// `value` は num（秒）または "1.5s" の形式を受け付ける
   static Duration? parseTime(Object? value) {
@@ -82,6 +87,7 @@ class MfmAnimatedWrapper extends StatefulWidget {
 class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  late Animation<double> _progress;
   Timer? _delayTimer;
 
   @override
@@ -91,6 +97,7 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
       duration: widget.duration,
       vsync: this,
     );
+    _updateProgress();
     _startAnimation();
   }
 
@@ -100,6 +107,11 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
 
     if (oldWidget.duration != widget.duration) {
       _controller.duration = widget.duration;
+    }
+
+    if (oldWidget.curve != widget.curve ||
+        oldWidget.reverseCurve != widget.reverseCurve) {
+      setState(_updateProgress);
     }
 
     final shouldRestart =
@@ -148,6 +160,14 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
       ..reset();
   }
 
+  void _updateProgress() {
+    _progress = CurvedAnimation(
+      parent: _controller,
+      curve: widget.curve,
+      reverseCurve: widget.reverseCurve ?? widget.curve,
+    );
+  }
+
   @override
   void dispose() {
     _delayTimer?.cancel();
@@ -169,6 +189,7 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
           context,
           child ?? const SizedBox.shrink(),
           _controller,
+          _progress,
         );
       },
     );

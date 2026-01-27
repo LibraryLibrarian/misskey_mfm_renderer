@@ -53,8 +53,8 @@ class MfmJumpWidget extends StatelessWidget {
       delay: delay,
       enabled: enabled,
       child: child,
-      builder: (context, child, controller) {
-        final y = _resolveY(controller.value);
+      builder: (context, child, controller, progress) {
+        final y = _resolveY(progress.value);
         return Transform.translate(
           offset: Offset(0, y),
           child: child,

@@ -59,8 +59,8 @@ class MfmSpinWidget extends StatelessWidget {
       enabled: enabled,
       reverse: direction == MfmSpinDirection.alternate,
       child: child,
-      builder: (context, child, controller) {
-        final angle = _resolveAngle(controller.value);
+      builder: (context, child, controller, progress) {
+        final angle = _resolveAngle(progress.value);
         return Transform(
           alignment: Alignment.center,
           transform: _buildTransform(angle),

@@ -65,8 +65,8 @@ class MfmBounceWidget extends StatelessWidget {
       delay: delay,
       enabled: enabled,
       child: child,
-      builder: (context, child, controller) {
-        final kf = _resolveKeyframe(controller.value);
+      builder: (context, child, controller, progress) {
+        final kf = _resolveKeyframe(progress.value);
 
         return Transform(
           alignment: Alignment.bottomCenter,

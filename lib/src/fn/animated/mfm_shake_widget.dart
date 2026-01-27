@@ -52,6 +52,9 @@ class MfmShakeWidget extends StatelessWidget {
     _ShakeKeyframe(1, 2, 1, 2),
   ];
 
+  // CSS ease = cubic-bezier(0.25, 0.1, 0.25, 1.0)
+  static const Curve _shakeCurve = Cubic(0.25, 0.1, 0.25, 1.0);
+
   _ShakeKeyframe _resolveKeyframe(double t) {
     for (var i = 0; i < _keyframes.length - 1; i++) {
       final start = _keyframes[i];
@@ -77,9 +80,10 @@ class MfmShakeWidget extends StatelessWidget {
       duration: duration,
       delay: delay,
       enabled: enabled,
+      curve: _shakeCurve,
       child: child,
-      builder: (context, child, controller) {
-        final kf = _resolveKeyframe(controller.value);
+      builder: (context, child, controller, progress) {
+        final kf = _resolveKeyframe(progress.value);
         final radians = kf.rotateDeg * math.pi / 180;
 
         return Transform(
