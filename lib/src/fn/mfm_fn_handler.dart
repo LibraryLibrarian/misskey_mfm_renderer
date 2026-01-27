@@ -7,6 +7,8 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../builder/mfm_node_builder.dart';
 import '../utils/color_parser.dart';
+import 'animated/mfm_animated_wrapper.dart';
+import 'animated/mfm_spin_widget.dart';
 
 /// fn関数のハンドラー
 class MfmFnHandler {
@@ -55,6 +57,7 @@ class MfmFnHandler {
       case 'twitch':
       case 'shake':
       case 'spin':
+        return _buildSpin(node, builder);
       case 'jump':
       case 'bounce':
       case 'rainbow':
@@ -141,6 +144,49 @@ class MfmFnHandler {
     return WidgetSpan(
       child: Transform.rotate(
         angle: radians,
+        child: RichText(
+          text: TextSpan(
+            style: builder.config.baseTextStyle,
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static InlineSpan _buildSpin(FnNode node, MfmNodeBuilder builder) {
+    if (!builder.config.enableAnimation) {
+      return TextSpan(children: builder.buildNodes(node.children));
+    }
+
+    final args = node.args;
+
+    final axis = args.containsKey('x')
+        ? MfmSpinAxis.x
+        : args.containsKey('y')
+        ? MfmSpinAxis.y
+        : MfmSpinAxis.z;
+
+    final direction = args.containsKey('left')
+        ? MfmSpinDirection.reverse
+        : args.containsKey('alternate')
+        ? MfmSpinDirection.alternate
+        : MfmSpinDirection.normal;
+
+    final duration =
+        MfmAnimatedWrapper.parseTime(args['speed']) ??
+        const Duration(milliseconds: 1500);
+    final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
+
+    final children = builder.buildNodes(node.children);
+
+    return WidgetSpan(
+      child: MfmSpinWidget(
+        axis: axis,
+        direction: direction,
+        duration: duration,
+        delay: delay,
+        enabled: builder.config.enableAnimation,
         child: RichText(
           text: TextSpan(
             style: builder.config.baseTextStyle,
