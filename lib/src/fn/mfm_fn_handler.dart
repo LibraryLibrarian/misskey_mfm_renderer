@@ -13,6 +13,7 @@ import 'animated/mfm_jelly_widget.dart';
 import 'animated/mfm_jump_widget.dart';
 import 'animated/mfm_shake_widget.dart';
 import 'animated/mfm_spin_widget.dart';
+import 'animated/mfm_tada_widget.dart';
 import 'animated/mfm_twitch_widget.dart';
 
 /// fn関数のハンドラー
@@ -58,6 +59,7 @@ class MfmFnHandler {
 
       // アニメーション系（将来実装）
       case 'tada':
+        return _buildTada(node, builder);
       case 'jelly':
         return _buildJelly(node, builder);
       case 'twitch':
@@ -306,6 +308,30 @@ class MfmFnHandler {
 
     return WidgetSpan(
       child: MfmTwitchWidget(
+        duration: duration,
+        delay: delay,
+        enabled: builder.config.enableAnimation,
+        child: RichText(
+          text: TextSpan(
+            style: builder.config.baseTextStyle,
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static InlineSpan _buildTada(FnNode node, MfmNodeBuilder builder) {
+    final args = node.args;
+    final duration =
+        MfmAnimatedWrapper.parseTime(args['speed']) ??
+        const Duration(milliseconds: 1000);
+    final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
+
+    final children = builder.buildNodes(node.children);
+
+    return WidgetSpan(
+      child: MfmTadaWidget(
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
