@@ -53,7 +53,7 @@ class MfmShakeWidget extends StatelessWidget {
   ];
 
   // CSS ease = cubic-bezier(0.25, 0.1, 0.25, 1.0)
-  static const Curve _shakeCurve = Cubic(0.25, 0.1, 0.25, 1.0);
+  static const Curve _shakeCurve = Cubic(0.25, 0.1, 0.25, 1);
 
   _ShakeKeyframe _resolveKeyframe(double t) {
     for (var i = 0; i < _keyframes.length - 1; i++) {
