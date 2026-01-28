@@ -9,6 +9,7 @@ import '../builder/mfm_node_builder.dart';
 import '../utils/color_parser.dart';
 import 'animated/mfm_animated_wrapper.dart';
 import 'animated/mfm_bounce_widget.dart';
+import 'animated/mfm_jelly_widget.dart';
 import 'animated/mfm_jump_widget.dart';
 import 'animated/mfm_shake_widget.dart';
 import 'animated/mfm_spin_widget.dart';
@@ -58,6 +59,7 @@ class MfmFnHandler {
       // アニメーション系（将来実装）
       case 'tada':
       case 'jelly':
+        return _buildJelly(node, builder);
       case 'twitch':
         return _buildTwitch(node, builder);
       case 'shake':
@@ -304,6 +306,34 @@ class MfmFnHandler {
 
     return WidgetSpan(
       child: MfmTwitchWidget(
+        duration: duration,
+        delay: delay,
+        enabled: builder.config.enableAnimation,
+        child: RichText(
+          text: TextSpan(
+            style: builder.config.baseTextStyle,
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static InlineSpan _buildJelly(FnNode node, MfmNodeBuilder builder) {
+    if (!builder.config.enableAnimation) {
+      return TextSpan(children: builder.buildNodes(node.children));
+    }
+
+    final args = node.args;
+    final duration =
+        MfmAnimatedWrapper.parseTime(args['speed']) ??
+        const Duration(milliseconds: 1000);
+    final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
+
+    final children = builder.buildNodes(node.children);
+
+    return WidgetSpan(
+      child: MfmJellyWidget(
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
