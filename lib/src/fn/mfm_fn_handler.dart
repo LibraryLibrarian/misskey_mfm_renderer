@@ -13,6 +13,7 @@ import 'animated/mfm_jelly_widget.dart';
 import 'animated/mfm_jump_widget.dart';
 import 'animated/mfm_rainbow_widget.dart';
 import 'animated/mfm_shake_widget.dart';
+import 'animated/mfm_sparkle_widget.dart';
 import 'animated/mfm_spin_widget.dart';
 import 'animated/mfm_tada_widget.dart';
 import 'animated/mfm_twitch_widget.dart';
@@ -76,7 +77,7 @@ class MfmFnHandler {
       case 'rainbow':
         return _buildRainbow(node, builder);
       case 'sparkle':
-        return _buildAnimatedPlaceholder(node, builder);
+        return _buildSparkle(node, builder);
 
       default:
         // 未知のfn関数は子要素をそのまま表示
@@ -279,6 +280,22 @@ class MfmFnHandler {
       child: MfmRainbowWidget(
         duration: duration,
         delay: delay,
+        enabled: builder.config.enableAnimation,
+        child: RichText(
+          text: TextSpan(
+            style: builder.config.baseTextStyle,
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static InlineSpan _buildSparkle(FnNode node, MfmNodeBuilder builder) {
+    final children = builder.buildNodes(node.children);
+
+    return WidgetSpan(
+      child: MfmSparkleWidget(
         enabled: builder.config.enableAnimation,
         child: RichText(
           text: TextSpan(
@@ -803,15 +820,6 @@ class MfmFnHandler {
   static String _formatUnixTime(DateTime dateTime) {
     // timeagoを使用して相対時間表示
     return timeago.format(dateTime);
-  }
-
-  static InlineSpan _buildAnimatedPlaceholder(
-    FnNode node,
-    MfmNodeBuilder builder,
-  ) {
-    // アニメーションfn関数は将来実装
-    // 現時点では子要素をそのまま表示
-    return TextSpan(children: builder.buildNodes(node.children));
   }
 }
 
