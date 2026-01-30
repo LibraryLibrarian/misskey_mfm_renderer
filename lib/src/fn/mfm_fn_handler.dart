@@ -11,6 +11,7 @@ import 'animated/mfm_animated_wrapper.dart';
 import 'animated/mfm_bounce_widget.dart';
 import 'animated/mfm_jelly_widget.dart';
 import 'animated/mfm_jump_widget.dart';
+import 'animated/mfm_rainbow_widget.dart';
 import 'animated/mfm_shake_widget.dart';
 import 'animated/mfm_spin_widget.dart';
 import 'animated/mfm_tada_widget.dart';
@@ -73,6 +74,7 @@ class MfmFnHandler {
       case 'bounce':
         return _buildBounce(node, builder);
       case 'rainbow':
+        return _buildRainbow(node, builder);
       case 'sparkle':
         return _buildAnimatedPlaceholder(node, builder);
 
@@ -252,6 +254,29 @@ class MfmFnHandler {
 
     return WidgetSpan(
       child: MfmBounceWidget(
+        duration: duration,
+        delay: delay,
+        enabled: builder.config.enableAnimation,
+        child: RichText(
+          text: TextSpan(
+            style: builder.config.baseTextStyle,
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static InlineSpan _buildRainbow(FnNode node, MfmNodeBuilder builder) {
+    final args = node.args;
+    final duration =
+        MfmAnimatedWrapper.parseTime(args['speed']) ??
+        const Duration(milliseconds: 1000);
+    final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
+    final children = builder.buildNodes(node.children);
+
+    return WidgetSpan(
+      child: MfmRainbowWidget(
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
