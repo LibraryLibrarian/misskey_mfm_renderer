@@ -13,6 +13,7 @@ class MfmRenderConfig {
     this.onMentionTap,
     this.onHashtagTap,
     this.onSearchTap,
+    this.onClickableEvent,
     this.fontFamilyResolver,
   });
 
@@ -50,6 +51,10 @@ class MfmRenderConfig {
   /// 検索タップ時のコールバック
   final void Function(String query)? onSearchTap;
 
+  /// clickable fn関数のイベントコールバック
+  /// eventIdにはclickable.ev引数の値が渡される
+  final void Function(String eventId)? onClickableEvent;
+
   /// フォントファミリー名を解決するカスタムリゾルバー
   /// nullの場合はデフォルトのプラットフォーム固有フォントを使用
   ///
@@ -85,6 +90,7 @@ class MfmRenderConfig {
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
     void Function(String query)? onSearchTap,
+    void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
   }) {
     return MfmRenderConfig(
@@ -98,6 +104,7 @@ class MfmRenderConfig {
       onMentionTap: onMentionTap ?? this.onMentionTap,
       onHashtagTap: onHashtagTap ?? this.onHashtagTap,
       onSearchTap: onSearchTap ?? this.onSearchTap,
+      onClickableEvent: onClickableEvent ?? this.onClickableEvent,
       fontFamilyResolver: fontFamilyResolver ?? this.fontFamilyResolver,
     );
   }

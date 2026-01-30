@@ -58,6 +58,8 @@ class MfmFnHandler {
         return _buildRuby(node, builder);
       case 'unixtime':
         return _buildUnixtime(node, builder);
+      case 'clickable':
+        return _buildClickable(node, builder);
 
       // アニメーション系（将来実装）
       case 'tada':
@@ -796,6 +798,40 @@ class MfmFnHandler {
             const SizedBox(width: 4),
             Text(formattedTime, style: textStyle),
           ],
+        ),
+      ),
+    );
+  }
+
+  static InlineSpan _buildClickable(FnNode node, MfmNodeBuilder builder) {
+    final args = node.args;
+    final children = builder.buildNodes(node.children);
+
+    // ev引数を取得（デフォルトは空文字）
+    var eventId = '';
+    if (args.containsKey('ev')) {
+      final evValue = args['ev'];
+      if (evValue is String) {
+        eventId = evValue;
+      }
+    }
+
+    final onClickableEvent = builder.config.onClickableEvent;
+    if (onClickableEvent == null) {
+      return TextSpan(children: children);
+    }
+
+    return WidgetSpan(
+      child: GestureDetector(
+        onTap: () {
+          onClickableEvent(eventId);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: RichText(
+          text: TextSpan(
+            style: builder.config.baseTextStyle,
+            children: children,
+          ),
         ),
       ),
     );
