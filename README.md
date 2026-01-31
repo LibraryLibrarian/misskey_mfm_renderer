@@ -49,7 +49,7 @@ A Flutter widget library for rendering Misskey MFM (Misskey Flavored Markdown) c
 | | border | `$[border.color=0000ff text]` | ✅ |
 | | font | `$[font.serif text]` | ✅ |
 | **Special** | blur | `$[blur text]` | ✅ |
-| | ruby | `$[ruby.furigana kanji]` | ✅ |
+| | ruby | `$[ruby kanji furigana]` | ✅ |
 | | unixtime | `$[unixtime 1234567890]` | ✅ |
 | **Animation** | tada, jelly, twitch, shake, spin, jump, bounce, rainbow, sparkle | - | 🚧 |
 
@@ -299,7 +299,7 @@ Misskey MFM (Misskey Flavored Markdown) をレンダリングするためのFlut
 | | border | `$[border.color=0000ff text]` | ✅ |
 | | font | `$[font.serif text]` | ✅ |
 | **特殊** | blur | `$[blur text]` | ✅ |
-| | ruby | `$[ruby.ふりがな 漢字]` | ✅ |
+| | ruby | `$[ruby 漢字 ふりがな]` | ✅ |
 | | unixtime | `$[unixtime 1234567890]` | ✅ |
 | **アニメーション** | tada, jelly, twitch, shake, spin, jump, bounce, rainbow, sparkle | - | 🚧 |
 

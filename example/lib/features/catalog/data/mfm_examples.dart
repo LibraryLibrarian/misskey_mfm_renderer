@@ -227,8 +227,8 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Ruby',
-          syntax: r'$[ruby.振り仮名 漢字]',
-          mfm: r'$[ruby.かんじ 漢字]',
+          syntax: r'$[ruby 漢字 振り仮名]',
+          mfm: r'$[ruby 漢字 かんじ]',
         ),
       ],
     ),

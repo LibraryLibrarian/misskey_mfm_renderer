@@ -527,12 +527,12 @@ void main() {
 
   group('MfmText fn ruby関数', () {
     testWidgets('rubyでルビテキストを上に表示できる', (tester) async {
-      // 正しい構造を確保するためにパース済みノードを直接使用
+      // 正しいruby構文: $[ruby ベーステキスト ルビテキスト]
       final nodes = [
         const FnNode(
           name: 'ruby',
-          args: {'ふりがな': true},
-          children: [TextNode('振り仮名')],
+          args: {},
+          children: [TextNode('振り仮名 ふりがな')],
         ),
       ];
 
@@ -546,6 +546,10 @@ void main() {
 
       // rubyは2つのTextウィジェットを持つColumnを使用
       expect(find.byType(Column), findsWidgets);
+
+      // ベーステキストとルビテキストが表示されることを確認
+      expect(find.text('振り仮名'), findsOneWidget);
+      expect(find.text('ふりがな'), findsOneWidget);
     });
   });
 

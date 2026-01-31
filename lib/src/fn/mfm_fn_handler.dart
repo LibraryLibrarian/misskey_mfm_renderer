@@ -708,20 +708,28 @@ class MfmFnHandler {
   }
 
   static InlineSpan _buildRuby(FnNode node, MfmNodeBuilder builder) {
-    final args = node.args;
-    final children = builder.buildNodes(node.children);
-
-    // 引数からルビテキストを取得（値なし引数を優先）
+    // ruby構文: $[ruby ベーステキスト ルビテキスト]
+    // 子ノードからテキストを取得、スペースで分割する
+    String? baseText;
     String? rubyText;
-    for (final entry in args.entries) {
-      final value = entry.value;
-      if (value == true || value == null) {
-        rubyText = entry.key;
+
+    // 最初のTextNodeからテキストを取得
+    for (final child in node.children) {
+      if (child is TextNode) {
+        final parts = child.text.split(' ');
+        if (parts.length >= 2) {
+          baseText = parts[0];
+          rubyText = parts.sublist(1).join(' ');
+        } else if (parts.length == 1) {
+          baseText = parts[0];
+        }
         break;
       }
     }
 
-    if (rubyText == null) {
+    // ベーステキストまたはルビテキストがない場合は通常のテキストとして表示
+    if (baseText == null || rubyText == null || rubyText.isEmpty) {
+      final children = builder.buildNodes(node.children);
       return TextSpan(children: children);
     }
 
@@ -742,11 +750,9 @@ class MfmFnHandler {
             rubyText,
             style: rubyStyle,
           ),
-          RichText(
-            text: TextSpan(
-              style: baseStyle,
-              children: children,
-            ),
+          Text(
+            baseText,
+            style: baseStyle,
           ),
         ],
       ),
