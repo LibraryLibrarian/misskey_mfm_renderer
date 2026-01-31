@@ -37,8 +37,13 @@ class MfmText extends StatelessWidget {
     // ノードを取得（パース済みがあればそれを使用、なければパース）
     final nodes = parsedNodes ?? _parseText();
 
+    // baseTextStyleが未設定の場合はDefaultTextStyleから取得
+    final effectiveConfig = config.baseTextStyle == null
+        ? config.copyWith(baseTextStyle: DefaultTextStyle.of(context).style)
+        : config;
+
     // ビルダーを作成
-    final builder = MfmNodeBuilder(config: config);
+    final builder = MfmNodeBuilder(config: effectiveConfig);
 
     // ノードをスパンに変換
     final spans = builder.buildNodes(nodes);
@@ -46,7 +51,7 @@ class MfmText extends StatelessWidget {
     // RichTextでレンダリング
     return RichText(
       text: TextSpan(
-        style: config.baseTextStyle ?? DefaultTextStyle.of(context).style,
+        style: effectiveConfig.baseTextStyle,
         children: spans,
       ),
     );

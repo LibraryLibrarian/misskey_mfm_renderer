@@ -735,26 +735,21 @@ class MfmFnHandler {
 
     final baseStyle = builder.config.baseTextStyle;
     final baseFontSize = baseStyle?.fontSize ?? 14.0;
+    final rubyFontSize = baseFontSize * 0.5;
     final rubyStyle = (baseStyle ?? const TextStyle()).copyWith(
-      fontSize: baseFontSize * 0.5,
+      fontSize: rubyFontSize,
       height: 1,
     );
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            rubyText,
-            style: rubyStyle,
-          ),
-          Text(
-            baseText,
-            style: baseStyle,
-          ),
-        ],
+      child: _RubyTextWidget(
+        baseText: baseText,
+        rubyText: rubyText,
+        baseStyle: baseStyle,
+        rubyStyle: rubyStyle,
+        rubyFontSize: rubyFontSize,
       ),
     );
   }
@@ -862,6 +857,176 @@ class MfmFnHandler {
   static String _formatUnixTime(DateTime dateTime) {
     // timeagoを使用して相対時間表示
     return timeago.format(dateTime);
+  }
+}
+
+/// Rubyテキストを表示するカスタムウィジェット
+/// ベーステキストのベースラインを維持しながら、ルビテキストを上に配置
+class _RubyTextWidget extends LeafRenderObjectWidget {
+  const _RubyTextWidget({
+    required this.baseText,
+    required this.rubyText,
+    required this.baseStyle,
+    required this.rubyStyle,
+    required this.rubyFontSize,
+  });
+
+  final String baseText;
+  final String rubyText;
+  final TextStyle? baseStyle;
+  final TextStyle rubyStyle;
+  final double rubyFontSize;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderRubyText(
+      baseText: baseText,
+      rubyText: rubyText,
+      baseStyle: baseStyle,
+      rubyStyle: rubyStyle,
+      rubyFontSize: rubyFontSize,
+    );
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderRubyText renderObject,
+  ) {
+    renderObject
+      ..baseText = baseText
+      ..rubyText = rubyText
+      ..baseStyle = baseStyle
+      ..rubyStyle = rubyStyle
+      ..rubyFontSize = rubyFontSize;
+  }
+}
+
+class _RenderRubyText extends RenderBox {
+  _RenderRubyText({
+    required String baseText,
+    required String rubyText,
+    required TextStyle? baseStyle,
+    required TextStyle rubyStyle,
+    required double rubyFontSize,
+  }) : _baseText = baseText,
+       _rubyText = rubyText,
+       _baseStyle = baseStyle,
+       _rubyStyle = rubyStyle,
+       _rubyFontSize = rubyFontSize;
+
+  String _baseText;
+  String get baseText => _baseText;
+  set baseText(String value) {
+    if (_baseText != value) {
+      _baseText = value;
+      _basePainter = null;
+      markNeedsLayout();
+    }
+  }
+
+  String _rubyText;
+  String get rubyText => _rubyText;
+  set rubyText(String value) {
+    if (_rubyText != value) {
+      _rubyText = value;
+      _rubyPainter = null;
+      markNeedsLayout();
+    }
+  }
+
+  TextStyle? _baseStyle;
+  TextStyle? get baseStyle => _baseStyle;
+  set baseStyle(TextStyle? value) {
+    if (_baseStyle != value) {
+      _baseStyle = value;
+      _basePainter = null;
+      markNeedsLayout();
+    }
+  }
+
+  TextStyle _rubyStyle;
+  TextStyle get rubyStyle => _rubyStyle;
+  set rubyStyle(TextStyle value) {
+    if (_rubyStyle != value) {
+      _rubyStyle = value;
+      _rubyPainter = null;
+      markNeedsLayout();
+    }
+  }
+
+  double _rubyFontSize;
+  double get rubyFontSize => _rubyFontSize;
+  set rubyFontSize(double value) {
+    if (_rubyFontSize != value) {
+      _rubyFontSize = value;
+      markNeedsLayout();
+    }
+  }
+
+  TextPainter? _basePainter;
+  TextPainter? _rubyPainter;
+
+  TextPainter _getBasePainter() {
+    _basePainter ??= TextPainter(
+      text: TextSpan(text: _baseText, style: _baseStyle),
+      textDirection: TextDirection.ltr,
+    );
+    return _basePainter!;
+  }
+
+  TextPainter _getRubyPainter() {
+    _rubyPainter ??= TextPainter(
+      text: TextSpan(text: _rubyText, style: _rubyStyle),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    return _rubyPainter!;
+  }
+
+  @override
+  void performLayout() {
+    final basePainter = _getBasePainter();
+    final rubyPainter = _getRubyPainter();
+
+    // 制約内でレイアウト
+    basePainter.layout(maxWidth: constraints.maxWidth);
+    rubyPainter.layout(maxWidth: constraints.maxWidth);
+
+    final maxWidth = math.max(basePainter.width, rubyPainter.width);
+    final totalHeight = rubyPainter.height + basePainter.height;
+
+    // 制約を考慮してサイズを決定
+    size = constraints.constrain(Size(maxWidth, totalHeight));
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final basePainter = _getBasePainter();
+    final rubyPainter = _getRubyPainter();
+
+    final maxWidth = math.max(basePainter.width, rubyPainter.width);
+
+    // ルビテキストを上部中央に配置
+    final rubyX = offset.dx + (maxWidth - rubyPainter.width) / 2;
+    rubyPainter.paint(context.canvas, Offset(rubyX, offset.dy));
+
+    // ベーステキストをルビの下に中央配置
+    final baseX = offset.dx + (maxWidth - basePainter.width) / 2;
+    final baseY = offset.dy + rubyPainter.height;
+    basePainter.paint(context.canvas, Offset(baseX, baseY));
+  }
+
+  @override
+  double computeDistanceToActualBaseline(TextBaseline baseline) {
+    final basePainter = _getBasePainter();
+    final rubyPainter = _getRubyPainter();
+
+    // ベーステキストのベースラインを計算
+    final baseBaseline = basePainter.computeDistanceToActualBaseline(baseline);
+
+    // ルビテキストの高さを加えた位置がベーステキストのベースライン
+    return rubyPainter.height + baseBaseline;
   }
 }
 

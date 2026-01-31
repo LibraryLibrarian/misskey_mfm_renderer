@@ -51,11 +51,10 @@ class MfmNodeBuilder {
     );
   }
 
-  // === 各ノードタイプのビルドメソッド（初期はプレースホルダー） ===
-
   InlineSpan _buildText(TextNode node) {
-    final style = config.baseTextStyle;
-    return TextSpan(text: node.text, style: style);
+    // styleをnullにして親のスタイルを継承
+    // ルートのTextSpanでbaseTextStyleが設定されているため、ここで再設定する必要はない
+    return TextSpan(text: node.text);
   }
 
   InlineSpan _buildBold(BoldNode node) {
@@ -85,12 +84,12 @@ class MfmNodeBuilder {
   InlineSpan _buildSmall(SmallNode node) {
     final children = buildNodes(node.children);
     final baseFontSize = config.baseTextStyle?.fontSize ?? 14;
-    final baseColor = config.baseTextStyle?.color ?? const Color(0xFF000000);
+    final baseColor = config.baseTextStyle?.color;
 
     return TextSpan(
       style: TextStyle(
         fontSize: baseFontSize * 0.8,
-        color: baseColor.withValues(alpha: 0.7),
+        color: baseColor?.withValues(alpha: 0.7),
       ),
       children: children,
     );
@@ -98,7 +97,7 @@ class MfmNodeBuilder {
 
   InlineSpan _buildQuote(QuoteNode node) {
     final children = buildNodes(node.children);
-    final baseColor = config.baseTextStyle?.color ?? const Color(0xFF000000);
+    final baseColor = config.baseTextStyle?.color;
 
     return WidgetSpan(
       child: Container(
@@ -114,7 +113,10 @@ class MfmNodeBuilder {
         ),
         child: RichText(
           text: TextSpan(
-            style: TextStyle(color: baseColor.withValues(alpha: 0.7)),
+            // baseTextStyleをベースにしてcolorのみ上書き
+            style: config.baseTextStyle?.copyWith(
+              color: baseColor?.withValues(alpha: 0.7),
+            ),
             children: children,
           ),
         ),
