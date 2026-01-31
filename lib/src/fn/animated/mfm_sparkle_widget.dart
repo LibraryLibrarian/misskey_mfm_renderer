@@ -46,6 +46,7 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
   Timer? _spawnTimer;
   late final AnimationController _ticker;
   Size _paintBounds = Size.zero;
+  final _childKey = GlobalKey();
 
   static const _colors = <Color>[
     Color(0xFFFF1493),
@@ -63,8 +64,13 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
       vsync: this,
     );
     if (widget.enabled) {
-      _startTicker();
-      _scheduleNextParticle();
+      // レンダリング後にサイズを取得してアニメーションを開始
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _updatePaintBounds();
+        _startTicker();
+        _scheduleNextParticle();
+      });
     }
   }
 
@@ -76,8 +82,13 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
     }
 
     if (widget.enabled) {
-      _startTicker();
-      _scheduleNextParticle();
+      // レンダリング後にサイズを取得してアニメーションを開始
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _updatePaintBounds();
+        _startTicker();
+        _scheduleNextParticle();
+      });
     } else {
       _stopTicker();
       _clearParticles();
@@ -117,6 +128,9 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
   }
 
   void _addParticle() {
+    // 最新のサイズを取得
+    _updatePaintBounds();
+    
     if (_paintBounds.width <= 0 || _paintBounds.height <= 0) {
       return;
     }
@@ -152,13 +166,15 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
     });
   }
 
-  void _updatePaintBounds(BoxConstraints constraints) {
-    final width = constraints.hasBoundedWidth ? constraints.maxWidth : 0.0;
-    final height = constraints.hasBoundedHeight ? constraints.maxHeight : 0.0;
-    _paintBounds = Size(
-      width + _paintPadding * 2,
-      height + _paintPadding * 2,
-    );
+  void _updatePaintBounds() {
+    final renderBox = _childKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null && renderBox.hasSize) {
+      final childSize = renderBox.size;
+      _paintBounds = Size(
+        childSize.width + _paintPadding * 2,
+        childSize.height + _paintPadding * 2,
+      );
+    }
   }
 
   @override
@@ -174,35 +190,34 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
       return widget.child;
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _updatePaintBounds(constraints);
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            widget.child,
-            Positioned(
-              left: -_paintPadding,
-              top: -_paintPadding,
-              right: -_paintPadding,
-              bottom: -_paintPadding,
-              child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _ticker,
-                  builder: (context, _) {
-                    return CustomPaint(
-                      painter: _SparklePainter(
-                        particles: _particles,
-                        now: DateTime.now(),
-                      ),
-                    );
-                  },
-                ),
-              ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // 子要素にGlobalKeyを割り当てる
+        Container(
+          key: _childKey,
+          child: widget.child,
+        ),
+        Positioned(
+          left: -_paintPadding,
+          top: -_paintPadding,
+          right: -_paintPadding,
+          bottom: -_paintPadding,
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _ticker,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: _SparklePainter(
+                    particles: _particles,
+                    now: DateTime.now(),
+                  ),
+                );
+              },
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 }

@@ -357,6 +357,18 @@ class MfmExamples {
           description: 'スパークルエフェクト',
         ),
         MfmExample(
+          name: 'Sparkle (短いテキスト)',
+          syntax: r'$[sparkle text]',
+          mfm: r'通常のテキスト紛れて $[sparkle ここだけ] 反映がされる',
+          description: 'エフェクトを特定のテキスト周辺のみに適用',
+        ),
+        MfmExample(
+          name: 'Sparkle (長いテキスト)',
+          syntax: r'$[sparkle text]',
+          mfm: r'$[sparkle 長めのテキストでsparkleエフェクトの範囲を確認するためのサンプル]',
+          description: '長めのテキストに対して全体にまんべんなくエフェクトが適用',
+        ),
+        MfmExample(
           name: 'アニメーション遅延',
           syntax: r'$[spin.delay=1s text]',
           mfm: r'$[spin.delay=1s 1秒後に回転]',
