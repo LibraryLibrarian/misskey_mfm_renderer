@@ -233,6 +233,138 @@ class MfmExamples {
       ],
     ),
 
+    // fn関数 - アニメーション
+    MfmCategory(
+      title: 'fn関数 - アニメーション',
+      examples: [
+        MfmExample(
+          name: 'Spin (Z軸)',
+          syntax: r'$[spin text]',
+          mfm: r'$[spin 回転]',
+          description: '通常のZ軸回転',
+        ),
+        MfmExample(
+          name: 'Spin (X軸)',
+          syntax: r'$[spin.x text]',
+          mfm: r'$[spin.x X軸回転]',
+          description: '3D X軸回転',
+        ),
+        MfmExample(
+          name: 'Spin (Y軸)',
+          syntax: r'$[spin.y text]',
+          mfm: r'$[spin.y Y軸回転]',
+          description: '3D Y軸回転',
+        ),
+        MfmExample(
+          name: 'Spin (逆回転)',
+          syntax: r'$[spin.left text]',
+          mfm: r'$[spin.left 左回り]',
+          description: '逆方向に回転',
+        ),
+        MfmExample(
+          name: 'Spin (往復)',
+          syntax: r'$[spin.alternate text]',
+          mfm: r'$[spin.alternate 往復回転]',
+          description: '往復で回転',
+        ),
+        MfmExample(
+          name: 'Spin (速度調整)',
+          syntax: r'$[spin.speed=0.5s text]',
+          mfm: r'$[spin.speed=0.5s 高速回転]',
+          description: 'アニメーション速度を指定',
+        ),
+        MfmExample(
+          name: 'Jump',
+          syntax: r'$[jump text]',
+          mfm: r'$[jump ジャンプ!]',
+          description: '跳ねるアニメーション',
+        ),
+        MfmExample(
+          name: 'Jump (速度調整)',
+          syntax: r'$[jump.speed=0.5s text]',
+          mfm: r'$[jump.speed=0.5s 速くジャンプ!]',
+        ),
+        MfmExample(
+          name: 'Bounce',
+          syntax: r'$[bounce text]',
+          mfm: r'$[bounce バウンス]',
+          description: '弾むアニメーション',
+        ),
+        MfmExample(
+          name: 'Bounce (速度調整)',
+          syntax: r'$[bounce.speed=0.5s text]',
+          mfm: r'$[bounce.speed=0.5s 速くバウンス]',
+        ),
+        MfmExample(
+          name: 'Shake',
+          syntax: r'$[shake text]',
+          mfm: r'$[shake ガタガタ]',
+          description: '震えるアニメーション',
+        ),
+        MfmExample(
+          name: 'Shake (速度調整)',
+          syntax: r'$[shake.speed=0.3s text]',
+          mfm: r'$[shake.speed=0.3s 激しく震える]',
+        ),
+        MfmExample(
+          name: 'Twitch',
+          syntax: r'$[twitch text]',
+          mfm: r'$[twitch ビクビク]',
+          description: 'ランダムに動くアニメーション',
+        ),
+        MfmExample(
+          name: 'Twitch (速度調整)',
+          syntax: r'$[twitch.speed=0.3s text]',
+          mfm: r'$[twitch.speed=0.3s 激しく動く]',
+        ),
+        MfmExample(
+          name: 'Jelly',
+          syntax: r'$[jelly text]',
+          mfm: r'$[jelly ぷるぷる]',
+          description: 'ゼリーのように揺れる',
+        ),
+        MfmExample(
+          name: 'Jelly (速度調整)',
+          syntax: r'$[jelly.speed=0.5s text]',
+          mfm: r'$[jelly.speed=0.5s 速く揺れる]',
+        ),
+        MfmExample(
+          name: 'Tada',
+          syntax: r'$[tada text]',
+          mfm: r'$[tada じゃーん!]',
+          description: '150%サイズで揺れるアニメーション',
+        ),
+        MfmExample(
+          name: 'Tada (速度調整)',
+          syntax: r'$[tada.speed=0.5s text]',
+          mfm: r'$[tada.speed=0.5s 速くじゃーん!]',
+        ),
+        MfmExample(
+          name: 'Rainbow',
+          syntax: r'$[rainbow text]',
+          mfm: r'$[rainbow 虹色]',
+          description: 'レインボーカラーアニメーション',
+        ),
+        MfmExample(
+          name: 'Rainbow (速度調整)',
+          syntax: r'$[rainbow.speed=0.5s text]',
+          mfm: r'$[rainbow.speed=0.5s 速く虹色]',
+        ),
+        MfmExample(
+          name: 'Sparkle',
+          syntax: r'$[sparkle text]',
+          mfm: r'$[sparkle ✨キラキラ✨]',
+          description: 'スパークルエフェクト',
+        ),
+        MfmExample(
+          name: 'アニメーション遅延',
+          syntax: r'$[spin.delay=1s text]',
+          mfm: r'$[spin.delay=1s 1秒後に回転]',
+          description: 'アニメーション開始を遅延',
+        ),
+      ],
+    ),
+
     // 組み合わせ
     MfmCategory(
       title: '組み合わせ例',
