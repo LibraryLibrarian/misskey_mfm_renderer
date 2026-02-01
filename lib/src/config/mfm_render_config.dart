@@ -15,6 +15,10 @@ class MfmRenderConfig {
     this.onSearchTap,
     this.onClickableEvent,
     this.fontFamilyResolver,
+    this.codeTheme,
+    this.codeDarkTheme,
+    this.brightness,
+    this.showCodeBlockCopyButton,
   });
 
   /// ベースのテキストスタイル（指定しない場合はデフォルトを使用）
@@ -78,6 +82,21 @@ class MfmRenderConfig {
   /// ```
   final String? Function(String fontType)? fontFamilyResolver;
 
+  /// コードブロックのシンタックスハイライトテーマ（ライトモード）
+  /// nullの場合はデフォルトのgithubテーマを使用
+  final Map<String, TextStyle>? codeTheme;
+
+  /// コードブロックのシンタックスハイライトテーマ（ダークモード）
+  /// nullの場合はcodeThemeを使用、それもnullならgithub-darkテーマを使用
+  final Map<String, TextStyle>? codeDarkTheme;
+
+  /// 現在のテーマモード（内部使用、MfmTextが自動設定）
+  final Brightness? brightness;
+
+  /// コードブロックのコピーボタンを表示するか
+  /// デフォルトはtrue
+  final bool? showCodeBlockCopyButton;
+
   /// 設定をコピーして新しいインスタンスを作成
   MfmRenderConfig copyWith({
     TextStyle? baseTextStyle,
@@ -92,6 +111,10 @@ class MfmRenderConfig {
     void Function(String query)? onSearchTap,
     void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
+    Map<String, TextStyle>? codeTheme,
+    Map<String, TextStyle>? codeDarkTheme,
+    Brightness? brightness,
+    bool? showCodeBlockCopyButton,
   }) {
     return MfmRenderConfig(
       baseTextStyle: baseTextStyle ?? this.baseTextStyle,
@@ -106,6 +129,10 @@ class MfmRenderConfig {
       onSearchTap: onSearchTap ?? this.onSearchTap,
       onClickableEvent: onClickableEvent ?? this.onClickableEvent,
       fontFamilyResolver: fontFamilyResolver ?? this.fontFamilyResolver,
+      codeTheme: codeTheme ?? this.codeTheme,
+      codeDarkTheme: codeDarkTheme ?? this.codeDarkTheme,
+      brightness: brightness ?? this.brightness,
+      showCodeBlockCopyButton: showCodeBlockCopyButton ?? this.showCodeBlockCopyButton,
     );
   }
 }

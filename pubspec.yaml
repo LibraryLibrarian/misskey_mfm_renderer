@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_highlight: ^0.7.0
   misskey_mfm_parser: ^2.0.0
   timeago: ^3.7.1
 
