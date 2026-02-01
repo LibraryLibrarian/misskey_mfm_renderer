@@ -37,10 +37,18 @@ class MfmText extends StatelessWidget {
     // ノードを取得（パース済みがあればそれを使用、なければパース）
     final nodes = parsedNodes ?? _parseText();
 
-    // baseTextStyleが未設定の場合はDefaultTextStyleから取得
-    final effectiveConfig = config.baseTextStyle == null
-        ? config.copyWith(baseTextStyle: DefaultTextStyle.of(context).style)
-        : config;
+    // brightnessを判定
+    final brightness = MediaQuery.platformBrightnessOf(context);
+
+    // baseTextStyleとbrightnessを設定
+    final effectiveConfig =
+        config.baseTextStyle == null || config.brightness == null
+            ? config.copyWith(
+                baseTextStyle:
+                    config.baseTextStyle ?? DefaultTextStyle.of(context).style,
+                brightness: brightness,
+              )
+            : config;
 
     // ビルダーを作成
     final builder = MfmNodeBuilder(config: effectiveConfig);

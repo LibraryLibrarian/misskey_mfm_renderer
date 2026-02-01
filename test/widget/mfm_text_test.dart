@@ -1,8 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_highlight/themes/dracula.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
 
 void main() {
   group('MfmText 基本機能', () {
@@ -355,7 +357,80 @@ void main() {
         ),
       );
 
-      expect(find.text('code block'), findsOneWidget);
+      expect(find.byType(MfmCodeBlock), findsOneWidget);
+      final codeBlock = tester.widget<MfmCodeBlock>(find.byType(MfmCodeBlock));
+      expect(codeBlock.code, 'code block');
+    });
+
+    testWidgets('コードブロックが言語指定付きでシンタックスハイライトされる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: '```dart\nvoid main() {}\n```'),
+          ),
+        ),
+      );
+
+      expect(find.byType(MfmCodeBlock), findsOneWidget);
+      final codeBlock = tester.widget<MfmCodeBlock>(find.byType(MfmCodeBlock));
+      expect(codeBlock.code, 'void main() {}');
+      expect(codeBlock.language, 'dart');
+    });
+
+    testWidgets('言語指定なしのコードブロックがプレーンテキストで表示される', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: '```\nplain text code\n```'),
+          ),
+        ),
+      );
+
+      expect(find.byType(MfmCodeBlock), findsOneWidget);
+      final codeBlock = tester.widget<MfmCodeBlock>(find.byType(MfmCodeBlock));
+      expect(codeBlock.code, 'plain text code');
+      expect(codeBlock.language, isNull);
+    });
+
+    testWidgets('カスタムコードテーマが適用される', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '```dart\nvar x = 1;\n```',
+              config: MfmRenderConfig(
+                codeTheme: draculaTheme,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final codeBlock = tester.widget<MfmCodeBlock>(find.byType(MfmCodeBlock));
+      expect(codeBlock.theme, draculaTheme);
+    });
+
+    testWidgets('コピーボタンの表示/非表示が制御できる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '```dart\ncode\n```',
+              config: MfmRenderConfig(
+                showCodeBlockCopyButton: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(MfmCodeBlock),
+          matching: find.byType(IconButton),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('数式ブロックを数式付きでレンダリングできる', (tester) async {

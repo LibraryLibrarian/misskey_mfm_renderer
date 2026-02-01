@@ -46,7 +46,7 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
   Timer? _spawnTimer;
   late final AnimationController _ticker;
   Size _paintBounds = Size.zero;
-  final _childKey = GlobalKey();
+  final GlobalKey<State<StatefulWidget>> _childKey = GlobalKey();
 
   static const _colors = <Color>[
     Color(0xFFFF1493),
