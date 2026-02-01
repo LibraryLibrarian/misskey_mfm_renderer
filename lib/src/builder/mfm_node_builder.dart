@@ -1,9 +1,12 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_highlight/themes/atom-one-dark.dart';
+import 'package:flutter_highlight/themes/github.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 
 import '../config/mfm_render_config.dart';
 import '../fn/mfm_fn_handler.dart';
+import '../widgets/mfm_code_block.dart';
 
 /// MfmNodeをWidgetに変換するビルダー
 class MfmNodeBuilder {
@@ -142,21 +145,11 @@ class MfmNodeBuilder {
 
   InlineSpan _buildBlockCode(CodeBlockNode node) {
     return WidgetSpan(
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          node.code,
-          style: const TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 13,
-          ),
-        ),
+      child: MfmCodeBlock(
+        code: node.code,
+        language: node.language,
+        theme: _getCodeTheme(),
+        showCopyButton: config.showCodeBlockCopyButton ?? true,
       ),
     );
   }
@@ -359,5 +352,18 @@ class MfmNodeBuilder {
 
   InlineSpan _buildFn(FnNode node) {
     return MfmFnHandler.build(node, this);
+  }
+
+  /// 現在のテーマモードに応じて適切なコードハイライトテーマを返す
+  Map<String, TextStyle> _getCodeTheme() {
+    final brightness = config.brightness;
+
+    if (brightness == Brightness.dark) {
+      // ダークモード
+      return config.codeDarkTheme ?? config.codeTheme ?? atomOneDarkTheme;
+    } else {
+      // ライトモード
+      return config.codeTheme ?? githubTheme;
+    }
   }
 }

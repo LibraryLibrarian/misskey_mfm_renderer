@@ -132,7 +132,8 @@ class MfmRenderConfig {
       codeTheme: codeTheme ?? this.codeTheme,
       codeDarkTheme: codeDarkTheme ?? this.codeDarkTheme,
       brightness: brightness ?? this.brightness,
-      showCodeBlockCopyButton: showCodeBlockCopyButton ?? this.showCodeBlockCopyButton,
+      showCodeBlockCopyButton:
+          showCodeBlockCopyButton ?? this.showCodeBlockCopyButton,
     );
   }
 }

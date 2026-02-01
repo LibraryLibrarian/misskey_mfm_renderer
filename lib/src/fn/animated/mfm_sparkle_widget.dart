@@ -130,7 +130,7 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
   void _addParticle() {
     // 最新のサイズを取得
     _updatePaintBounds();
-    
+
     if (_paintBounds.width <= 0 || _paintBounds.height <= 0) {
       return;
     }
@@ -167,7 +167,8 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
   }
 
   void _updatePaintBounds() {
-    final renderBox = _childKey.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox =
+        _childKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox != null && renderBox.hasSize) {
       final childSize = renderBox.size;
       _paintBounds = Size(
