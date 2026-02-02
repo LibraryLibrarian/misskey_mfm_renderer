@@ -83,6 +83,77 @@ class MfmExamples {
           mfm: '```dart\nvoid main() {\n  print("Hello");\n}\n```',
         ),
         MfmExample(
+          name: 'Code Block (JavaScript)',
+          syntax: '```javascript\ncode\n```',
+          mfm:
+              '```javascript\n'
+              'function hello() {\n'
+              '  console.log("Hello, World!");\n'
+              '  return true;\n'
+              '}\n'
+              '```',
+          description: 'JavaScript コードのシンタックスハイライト',
+        ),
+        MfmExample(
+          name: 'Code Block (Python)',
+          syntax: '```python\ncode\n```',
+          mfm:
+              '```python\n'
+              'def greet(name):\n'
+              '    print(f"Hello, {name}!")\n'
+              '\n'
+              'greet("World")\n'
+              '```',
+          description: 'Python コードのシンタックスハイライト',
+        ),
+        MfmExample(
+          name: 'Code Block (JSON)',
+          syntax: '```json\ncode\n```',
+          mfm:
+              '```json\n'
+              '{\n'
+              '  "name": "misskey",\n'
+              '  "version": "1.0.0",\n'
+              '  "features": ["mfm", "notes"]\n'
+              '}\n'
+              '```',
+          description: 'JSON のシンタックスハイライト',
+        ),
+        MfmExample(
+          name: 'Code Block (Dart)',
+          syntax: '```dart\ncode\n```',
+          mfm:
+              '```dart\n'
+              'List<MfmNode> _parseText() {\n'
+              '  final source = text;\n'
+              '  if (source == null || source.isEmpty) {\n'
+              '    return [];\n'
+              '  }\n'
+              '\n'
+              '  final parser = simple ? MfmParser().buildSimple() : '
+              'MfmParser().build();\n'
+              '  final result = parser.parse(source);\n'
+              '  try {\n'
+              '    return result.value;\n'
+              '  } on FormatException {\n'
+              '    // パース失敗時はプレーンテキストとして返す\n'
+              '    return [TextNode(source)];\n'
+              '  }\n'
+              '}\n'
+              '```',
+          description: '既存コードの抜粋（Dart）',
+        ),
+        MfmExample(
+          name: 'Code Block (言語指定なし)',
+          syntax: '```\ncode\n```',
+          mfm:
+              '```\n'
+              'This is plain text code\n'
+              'without any language specification.\n'
+              '```',
+          description: '言語指定なしの場合はプレーンテキスト表示',
+        ),
+        MfmExample(
           name: 'Inline Code',
           syntax: '`code`',
           mfm: 'インライン`コード`の例',
