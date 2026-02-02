@@ -60,6 +60,11 @@ class MfmExamples {
           syntax: '<small>text</small>',
           mfm: '<small>小さいテキスト</small>',
         ),
+        MfmExample(
+          name: 'Center',
+          syntax: '<center>text</center>',
+          mfm: '<center>中央揃え</center>',
+        ),
       ],
     ),
 
@@ -71,11 +76,6 @@ class MfmExamples {
           name: 'Quote',
           syntax: '> text',
           mfm: '> 引用テキスト',
-        ),
-        MfmExample(
-          name: 'Center',
-          syntax: '<center>text</center>',
-          mfm: '<center>中央揃え</center>',
         ),
         MfmExample(
           name: 'Code Block',

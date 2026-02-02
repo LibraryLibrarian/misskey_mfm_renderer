@@ -991,7 +991,9 @@ $[spin 10] $[jump 11] $[bounce 12] $[shake 13]
           home: Scaffold(
             body: MfmText(
               text:
-                  r'$[spin.delay=0s A] $[jump.delay=0.1s B] $[bounce.delay=0.2s C]',
+                  r'$[spin.delay=0s A] '
+                  r'$[jump.delay=0.1s B] '
+                  r'$[bounce.delay=0.2s C]',
             ),
           ),
         ),
