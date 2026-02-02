@@ -155,20 +155,29 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildInlineCode(InlineCodeNode node) {
+    // 親のテキスト色を取得
+    final textColor = config.baseTextStyle?.color;
+
+    // 背景色を取得（Misskey本家に準拠した色をデフォルトとして使用）
+    final backgroundColor = config.brightness == Brightness.dark
+        ? (config.inlineCodeBgColorDark ?? const Color(0xFF121212))
+        : (config.inlineCodeBgColorLight ?? const Color(0xFFF5F5F5));
+
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
-          color: const Color(0xFFE8E8E8),
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(3),
         ),
         child: Text(
           node.code,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 13,
+            color: textColor,
           ),
         ),
       ),
@@ -176,20 +185,29 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildMathBlock(MathBlockNode node) {
+    // 親のテキスト色を取得
+    final textColor = config.baseTextStyle?.color;
+
+    // 背景色を取得（Misskey本家に準拠した色をデフォルトとして使用）
+    final backgroundColor = config.brightness == Brightness.dark
+        ? (config.inlineCodeBgColorDark ?? const Color(0xFF121212))
+        : (config.inlineCodeBgColorLight ?? const Color(0xFFF5F5F5));
+
     return WidgetSpan(
       child: Container(
         width: double.infinity,
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF0F0F0),
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           node.formula,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 14,
+            color: textColor,
           ),
           textAlign: TextAlign.center,
         ),
@@ -198,6 +216,9 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildMathInline(MathInlineNode node) {
+    // 親のテキスト色を取得
+    final textColor = config.baseTextStyle?.color;
+
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
@@ -205,9 +226,10 @@ class MfmNodeBuilder {
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: Text(
           node.formula,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 14,
+            color: textColor,
           ),
         ),
       ),

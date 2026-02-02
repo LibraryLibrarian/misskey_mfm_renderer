@@ -19,6 +19,8 @@ class MfmRenderConfig {
     this.codeDarkTheme,
     this.brightness,
     this.showCodeBlockCopyButton,
+    this.inlineCodeBgColorLight,
+    this.inlineCodeBgColorDark,
   });
 
   /// ベースのテキストスタイル（指定しない場合はデフォルトを使用）
@@ -97,6 +99,14 @@ class MfmRenderConfig {
   /// デフォルトはtrue
   final bool? showCodeBlockCopyButton;
 
+  /// インラインコード・数式の背景色（ライトモード）
+  /// nullの場合は #F5F5F5 を使用（Misskey本家に準拠）
+  final Color? inlineCodeBgColorLight;
+
+  /// インラインコード・数式の背景色（ダークモード）
+  /// nullの場合は #121212 を使用（Misskey本家に準拠）
+  final Color? inlineCodeBgColorDark;
+
   /// 設定をコピーして新しいインスタンスを作成
   MfmRenderConfig copyWith({
     TextStyle? baseTextStyle,
@@ -115,6 +125,8 @@ class MfmRenderConfig {
     Map<String, TextStyle>? codeDarkTheme,
     Brightness? brightness,
     bool? showCodeBlockCopyButton,
+    Color? inlineCodeBgColorLight,
+    Color? inlineCodeBgColorDark,
   }) {
     return MfmRenderConfig(
       baseTextStyle: baseTextStyle ?? this.baseTextStyle,
@@ -134,6 +146,10 @@ class MfmRenderConfig {
       brightness: brightness ?? this.brightness,
       showCodeBlockCopyButton:
           showCodeBlockCopyButton ?? this.showCodeBlockCopyButton,
+      inlineCodeBgColorLight:
+          inlineCodeBgColorLight ?? this.inlineCodeBgColorLight,
+      inlineCodeBgColorDark:
+          inlineCodeBgColorDark ?? this.inlineCodeBgColorDark,
     );
   }
 }

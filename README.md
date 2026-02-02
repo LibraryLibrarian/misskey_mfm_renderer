@@ -179,6 +179,26 @@ MfmText(
 )
 ```
 
+### Color Customization
+
+Customize background colors for inline code and math formulas:
+
+```dart
+MfmText(
+  text: 'Inline `code` and math $x^2$',
+  config: MfmRenderConfig(
+    // Custom background color for light mode (default: #F5F5F5)
+    inlineCodeBgColorLight: const Color(0xFFF0F0F0),
+    // Custom background color for dark mode (default: #121212)
+    inlineCodeBgColorDark: const Color(0xFF1A1A1A),
+  ),
+)
+```
+
+The default colors are based on Misskey's official implementation:
+- Light mode: `Color(0xFFF5F5F5)` - Very light gray
+- Dark mode: `Color(0xFF121212)` - Very dark gray
+
 ### Advanced MFM Control
 
 Control advanced fn functions like `position` for security reasons:
@@ -428,6 +448,26 @@ MfmText(
   ),
 )
 ```
+
+### 色のカスタマイズ
+
+インラインコードや数式の背景色をカスタマイズできます：
+
+```dart
+MfmText(
+  text: 'インライン`コード`と数式 $x^2$',
+  config: MfmRenderConfig(
+    // ライトモード用の背景色（デフォルト: #F5F5F5）
+    inlineCodeBgColorLight: const Color(0xFFF0F0F0),
+    // ダークモード用の背景色（デフォルト: #121212）
+    inlineCodeBgColorDark: const Color(0xFF1A1A1A),
+  ),
+)
+```
+
+デフォルトの色はMisskey本家の実装に準拠しています：
+- ライトモード: `Color(0xFFF5F5F5)` - 非常に薄いグレー
+- ダークモード: `Color(0xFF121212)` - 非常に暗いグレー
 
 ### 高度なMFMの制御
 
