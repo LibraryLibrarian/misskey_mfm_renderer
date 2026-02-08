@@ -217,7 +217,7 @@ packages:
     source: hosted
     version: "0.20.2"
   isar_community:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: isar_community
       sha256: d92315e1862448f236489c2b2b1f9a7ad5ba2405f42d87216234be4fb2e1dd2d
@@ -225,7 +225,7 @@ packages:
     source: hosted
     version: "3.3.0"
   isar_community_flutter_libs:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: isar_community_flutter_libs
       sha256: "3c072d8d77e820196fa23839b88481c50d903c73b3c0db6e647b29509d04fe3b"
@@ -321,7 +321,7 @@ packages:
     source: hosted
     version: "2.0.0"
   misskey_api_core:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: misskey_api_core
       sha256: "32e17877e5e8044027b6815b510001d4329854d559269b405464e796a16b1ae5"
@@ -368,7 +368,7 @@ packages:
     source: hosted
     version: "1.9.1"
   path_provider:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: path_provider
       sha256: "50c5dd5b6e1aaf6fb3a78b33f6aa3afca52bf903a8a5298f53101fdaee55bbcd"

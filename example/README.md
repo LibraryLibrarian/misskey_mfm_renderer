@@ -1,16 +1,16 @@
 # example
 
-A new Flutter project.
+Example app for `misskey_mfm_renderer` that demonstrates:
 
-## Getting Started
+- MFM rendering with custom emoji support
+- Quick setup using `MfmEmojiConfig`
+- Catalog and playground screens for MFM syntax
 
-This project is a starting point for a Flutter application.
+## Quick Start
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter run
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The app initializes emoji support once at startup and shares the configuration
+through `MfmConfig`, so any `MfmText` widget renders custom emojis out of the box.

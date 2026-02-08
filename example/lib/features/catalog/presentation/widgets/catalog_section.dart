@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
-import '../../../../core/emoji/emoji_service.dart';
 import '../../../../core/widgets/mfm_preview_card.dart';
 import '../../data/mfm_examples.dart';
 
@@ -39,14 +37,6 @@ class CatalogSection extends StatelessWidget {
             syntax: example.syntax,
             mfm: example.mfm,
             description: example.description,
-            config: const MfmRenderConfig().copyWith(
-              emojiBuilder: EmojiService.instance.isInitialized
-                  ? (name) => MfmCustomEmoji(
-                      name: name,
-                      resolver: EmojiService.instance.resolver.call,
-                    )
-                  : null,
-            ),
           ),
         ),
       ],
