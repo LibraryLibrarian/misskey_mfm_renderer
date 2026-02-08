@@ -544,12 +544,14 @@ void main() {
         ),
       );
 
-      // rubyは2つのTextウィジェットを持つColumnを使用
-      expect(find.byType(Column), findsWidgets);
+      final rubyFinder = find.byWidgetPredicate(
+        (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+      );
+      expect(rubyFinder, findsOneWidget);
 
-      // ベーステキストとルビテキストが表示されることを確認
-      expect(find.text('振り仮名'), findsOneWidget);
-      expect(find.text('ふりがな'), findsOneWidget);
+      final rubyRenderObject = tester.renderObject(rubyFinder);
+      expect((rubyRenderObject as dynamic).baseText, '振り仮名');
+      expect((rubyRenderObject as dynamic).rubyText, 'ふりがな');
     });
   });
 

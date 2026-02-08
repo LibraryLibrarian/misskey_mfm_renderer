@@ -8,9 +8,11 @@ environment:
   flutter: ">=3.0.0"
 
 dependencies:
+  cached_network_image: ^3.4.1
   flutter:
     sdk: flutter
   flutter_highlight: ^0.7.0
+  misskey_emoji: ^1.0.0
   misskey_mfm_parser: ^2.0.0
   timeago: ^3.7.1
 

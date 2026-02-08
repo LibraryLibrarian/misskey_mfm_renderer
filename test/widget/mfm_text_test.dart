@@ -244,6 +244,37 @@ void main() {
       expect(find.byKey(const Key('emoji-custom')), findsOneWidget);
     });
 
+    testWidgets('emojiBuilderに絵文字名が渡される', (tester) async {
+      var builderCalled = false;
+      String? receivedName;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: 'Hello :custom: World',
+              config: MfmRenderConfig(
+                emojiBuilder: (name) {
+                  builderCalled = true;
+                  receivedName = name;
+                  return Container(
+                    key: Key('emoji-$name'),
+                    width: 24,
+                    height: 24,
+                    color: Colors.green,
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(builderCalled, isTrue);
+      expect(receivedName, equals('custom'));
+      expect(find.byKey(const Key('emoji-custom')), findsOneWidget);
+    });
+
     testWidgets('ビルダーがない場合、カスタム絵文字をテキストとしてレンダリングする', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(

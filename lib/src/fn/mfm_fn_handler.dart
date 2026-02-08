@@ -95,9 +95,9 @@ class MfmFnHandler {
       case 'x2':
         sizeMultiplier = 2.0;
       case 'x3':
-        sizeMultiplier = 3.0;
-      case 'x4':
         sizeMultiplier = 4.0;
+      case 'x4':
+        sizeMultiplier = 6.0;
       default:
         sizeMultiplier = 1.0;
     }
