@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
+import '../emoji/emoji_service.dart';
+
 /// MFMプレビューカード
 class MfmPreviewCard extends StatelessWidget {
   const MfmPreviewCard({
@@ -81,7 +83,14 @@ class MfmPreviewCard extends StatelessWidget {
             // MFMプレビュー
             MfmText(
               text: mfm,
-              config: config ?? const MfmRenderConfig(),
+              config: (config ?? const MfmRenderConfig()).copyWith(
+                emojiBuilder: EmojiService.instance.isInitialized
+                    ? (name) => MfmCustomEmoji(
+                        name: name,
+                        resolver: EmojiService.instance.resolver.call,
+                      )
+                    : null,
+              ),
             ),
           ],
         ),

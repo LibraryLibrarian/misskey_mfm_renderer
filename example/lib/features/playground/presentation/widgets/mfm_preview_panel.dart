@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
+import '../../../../core/emoji/emoji_service.dart';
+
 /// MFMプレビューパネル
 class MfmPreviewPanel extends StatelessWidget {
   const MfmPreviewPanel({
@@ -31,7 +33,14 @@ class MfmPreviewPanel extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: MfmText(
         text: mfmText,
-        config: config ?? const MfmRenderConfig(),
+        config: (config ?? const MfmRenderConfig()).copyWith(
+          emojiBuilder: EmojiService.instance.isInitialized
+              ? (name) => MfmCustomEmoji(
+                  name: name,
+                  resolver: EmojiService.instance.resolver.call,
+                )
+              : null,
+        ),
       ),
     );
   }
