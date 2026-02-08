@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 
 import 'builder/mfm_node_builder.dart';
+import 'config/mfm_inherited_config.dart';
 import 'config/mfm_render_config.dart';
 
 /// MFMテキストをレンダリングするウィジェット
@@ -37,18 +38,23 @@ class MfmText extends StatelessWidget {
     // ノードを取得（パース済みがあればそれを使用、なければパース）
     final nodes = parsedNodes ?? _parseText();
 
+    // InheritedWidgetから設定を取得（なければnull）
+    final inheritedConfig = MfmConfig.maybeOf(context);
+    final mergedConfig = _mergeConfigs(inheritedConfig, config);
+
     // brightnessを判定
     final brightness = MediaQuery.platformBrightnessOf(context);
 
     // baseTextStyleとbrightnessを設定
     final effectiveConfig =
-        config.baseTextStyle == null || config.brightness == null
-            ? config.copyWith(
+        mergedConfig.baseTextStyle == null || mergedConfig.brightness == null
+            ? mergedConfig.copyWith(
                 baseTextStyle:
-                    config.baseTextStyle ?? DefaultTextStyle.of(context).style,
-                brightness: brightness,
+                    mergedConfig.baseTextStyle ??
+                    DefaultTextStyle.of(context).style,
+                brightness: mergedConfig.brightness ?? brightness,
               )
-            : config;
+            : mergedConfig;
 
     // ビルダーを作成
     final builder = MfmNodeBuilder(config: effectiveConfig);
@@ -81,4 +87,75 @@ class MfmText extends StatelessWidget {
       return [TextNode(source)];
     }
   }
+}
+
+MfmRenderConfig _mergeConfigs(
+  MfmRenderConfig? inherited,
+  MfmRenderConfig explicit,
+) {
+  if (inherited == null) {
+    return explicit;
+  }
+  if (_isDefaultConfig(explicit)) {
+    return inherited;
+  }
+
+  const defaults = MfmRenderConfig();
+  return MfmRenderConfig(
+    baseTextStyle: explicit.baseTextStyle ?? inherited.baseTextStyle,
+    enableAdvancedMfm:
+        explicit.enableAdvancedMfm != defaults.enableAdvancedMfm
+            ? explicit.enableAdvancedMfm
+            : inherited.enableAdvancedMfm,
+    enableAnimation:
+        explicit.enableAnimation != defaults.enableAnimation
+            ? explicit.enableAnimation
+            : inherited.enableAnimation,
+    enableNyaize:
+        explicit.enableNyaize != defaults.enableNyaize
+            ? explicit.enableNyaize
+            : inherited.enableNyaize,
+    emojiBuilder: explicit.emojiBuilder ?? inherited.emojiBuilder,
+    unicodeEmojiBuilder:
+        explicit.unicodeEmojiBuilder ?? inherited.unicodeEmojiBuilder,
+    onLinkTap: explicit.onLinkTap ?? inherited.onLinkTap,
+    onMentionTap: explicit.onMentionTap ?? inherited.onMentionTap,
+    onHashtagTap: explicit.onHashtagTap ?? inherited.onHashtagTap,
+    onSearchTap: explicit.onSearchTap ?? inherited.onSearchTap,
+    onClickableEvent: explicit.onClickableEvent ?? inherited.onClickableEvent,
+    fontFamilyResolver:
+        explicit.fontFamilyResolver ?? inherited.fontFamilyResolver,
+    codeTheme: explicit.codeTheme ?? inherited.codeTheme,
+    codeDarkTheme: explicit.codeDarkTheme ?? inherited.codeDarkTheme,
+    brightness: explicit.brightness ?? inherited.brightness,
+    showCodeBlockCopyButton:
+        explicit.showCodeBlockCopyButton ??
+        inherited.showCodeBlockCopyButton,
+    inlineCodeBgColorLight:
+        explicit.inlineCodeBgColorLight ?? inherited.inlineCodeBgColorLight,
+    inlineCodeBgColorDark:
+        explicit.inlineCodeBgColorDark ?? inherited.inlineCodeBgColorDark,
+  );
+}
+
+bool _isDefaultConfig(MfmRenderConfig config) {
+  const defaults = MfmRenderConfig();
+  return config.baseTextStyle == defaults.baseTextStyle &&
+      config.enableAdvancedMfm == defaults.enableAdvancedMfm &&
+      config.enableAnimation == defaults.enableAnimation &&
+      config.enableNyaize == defaults.enableNyaize &&
+      config.emojiBuilder == defaults.emojiBuilder &&
+      config.unicodeEmojiBuilder == defaults.unicodeEmojiBuilder &&
+      config.onLinkTap == defaults.onLinkTap &&
+      config.onMentionTap == defaults.onMentionTap &&
+      config.onHashtagTap == defaults.onHashtagTap &&
+      config.onSearchTap == defaults.onSearchTap &&
+      config.onClickableEvent == defaults.onClickableEvent &&
+      config.fontFamilyResolver == defaults.fontFamilyResolver &&
+      config.codeTheme == defaults.codeTheme &&
+      config.codeDarkTheme == defaults.codeDarkTheme &&
+      config.brightness == defaults.brightness &&
+      config.showCodeBlockCopyButton == defaults.showCodeBlockCopyButton &&
+      config.inlineCodeBgColorLight == defaults.inlineCodeBgColorLight &&
+      config.inlineCodeBgColorDark == defaults.inlineCodeBgColorDark;
 }

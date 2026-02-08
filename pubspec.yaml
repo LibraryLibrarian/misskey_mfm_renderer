@@ -12,8 +12,10 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_highlight: ^0.7.0
+  misskey_api_core: ^1.0.0
   misskey_emoji: ^1.0.0
   misskey_mfm_parser: ^2.0.0
+  path_provider: ^2.1.5
   timeago: ^3.7.1
 
 dev_dependencies:

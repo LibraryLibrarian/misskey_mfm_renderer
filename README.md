@@ -4,6 +4,20 @@
 
 A Flutter widget library for rendering Misskey MFM (Misskey Flavored Markdown) content.
 
+## About MFM and Custom Emoji
+
+MFM (Misskey Flavored Markdown) is Misskey's markup language. Custom emoji
+syntax (`:emoji_name:`) is a standard part of the MFM specification, not an
+optional feature. This package provides complete MFM rendering including
+built-in custom emoji support through the `misskey_emoji` library.
+
+### Why misskey_emoji is included
+
+Custom emoji rendering is a core MFM feature. To provide a complete MFM
+renderer out of the box, this package includes `misskey_emoji` as a dependency.
+This allows you to render all MFM syntax without requiring additional
+integration work.
+
 [日本語](#日本語)
 
 ## Features
@@ -33,6 +47,21 @@ A Flutter widget library for rendering Misskey MFM (Misskey Flavored Markdown) c
 
 *Math formulas are currently displayed as plain text. Math rendering support is planned for future releases.
 
+### Custom Emoji Support
+
+Custom emoji rendering is supported through integration with the `misskey_emoji` library.
+
+**Status**: ✅ Fully supported with `misskey_emoji` integration
+
+**Features**:
+- Automatic emoji metadata resolution
+- Image caching with `cached_network_image`
+- Fallback display for unavailable emojis
+- Animated emoji support (GIF, APNG, WebP)
+
+See [Advanced Custom Emoji Configuration](#advanced-custom-emoji-configuration)
+for setup instructions.
+
 ### Supported fn Functions
 
 | Category | fn Name | Syntax Example | Status |
@@ -61,6 +90,28 @@ Add the dependency to your `pubspec.yaml`:
 dependencies:
   misskey_mfm_renderer: ^0.0.1
 ```
+
+## Quick Start
+
+For most use cases, use the helper function to quickly set up emoji support:
+
+```dart
+import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+
+// One-time setup (e.g., in main())
+final config = await MfmEmojiConfig.quickSetup(
+  serverUrl: 'https://misskey.io',
+);
+
+// Use anywhere in your app
+MfmText(
+  text: ':custom_emoji: **Hello** World!',
+  config: config,
+)
+```
+
+For advanced customization, see
+[Advanced Custom Emoji Configuration](#advanced-custom-emoji-configuration).
 
 ## Usage
 
@@ -112,29 +163,84 @@ MfmText(
 )
 ```
 
-### Custom Emoji Configuration
+### Advanced Custom Emoji Configuration
+
+To display custom emojis from a Misskey server, integrate the `misskey_emoji` library:
+
+#### 1. (Optional) Add Direct Dependencies
+
+If your project enforces direct dependencies for imported packages, add:
+
+```yaml
+dependencies:
+  misskey_mfm_renderer: ^0.0.1
+  misskey_api_core: ^1.0.0
+  path_provider: ^2.1.5
+```
+
+#### 2. Initialize Emoji Resolver
 
 ```dart
+import 'package:misskey_api_core/misskey_api_core.dart';
+import 'package:misskey_emoji/misskey_emoji.dart';
+import 'package:path_provider/path_provider.dart';
+
+final baseUrl = Uri.parse('https://misskey.io');
+
+// Create HTTP client for Misskey API
+final httpClient = MisskeyHttpClient(
+  config: MisskeyApiConfig(baseUrl: baseUrl),
+);
+
+// Create emoji API client
+final emojiApi = MisskeyEmojiApi(httpClient);
+
+// Open Isar for emoji metadata storage
+final dir = await getApplicationDocumentsDirectory();
+final isar = await openEmojiIsarForServer(baseUrl, directory: dir.path);
+
+// Create persistent catalog and resolver
+final catalog = PersistentEmojiCatalog(
+  api: emojiApi,
+  store: IsarEmojiStore(isar),
+  meta: MetaClient(httpClient),
+);
+final resolver = MisskeyEmojiResolver(catalog);
+
+// Sync emoji metadata from server (run once at app startup)
+await catalog.sync();
+```
+
+#### 3. Configure MfmText with Emoji Builder
+
+```dart
+import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+
 MfmText(
-  text: 'Hello :custom_emoji:',
+  text: ':custom_emoji: Hello, world!',
   config: MfmRenderConfig(
-    // Custom emoji builder (for :name: format)
-    emojiBuilder: (name) {
-      final url = emojiResolver.resolve(name);
-      return CachedNetworkImage(
-        imageUrl: url,
-        height: 24,
-        width: 24,
-      );
-    },
-    // Unicode emoji builder (for custom rendering)
-    unicodeEmojiBuilder: (emoji) {
-      return Text(
-        emoji,
-        style: const TextStyle(fontSize: 24),
-      );
-    },
+    // name is passed without colons
+    emojiBuilder: (name) => MfmCustomEmoji(
+      name: name,
+      resolver: resolver,
+      size: 24.0,
+    ),
   ),
+)
+```
+
+#### 4. (Optional) Customize Fallback Display
+
+```dart
+MfmCustomEmoji(
+  name: 'emoji_name',
+  resolver: resolver,
+  fallbackBuilder: (context, name) => Text(
+    '[$name]',
+    style: const TextStyle(color: Colors.grey),
+  ),
+  loadingBuilder: (context) =>
+      const Icon(Icons.hourglass_empty, size: 16),
 )
 ```
 
@@ -276,6 +382,17 @@ When `x2`, `x3`, `x4` are nested, the effect is halved, matching Misskey's offic
 
 Misskey MFM (Misskey Flavored Markdown) をレンダリングするためのFlutterウィジェットライブラリです。
 
+## MFMとカスタム絵文字について
+
+MFMのカスタム絵文字構文（`:emoji_name:`）は標準仕様の一部であり、
+オプション機能ではありません。本パッケージは `misskey_emoji` を内包して、
+MFMのカスタム絵文字を含むレンダリングを一通り提供します。
+
+### なぜ misskey_emoji を同梱するのか
+
+カスタム絵文字の描画はMFMの中核機能です。追加の統合作業なしで
+MFMを完全に描画できるようにするため、`misskey_emoji` を依存関係として含めています。
+
 ## 特徴
 
 ### 対応ノードタイプ
@@ -302,6 +419,21 @@ Misskey MFM (Misskey Flavored Markdown) をレンダリングするためのFlut
 | | Unicode絵文字 | `😀` | ✅ |
 
 *数式は現在プレーンテキストとして表示されます。将来的に数式レンダリング対応予定。
+
+### カスタム絵文字対応
+
+`misskey_emoji` ライブラリとの連携により、カスタム絵文字表示に対応しています。
+
+**対応状況**: ✅ `misskey_emoji` 連携で完全対応
+
+**特徴**:
+- 絵文字メタデータの自動解決
+- `cached_network_image` による画像キャッシュ
+- 未取得時のフォールバック表示
+- アニメーション絵文字（GIF/APNG/WebP）に対応
+
+手順は [高度なカスタム絵文字の設定](#高度なカスタム絵文字の設定)
+を参照してください。
 
 ### 対応fn関数
 
@@ -331,6 +463,28 @@ Misskey MFM (Misskey Flavored Markdown) をレンダリングするためのFlut
 dependencies:
   misskey_mfm_renderer: ^0.0.1
 ```
+
+## クイックスタート
+
+多くのケースでは、ヘルパー関数で簡単に絵文字対応を設定できます：
+
+```dart
+import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+
+// 1回だけ初期化（例: main()）
+final config = await MfmEmojiConfig.quickSetup(
+  serverUrl: 'https://misskey.io',
+);
+
+// アプリ内のどこでも利用可能
+MfmText(
+  text: ':custom_emoji: **こんにちは**',
+  config: config,
+)
+```
+
+より詳細な制御が必要な場合は、
+[高度なカスタム絵文字の設定](#高度なカスタム絵文字の設定) を参照してください。
 
 ## 使い方
 
@@ -382,29 +536,84 @@ MfmText(
 )
 ```
 
-### カスタム絵文字の設定
+### 高度なカスタム絵文字の設定
+
+Misskeyサーバーのカスタム絵文字を表示するには、`misskey_emoji` ライブラリと連携します：
+
+#### 1. （任意）依存関係の明示
+
+import対象パッケージを直接依存に置きたい場合は追加してください：
+
+```yaml
+dependencies:
+  misskey_mfm_renderer: ^0.0.1
+  misskey_api_core: ^1.0.0
+  path_provider: ^2.1.5
+```
+
+#### 2. 絵文字リゾルバーの初期化
 
 ```dart
+import 'package:misskey_api_core/misskey_api_core.dart';
+import 'package:misskey_emoji/misskey_emoji.dart';
+import 'package:path_provider/path_provider.dart';
+
+final baseUrl = Uri.parse('https://misskey.io');
+
+// Misskey API用のHTTPクライアントを作成
+final httpClient = MisskeyHttpClient(
+  config: MisskeyApiConfig(baseUrl: baseUrl),
+);
+
+// 絵文字APIクライアントを作成
+final emojiApi = MisskeyEmojiApi(httpClient);
+
+// 絵文字メタデータ保存用のIsarをオープン
+final dir = await getApplicationDocumentsDirectory();
+final isar = await openEmojiIsarForServer(baseUrl, directory: dir.path);
+
+// 永続化カタログとリゾルバーを作成
+final catalog = PersistentEmojiCatalog(
+  api: emojiApi,
+  store: IsarEmojiStore(isar),
+  meta: MetaClient(httpClient),
+);
+final resolver = MisskeyEmojiResolver(catalog);
+
+// サーバーから絵文字メタデータを同期（起動時に1回実行）
+await catalog.sync();
+```
+
+#### 3. MfmTextにemojiBuilderを設定
+
+```dart
+import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+
 MfmText(
-  text: 'こんにちは :custom_emoji:',
+  text: ':custom_emoji: こんにちは！',
   config: MfmRenderConfig(
-    // カスタム絵文字（:name: 形式）のビルダー
-    emojiBuilder: (name) {
-      final url = emojiResolver.resolve(name);
-      return CachedNetworkImage(
-        imageUrl: url,
-        height: 24,
-        width: 24,
-      );
-    },
-    // Unicode絵文字のビルダー（カスタム表示が必要な場合）
-    unicodeEmojiBuilder: (emoji) {
-      return Text(
-        emoji,
-        style: const TextStyle(fontSize: 24),
-      );
-    },
+    // nameはコロン無しで渡される
+    emojiBuilder: (name) => MfmCustomEmoji(
+      name: name,
+      resolver: resolver,
+      size: 24.0,
+    ),
   ),
+)
+```
+
+#### 4. (任意) フォールバック表示のカスタマイズ
+
+```dart
+MfmCustomEmoji(
+  name: 'emoji_name',
+  resolver: resolver,
+  fallbackBuilder: (context, name) => Text(
+    '[$name]',
+    style: const TextStyle(color: Colors.grey),
+  ),
+  loadingBuilder: (context) =>
+      const Icon(Icons.hourglass_empty, size: 16),
 )
 ```
 
