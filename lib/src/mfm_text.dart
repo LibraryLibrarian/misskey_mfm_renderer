@@ -48,13 +48,13 @@ class MfmText extends StatelessWidget {
     // baseTextStyleとbrightnessを設定
     final effectiveConfig =
         mergedConfig.baseTextStyle == null || mergedConfig.brightness == null
-            ? mergedConfig.copyWith(
-                baseTextStyle:
-                    mergedConfig.baseTextStyle ??
-                    DefaultTextStyle.of(context).style,
-                brightness: mergedConfig.brightness ?? brightness,
-              )
-            : mergedConfig;
+        ? mergedConfig.copyWith(
+            baseTextStyle:
+                mergedConfig.baseTextStyle ??
+                DefaultTextStyle.of(context).style,
+            brightness: mergedConfig.brightness ?? brightness,
+          )
+        : mergedConfig;
 
     // ビルダーを作成
     final builder = MfmNodeBuilder(config: effectiveConfig);
@@ -103,18 +103,15 @@ MfmRenderConfig _mergeConfigs(
   const defaults = MfmRenderConfig();
   return MfmRenderConfig(
     baseTextStyle: explicit.baseTextStyle ?? inherited.baseTextStyle,
-    enableAdvancedMfm:
-        explicit.enableAdvancedMfm != defaults.enableAdvancedMfm
-            ? explicit.enableAdvancedMfm
-            : inherited.enableAdvancedMfm,
-    enableAnimation:
-        explicit.enableAnimation != defaults.enableAnimation
-            ? explicit.enableAnimation
-            : inherited.enableAnimation,
-    enableNyaize:
-        explicit.enableNyaize != defaults.enableNyaize
-            ? explicit.enableNyaize
-            : inherited.enableNyaize,
+    enableAdvancedMfm: explicit.enableAdvancedMfm != defaults.enableAdvancedMfm
+        ? explicit.enableAdvancedMfm
+        : inherited.enableAdvancedMfm,
+    enableAnimation: explicit.enableAnimation != defaults.enableAnimation
+        ? explicit.enableAnimation
+        : inherited.enableAnimation,
+    enableNyaize: explicit.enableNyaize != defaults.enableNyaize
+        ? explicit.enableNyaize
+        : inherited.enableNyaize,
     emojiBuilder: explicit.emojiBuilder ?? inherited.emojiBuilder,
     unicodeEmojiBuilder:
         explicit.unicodeEmojiBuilder ?? inherited.unicodeEmojiBuilder,
@@ -129,8 +126,7 @@ MfmRenderConfig _mergeConfigs(
     codeDarkTheme: explicit.codeDarkTheme ?? inherited.codeDarkTheme,
     brightness: explicit.brightness ?? inherited.brightness,
     showCodeBlockCopyButton:
-        explicit.showCodeBlockCopyButton ??
-        inherited.showCodeBlockCopyButton,
+        explicit.showCodeBlockCopyButton ?? inherited.showCodeBlockCopyButton,
     inlineCodeBgColorLight:
         explicit.inlineCodeBgColorLight ?? inherited.inlineCodeBgColorLight,
     inlineCodeBgColorDark:
