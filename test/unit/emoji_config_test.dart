@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 void main() {
@@ -9,10 +8,10 @@ void main() {
 
   test('fromResolver builds MfmCustomEmoji', () {
     Future<EmojiImage?> resolver(String _) async => EmojiImage(
-          url: Uri.parse('https://example.com/emoji.png'),
-          animated: false,
-          isSensitive: false,
-        );
+      url: Uri.parse('https://example.com/emoji.png'),
+      animated: false,
+      isSensitive: false,
+    );
 
     final config = MfmEmojiConfig.fromResolver(
       resolver: resolver,

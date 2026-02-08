@@ -33,9 +33,9 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MfmConfig(
+      const MfmConfig(
         config: inherited,
-        child: const MaterialApp(
+        child: MaterialApp(
           home: Scaffold(
             body: MfmText(
               text: ':emoji:',
@@ -86,9 +86,9 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MfmConfig(
+      const MfmConfig(
         config: inherited,
-        child: const MaterialApp(
+        child: MaterialApp(
           home: Scaffold(
             body: MfmText(
               text: ':emoji:',
