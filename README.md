@@ -47,6 +47,13 @@ integration work.
 
 *Math formulas are currently displayed as plain text. Math rendering support is planned for future releases.
 
+### Additional Notes
+
+**Not Yet Implemented:**
+- **Math Rendering**: LaTeX formulas are displayed as plain text. Full math rendering with KaTeX or similar library is planned for future releases.
+- **Nyaize**: Text transformation feature (converting certain characters to "nya") is not yet implemented.
+- **Font Limitations**: Some font types in `$[font.xxx]` syntax (specifically `emoji` and `math`) fall back to default fonts due to platform limitations.
+
 ### Custom Emoji Support
 
 Custom emoji rendering is supported through integration with the `misskey_emoji` library.
@@ -80,7 +87,15 @@ for setup instructions.
 | **Special** | blur | `$[blur text]` | ✅ |
 | | ruby | `$[ruby kanji furigana]` | ✅ |
 | | unixtime | `$[unixtime 1234567890]` | ✅ |
-| **Animation** | tada, jelly, twitch, shake, spin, jump, bounce, rainbow, sparkle | - | 🚧 |
+| **Animation** | tada | `$[tada text]` | ✅ |
+|| | jelly | `$[jelly text]` | ✅ |
+|| | twitch | `$[twitch text]` | ✅ |
+|| | shake | `$[shake text]` | ✅ |
+|| | spin | `$[spin text]` | ✅ |
+|| | jump | `$[jump text]` | ✅ |
+|| | bounce | `$[bounce text]` | ✅ |
+|| | rainbow | `$[rainbow text]` | ✅ |
+|| | sparkle | `$[sparkle text]` | ✅ |
 
 ## Getting started
 
@@ -88,7 +103,7 @@ Add the dependency to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.0.1
+  misskey_mfm_renderer: ^0.1.0
 ```
 
 ## Quick Start
@@ -173,7 +188,7 @@ If your project enforces direct dependencies for imported packages, add:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.0.1
+  misskey_mfm_renderer: ^0.1.0
   misskey_api_core: ^1.0.0
   path_provider: ^2.1.5
 ```
@@ -420,6 +435,13 @@ MFMを完全に描画できるようにするため、`misskey_emoji` を依存�
 
 *数式は現在プレーンテキストとして表示されます。将来的に数式レンダリング対応予定。
 
+### 追加の注意事項
+
+**未実装の機能:**
+- **数式レンダリング**: LaTeX数式はプレーンテキストで表示されます。KaTeXなどのライブラリを使った完全な数式レンダリングは将来のリリースで対応予定です。
+- **Nyaize**: 特定の文字を「にゃ」に変換するテキスト変換機能は未実装です。（今後実装予定）
+- **フォントの制限**: `$[font.xxx]` 構文の一部のフォントタイプ（特に `emoji` と `math`）は、プラットフォームの制限によりデフォルトフォントにフォールバックします。代替策を検討中です。
+
 ### カスタム絵文字対応
 
 `misskey_emoji` ライブラリとの連携により、カスタム絵文字表示に対応しています。
@@ -453,7 +475,15 @@ MFMを完全に描画できるようにするため、`misskey_emoji` を依存�
 | **特殊** | blur | `$[blur text]` | ✅ |
 | | ruby | `$[ruby 漢字 ふりがな]` | ✅ |
 | | unixtime | `$[unixtime 1234567890]` | ✅ |
-| **アニメーション** | tada, jelly, twitch, shake, spin, jump, bounce, rainbow, sparkle | - | 🚧 |
+| **アニメーション** | tada | `$[tada text]` | ✅ |
+|| | jelly | `$[jelly text]` | ✅ |
+|| | twitch | `$[twitch text]` | ✅ |
+|| | shake | `$[shake text]` | ✅ |
+|| | spin | `$[spin text]` | ✅ |
+|| | jump | `$[jump text]` | ✅ |
+|| | bounce | `$[bounce text]` | ✅ |
+|| | rainbow | `$[rainbow text]` | ✅ |
+|| | sparkle | `$[sparkle text]` | ✅ |
 
 ## インストール
 
@@ -461,7 +491,7 @@ MFMを完全に描画できるようにするため、`misskey_emoji` を依存�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.0.1
+  misskey_mfm_renderer: ^0.1.0
 ```
 
 ## クイックスタート
@@ -546,7 +576,7 @@ import対象パッケージを直接依存に置きたい場合は追加して�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.0.1
+  misskey_mfm_renderer: ^0.1.0
   misskey_api_core: ^1.0.0
   path_provider: ^2.1.5
 ```
