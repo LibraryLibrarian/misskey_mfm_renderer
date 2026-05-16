@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+- Nyaize（猫モード相当のテキスト変換）に対応
+  - `nyaize(String)` 純粋関数を公開API（`misskey_mfm_renderer` から直接 import 可）
+  - 日本語 / 英語 / 韓国語の3言語で本家 Misskey と同等の変換規則
+  - `MfmRenderConfig.enableNyaize` を `true` にすると `MfmText` のテキストノードへ自動適用
+  - `link` / `quote` / `plain` 配下のサブツリーは本家挙動に準拠して変換対象外
+  - URL / メンション / ハッシュタグ / 各種コード / 数式 / 絵文字 / 検索ノードは構造上テキストノードを経由しないため自然と除外
+
 ## 0.1.0 - 2026-02-09
 
 Initial release of misskey_mfm_renderer - A Flutter widget library for rendering Misskey MFM (Misskey Flavored Markdown) content.

@@ -6,11 +6,16 @@ import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 
 import '../config/mfm_render_config.dart';
 import '../fn/mfm_fn_handler.dart';
+import '../utils/nyaize.dart';
 import '../widgets/mfm_code_block.dart';
 
 /// MfmNodeをWidgetに変換するビルダー
 class MfmNodeBuilder {
-  MfmNodeBuilder({required this.config, this.scale = 1.0});
+  MfmNodeBuilder({
+    required this.config,
+    this.scale = 1.0,
+    this.disableNyaize = false,
+  });
 
   /// レンダリング設定
   final MfmRenderConfig config;
@@ -18,10 +23,27 @@ class MfmNodeBuilder {
   /// 現在のスケール（ネストしたscale fnで使用）
   final double scale;
 
+  /// 現在のサブツリーで nyaize 変換を抑止するか
+  /// link / quote / plain など、原文を保ちたいノード配下では true となる
+  final bool disableNyaize;
+
   /// 新しいスケールでビルダーをコピー
   MfmNodeBuilder withScale(double newScale) {
-    return MfmNodeBuilder(config: config, scale: newScale);
+    return MfmNodeBuilder(
+      config: config,
+      scale: newScale,
+      disableNyaize: disableNyaize,
+    );
   }
+
+  /// nyaize 変換を抑止したサブツリー用ビルダーを返す
+  MfmNodeBuilder _withDisableNyaize() {
+    if (disableNyaize) return this;
+    return MfmNodeBuilder(config: config, scale: scale, disableNyaize: true);
+  }
+
+  /// 現在の文脈で nyaize 変換を適用すべきか
+  bool get _shouldNyaize => config.enableNyaize && !disableNyaize;
 
   /// ノードリストをWidgetリストに変換
   List<InlineSpan> buildNodes(List<MfmNode> nodes) {
@@ -57,7 +79,8 @@ class MfmNodeBuilder {
   InlineSpan _buildText(TextNode node) {
     // styleをnullにして親のスタイルを継承
     // ルートのTextSpanでbaseTextStyleが設定されているため、ここで再設定する必要はない
-    return TextSpan(text: node.text);
+    final text = _shouldNyaize ? nyaize(node.text) : node.text;
+    return TextSpan(text: text);
   }
 
   InlineSpan _buildBold(BoldNode node) {
@@ -99,7 +122,7 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildQuote(QuoteNode node) {
-    final children = buildNodes(node.children);
+    final children = _withDisableNyaize().buildNodes(node.children);
     final baseColor = config.baseTextStyle?.color;
 
     return WidgetSpan(
@@ -251,7 +274,7 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildLink(LinkNode node) {
-    final children = buildNodes(node.children);
+    final children = _withDisableNyaize().buildNodes(node.children);
     final onLinkTap = config.onLinkTap;
     return TextSpan(
       style: const TextStyle(
@@ -368,7 +391,7 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildPlain(PlainNode node) {
-    final children = buildNodes(node.children);
+    final children = _withDisableNyaize().buildNodes(node.children);
     return TextSpan(children: children);
   }
 
