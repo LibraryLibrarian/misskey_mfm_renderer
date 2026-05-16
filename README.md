@@ -51,8 +51,12 @@ integration work.
 
 **Not Yet Implemented:**
 - **Math Rendering**: LaTeX formulas are displayed as plain text. Full math rendering with KaTeX or similar library is planned for future releases.
-- **Nyaize**: Text transformation feature (converting certain characters to "nya") is not yet implemented.
 - **Font Limitations**: Some font types in `$[font.xxx]` syntax (specifically `emoji` and `math`) fall back to default fonts due to platform limitations.
+
+**Nyaize (Cat-speak transformation)**: Text transformation feature is supported via `enableNyaize`.
+Equivalent to Misskey's cat mode, it converts text in text nodes to cat-speak (ja-JP / en-US / ko-KR).
+Subtrees of `link` / `quote` / `plain` are excluded from transformation (matching Misskey's upstream behavior).
+The `nyaize(String)` pure function is also exposed publicly.
 
 ### Custom Emoji Support
 
@@ -359,7 +363,7 @@ void main() {
 | `baseTextStyle` | `TextStyle?` | null | Base text style |
 | `enableAdvancedMfm` | `bool` | true | Enable advanced features like position |
 | `enableAnimation` | `bool` | true | Enable animations (for future use) |
-| `enableNyaize` | `bool` | false | Enable nyaize transformation (for future use) |
+| `enableNyaize` | `bool` | false | Enable nyaize (cat-speak) transformation on text nodes |
 | `emojiBuilder` | `Widget Function(String)?` | null | Custom emoji builder |
 | `unicodeEmojiBuilder` | `Widget Function(String)?` | null | Unicode emoji builder |
 | `onLinkTap` | `void Function(String)?` | null | Link tap callback |
@@ -439,8 +443,12 @@ MFMを完全に描画できるようにするため、`misskey_emoji` を依存�
 
 **未実装の機能:**
 - **数式レンダリング**: LaTeX数式はプレーンテキストで表示されます。KaTeXなどのライブラリを使った完全な数式レンダリングは将来のリリースで対応予定です。
-- **Nyaize**: 特定の文字を「にゃ」に変換するテキスト変換機能は未実装です。（今後実装予定）
 - **フォントの制限**: `$[font.xxx]` 構文の一部のフォントタイプ（特に `emoji` と `math`）は、プラットフォームの制限によりデフォルトフォントにフォールバックします。代替策を検討中です。
+
+**Nyaize（猫モード相当のテキスト変換）**: `enableNyaize` で有効化されます。
+Misskeyの猫モードと同等の挙動で、テキストノードの文字列を猫語に変換します（ja-JP / en-US / ko-KR の3言語）。
+`link` / `quote` / `plain` 配下のサブツリーは変換対象外（本家挙動に準拠）。
+`nyaize(String)` 純粋関数も公開APIとして利用できます。
 
 ### カスタム絵文字対応
 
@@ -748,7 +756,7 @@ void main() {
 | `baseTextStyle` | `TextStyle?` | null | ベースのテキストスタイル |
 | `enableAdvancedMfm` | `bool` | true | position等の高度な機能を有効化 |
 | `enableAnimation` | `bool` | true | アニメーションを有効化（今後実装） |
-| `enableNyaize` | `bool` | false | nyaize変換を有効化（今後実装） |
+| `enableNyaize` | `bool` | false | nyaize（猫語）変換をテキストノードに対して有効化 |
 | `emojiBuilder` | `Widget Function(String)?` | null | カスタム絵文字ビルダー |
 | `unicodeEmojiBuilder` | `Widget Function(String)?` | null | Unicode絵文字ビルダー |
 | `onLinkTap` | `void Function(String)?` | null | リンクタップコールバック |

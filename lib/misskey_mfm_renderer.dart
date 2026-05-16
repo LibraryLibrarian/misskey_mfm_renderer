@@ -10,4 +10,5 @@ export 'src/config/mfm_inherited_config.dart';
 export 'src/config/mfm_render_config.dart';
 export 'src/helpers/emoji_config.dart';
 export 'src/mfm_text.dart';
+export 'src/utils/nyaize.dart';
 export 'src/widgets/mfm_custom_emoji.dart';
