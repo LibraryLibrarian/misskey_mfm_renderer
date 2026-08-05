@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+- アニメーション関数の `speed` が0以下または1ms未満の場合に描画が失敗する問題を修正
+- 負の `delay` を本家Misskeyと同様に経過済み時間として反映
+
 ## 0.2.0 - 2026-05-16
 
 ### Added

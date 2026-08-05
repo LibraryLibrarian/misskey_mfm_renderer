@@ -197,6 +197,10 @@ class MfmFnHandler {
 
     final children = builder.buildNodes(node.children);
 
+    if (duration <= Duration.zero) {
+      return TextSpan(children: children);
+    }
+
     return WidgetSpan(
       child: MfmSpinWidget(
         axis: axis,
@@ -227,6 +231,10 @@ class MfmFnHandler {
 
     final children = builder.buildNodes(node.children);
 
+    if (duration <= Duration.zero) {
+      return TextSpan(children: children);
+    }
+
     return WidgetSpan(
       child: MfmJumpWidget(
         duration: duration,
@@ -255,6 +263,10 @@ class MfmFnHandler {
 
     final children = builder.buildNodes(node.children);
 
+    if (duration <= Duration.zero) {
+      return TextSpan(children: children);
+    }
+
     return WidgetSpan(
       child: MfmBounceWidget(
         duration: duration,
@@ -277,6 +289,12 @@ class MfmFnHandler {
         const Duration(milliseconds: 1000);
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
     final children = builder.buildNodes(node.children);
+
+    // 本家 Misskey ではアニメーション有効時の duration=0 は
+    // rainbow の静的フォールバックを適用せず、通常の文字表示になる。
+    if (builder.config.enableAnimation && duration <= Duration.zero) {
+      return TextSpan(children: children);
+    }
 
     return WidgetSpan(
       child: MfmRainbowWidget(
@@ -322,6 +340,10 @@ class MfmFnHandler {
 
     final children = builder.buildNodes(node.children);
 
+    if (duration <= Duration.zero) {
+      return TextSpan(children: children);
+    }
+
     return WidgetSpan(
       child: MfmShakeWidget(
         duration: duration,
@@ -349,6 +371,10 @@ class MfmFnHandler {
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
+
+    if (duration <= Duration.zero) {
+      return TextSpan(children: children);
+    }
 
     return WidgetSpan(
       child: MfmTwitchWidget(
@@ -378,7 +404,7 @@ class MfmFnHandler {
       child: MfmTadaWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
+        enabled: builder.config.enableAnimation && duration > Duration.zero,
         child: RichText(
           text: TextSpan(
             style: builder.config.baseTextStyle,
@@ -401,6 +427,10 @@ class MfmFnHandler {
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
+
+    if (duration <= Duration.zero) {
+      return TextSpan(children: children);
+    }
 
     return WidgetSpan(
       child: MfmJellyWidget(
