@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
@@ -9,6 +11,7 @@ class MfmCustomEmoji extends StatefulWidget {
     required this.resolver,
     this.size = 24.0,
     this.maxWidth,
+    this.refreshListenable,
     this.fallbackBuilder,
     this.errorBuilder,
     this.loadingBuilder,
@@ -26,6 +29,13 @@ class MfmCustomEmoji extends StatefulWidget {
   /// When omitted, the image uses its natural aspect ratio without a width
   /// limit, matching Misskey's standard custom emoji rendering.
   final double? maxWidth;
+
+  /// An optional signal that causes the emoji metadata to be resolved again.
+  ///
+  /// Use this when the resolver's backing catalog has been synchronized or
+  /// otherwise invalidated. Successful results are retained across ordinary
+  /// parent rebuilds until this signal is notified.
+  final Listenable? refreshListenable;
   final Widget Function(BuildContext context, String name)? fallbackBuilder;
   final Widget Function(BuildContext context, String name, Object error)?
   errorBuilder;
@@ -37,20 +47,60 @@ class MfmCustomEmoji extends StatefulWidget {
 
 class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   late Future<EmojiImage?> _emojiFuture;
+  bool _retryOnUpdate = false;
 
   @override
   void initState() {
     super.initState();
-    _emojiFuture = widget.resolver(widget.name);
+    widget.refreshListenable?.addListener(_refresh);
+    _resolveEmoji();
   }
 
   @override
   void didUpdateWidget(MfmCustomEmoji oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.name != widget.name ||
-        oldWidget.resolver != widget.resolver) {
-      _emojiFuture = widget.resolver(widget.name);
+    if (oldWidget.refreshListenable != widget.refreshListenable) {
+      oldWidget.refreshListenable?.removeListener(_refresh);
+      widget.refreshListenable?.addListener(_refresh);
     }
+    if (oldWidget.name != widget.name ||
+        oldWidget.resolver != widget.resolver ||
+        _retryOnUpdate) {
+      _resolveEmoji();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.refreshListenable?.removeListener(_refresh);
+    super.dispose();
+  }
+
+  void _refresh() {
+    if (!mounted) {
+      return;
+    }
+    setState(_resolveEmoji);
+  }
+
+  void _resolveEmoji() {
+    final future = widget.resolver(widget.name);
+    _emojiFuture = future;
+    _retryOnUpdate = false;
+    unawaited(
+      future.then<void>(
+        (emoji) {
+          if (identical(_emojiFuture, future)) {
+            _retryOnUpdate = emoji == null;
+          }
+        },
+        onError: (Object _, StackTrace _) {
+          if (identical(_emojiFuture, future)) {
+            _retryOnUpdate = true;
+          }
+        },
+      ),
+    );
   }
 
   @override

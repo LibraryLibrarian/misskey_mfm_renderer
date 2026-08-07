@@ -73,6 +73,9 @@ Custom emoji rendering is supported through integration with the `misskey_emoji`
 
 Custom emojis use their natural width by default. To cap very wide emojis,
 pass `emojiMaxWidth` to `MfmEmojiConfig` or `maxWidth` to `MfmCustomEmoji`.
+When a custom resolver's catalog changes, pass a `Listenable` through
+`emojiRefreshListenable` or `refreshListenable` and notify it to re-resolve
+visible emojis. `MfmEmojiConfig` does this automatically after `autoSync`.
 
 See [Advanced Custom Emoji Configuration](#advanced-custom-emoji-configuration)
 for setup instructions.
@@ -204,6 +207,7 @@ dependencies:
 #### 2. Initialize Emoji Resolver
 
 ```dart
+import 'package:flutter/foundation.dart';
 import 'package:misskey_api_core/misskey_api_core.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
@@ -229,9 +233,11 @@ final catalog = PersistentEmojiCatalog(
   meta: MetaClient(httpClient),
 );
 final resolver = MisskeyEmojiResolver(catalog);
+final emojiRefreshNotifier = ValueNotifier(0);
 
 // Sync emoji metadata from server (run once at app startup)
 await catalog.sync();
+emojiRefreshNotifier.value++;
 ```
 
 #### 3. Configure MfmText with Emoji Builder
@@ -248,6 +254,7 @@ MfmText(
       resolver: resolver,
       size: 24.0, // Display height
       maxWidth: 70.0, // Optional
+      refreshListenable: emojiRefreshNotifier,
     ),
   ),
 )
@@ -471,6 +478,9 @@ Misskeyの猫モードと同等の挙動で、テキストノードの文字列�
 カスタム絵文字の幅は既定で元画像の比率に従います。極端に横長な絵文字の幅を
 制限する場合は、`MfmEmojiConfig` の `emojiMaxWidth` または
 `MfmCustomEmoji` の `maxWidth` を指定してください。
+独自リゾルバーのカタログを更新した場合は、`emojiRefreshListenable` または
+`refreshListenable` に渡した `Listenable` を通知すると、表示中の絵文字を
+再解決できます。`MfmEmojiConfig` は `autoSync` 完了後に自動で通知します。
 
 手順は [高度なカスタム絵文字の設定](#高度なカスタム絵文字の設定)
 を参照してください。
@@ -602,6 +612,7 @@ dependencies:
 #### 2. 絵文字リゾルバーの初期化
 
 ```dart
+import 'package:flutter/foundation.dart';
 import 'package:misskey_api_core/misskey_api_core.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
@@ -627,9 +638,11 @@ final catalog = PersistentEmojiCatalog(
   meta: MetaClient(httpClient),
 );
 final resolver = MisskeyEmojiResolver(catalog);
+final emojiRefreshNotifier = ValueNotifier(0);
 
 // サーバーから絵文字メタデータを同期（起動時に1回実行）
 await catalog.sync();
+emojiRefreshNotifier.value++;
 ```
 
 #### 3. MfmTextにemojiBuilderを設定
@@ -646,6 +659,7 @@ MfmText(
       resolver: resolver,
       size: 24.0, // 表示上の高さ
       maxWidth: 70.0, // 任意
+      refreshListenable: emojiRefreshNotifier,
     ),
   ),
 )

@@ -17,11 +17,13 @@ class MfmEmojiConfig {
   ///
   /// サーバーURLを指定するだけで永続化ストレージ込みのEmojiResolverとMfmRenderConfigを構築
   /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
+  /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   static Future<MfmRenderConfig> quickSetup({
     required String serverUrl,
     String? storagePath,
     double emojiSize = 24.0,
     double? emojiMaxWidth,
+    Listenable? emojiRefreshListenable,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
     SyncErrorCallback? onSyncError,
     bool autoSync = true,
@@ -32,6 +34,7 @@ class MfmEmojiConfig {
       storagePath: storagePath,
       emojiSize: emojiSize,
       emojiMaxWidth: emojiMaxWidth,
+      emojiRefreshListenable: emojiRefreshListenable,
       fallbackBuilder: fallbackBuilder,
       onSyncError: onSyncError,
       autoSync: autoSync,
@@ -42,11 +45,13 @@ class MfmEmojiConfig {
   ///
   /// より詳細な制御が必要な場合に使用
   /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
+  /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   static Future<MfmRenderConfig> createDefault({
     required Uri serverUrl,
     String? storagePath,
     double emojiSize = 24.0,
     double? emojiMaxWidth,
+    Listenable? emojiRefreshListenable,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
     SyncErrorCallback? onSyncError,
     bool autoSync = true,
@@ -76,13 +81,22 @@ class MfmEmojiConfig {
     );
     final resolver = MisskeyEmojiResolver(catalog);
 
+    var effectiveRefreshListenable = emojiRefreshListenable;
+
     if (autoSync) {
+      final autoSyncNotifier = ValueNotifier(0);
+      effectiveRefreshListenable = emojiRefreshListenable == null
+          ? autoSyncNotifier
+          : Listenable.merge([emojiRefreshListenable, autoSyncNotifier]);
       unawaited(
-        catalog.sync().catchError((Object error, StackTrace stackTrace) {
-          if (error is Exception) {
-            onSyncError?.call(error, stackTrace);
-          }
-        }),
+        catalog
+            .sync()
+            .catchError((Object error, StackTrace stackTrace) {
+              if (error is Exception) {
+                onSyncError?.call(error, stackTrace);
+              }
+            })
+            .whenComplete(() => autoSyncNotifier.value++),
       );
     }
 
@@ -90,6 +104,7 @@ class MfmEmojiConfig {
       resolver: resolver.call,
       emojiSize: emojiSize,
       emojiMaxWidth: emojiMaxWidth,
+      emojiRefreshListenable: effectiveRefreshListenable,
       fallbackBuilder: fallbackBuilder,
     );
   }
@@ -97,10 +112,12 @@ class MfmEmojiConfig {
   /// 作成済みのResolverからConfigを構築
   ///
   /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
+  /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   static MfmRenderConfig fromResolver({
     required EmojiResolver resolver,
     double emojiSize = 24.0,
     double? emojiMaxWidth,
+    Listenable? emojiRefreshListenable,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
   }) {
     return MfmRenderConfig(
@@ -109,6 +126,7 @@ class MfmEmojiConfig {
         resolver: resolver,
         size: emojiSize,
         maxWidth: emojiMaxWidth,
+        refreshListenable: emojiRefreshListenable,
         fallbackBuilder: fallbackBuilder,
       ),
     );

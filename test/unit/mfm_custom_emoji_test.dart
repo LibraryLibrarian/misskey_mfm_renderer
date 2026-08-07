@@ -28,6 +28,12 @@ class MockEmojiResolver {
   }
 }
 
+class TestRefreshNotifier extends ChangeNotifier {
+  bool get hasRegisteredListeners => hasListeners;
+
+  void notify() => notifyListeners();
+}
+
 void main() {
   group('MfmCustomEmoji', () {
     testWidgets('解決成功時に画像ウィジェットを表示する', (tester) async {
@@ -115,7 +121,11 @@ void main() {
       var resolveCount = 0;
       Future<EmojiImage?> resolver(String _) async {
         resolveCount++;
-        return null;
+        return EmojiImage(
+          url: Uri.parse('https://example.com/stable.png'),
+          animated: false,
+          isSensitive: false,
+        );
       }
 
       Widget buildApp(ThemeMode themeMode) => MaterialApp(
@@ -132,6 +142,137 @@ void main() {
       await tester.pumpWidget(buildApp(ThemeMode.dark));
       await tester.pump();
       expect(resolveCount, 1);
+    });
+
+    testWidgets('未解決の絵文字は親の更新時に再試行する', (tester) async {
+      var resolveCount = 0;
+      var available = false;
+
+      Future<EmojiImage?> resolver(String _) async {
+        resolveCount++;
+        if (!available) {
+          return null;
+        }
+        return EmojiImage(
+          url: Uri.parse('https://example.com/retried.png'),
+          animated: false,
+          isSensitive: false,
+        );
+      }
+
+      Widget buildApp(ThemeMode themeMode) => MaterialApp(
+        themeMode: themeMode,
+        home: Scaffold(
+          body: MfmCustomEmoji(name: 'retry', resolver: resolver),
+        ),
+      );
+
+      await tester.pumpWidget(buildApp(ThemeMode.light));
+      await tester.pump();
+      expect(resolveCount, 1);
+      expect(find.text(':retry:'), findsOneWidget);
+
+      available = true;
+      await tester.pumpWidget(buildApp(ThemeMode.dark));
+      await tester.pump();
+
+      expect(resolveCount, 2);
+      expect(find.byType(CachedNetworkImage), findsOneWidget);
+    });
+
+    testWidgets('更新通知を受けると同じ絵文字を再解決する', (tester) async {
+      final refreshNotifier = ValueNotifier(0);
+      addTearDown(refreshNotifier.dispose);
+      var resolveCount = 0;
+      var available = false;
+
+      Future<EmojiImage?> resolver(String _) async {
+        resolveCount++;
+        if (!available) {
+          return null;
+        }
+        return EmojiImage(
+          url: Uri.parse('https://example.com/refreshed.png'),
+          animated: false,
+          isSensitive: false,
+        );
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmCustomEmoji(
+              name: 'refreshable',
+              resolver: resolver,
+              refreshListenable: refreshNotifier,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(resolveCount, 1);
+      expect(find.text(':refreshable:'), findsOneWidget);
+
+      available = true;
+      refreshNotifier.value++;
+      await tester.pump();
+      await tester.pump();
+
+      expect(resolveCount, 2);
+      expect(find.byType(CachedNetworkImage), findsOneWidget);
+      final image = tester.widget<CachedNetworkImage>(
+        find.byType(CachedNetworkImage),
+      );
+      expect(image.imageUrl, 'https://example.com/refreshed.png');
+    });
+
+    testWidgets('更新通知元の変更時にリスナーを付け替える', (tester) async {
+      final oldNotifier = TestRefreshNotifier();
+      final newNotifier = TestRefreshNotifier();
+      addTearDown(oldNotifier.dispose);
+      addTearDown(newNotifier.dispose);
+      var resolveCount = 0;
+
+      Future<EmojiImage?> resolver(String _) async {
+        resolveCount++;
+        return EmojiImage(
+          url: Uri.parse('https://example.com/listener.png'),
+          animated: false,
+          isSensitive: false,
+        );
+      }
+
+      Widget buildApp(TestRefreshNotifier notifier) => MaterialApp(
+        home: Scaffold(
+          body: MfmCustomEmoji(
+            name: 'replace-listener',
+            resolver: resolver,
+            refreshListenable: notifier,
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(buildApp(oldNotifier));
+      await tester.pump();
+      expect(resolveCount, 1);
+      expect(oldNotifier.hasRegisteredListeners, isTrue);
+
+      await tester.pumpWidget(buildApp(newNotifier));
+      await tester.pump();
+      expect(oldNotifier.hasRegisteredListeners, isFalse);
+      expect(newNotifier.hasRegisteredListeners, isTrue);
+
+      oldNotifier.notify();
+      await tester.pump();
+      expect(resolveCount, 1);
+
+      newNotifier.notify();
+      await tester.pump();
+      expect(resolveCount, 2);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(newNotifier.hasRegisteredListeners, isFalse);
     });
 
     testWidgets('絵文字名が変わった場合は新しい絵文字を解決する', (tester) async {
