@@ -67,8 +67,12 @@ Custom emoji rendering is supported through integration with the `misskey_emoji`
 **Features**:
 - Automatic emoji metadata resolution
 - Image caching with `cached_network_image`
+- Aspect-ratio-preserving rendering with a fixed display height
 - Fallback display for unavailable emojis
 - Animated emoji support (GIF, APNG, WebP)
+
+Custom emojis use their natural width by default. To cap very wide emojis,
+pass `emojiMaxWidth` to `MfmEmojiConfig` or `maxWidth` to `MfmCustomEmoji`.
 
 See [Advanced Custom Emoji Configuration](#advanced-custom-emoji-configuration)
 for setup instructions.
@@ -242,7 +246,8 @@ MfmText(
     emojiBuilder: (name) => MfmCustomEmoji(
       name: name,
       resolver: resolver,
-      size: 24.0,
+      size: 24.0, // Display height
+      maxWidth: 70.0, // Optional
     ),
   ),
 )
@@ -459,8 +464,13 @@ Misskeyの猫モードと同等の挙動で、テキストノードの文字列�
 **特徴**:
 - 絵文字メタデータの自動解決
 - `cached_network_image` による画像キャッシュ
+- 高さを固定し、元画像のアスペクト比を維持した表示
 - 未取得時のフォールバック表示
 - アニメーション絵文字（GIF/APNG/WebP）に対応
+
+カスタム絵文字の幅は既定で元画像の比率に従います。極端に横長な絵文字の幅を
+制限する場合は、`MfmEmojiConfig` の `emojiMaxWidth` または
+`MfmCustomEmoji` の `maxWidth` を指定してください。
 
 手順は [高度なカスタム絵文字の設定](#高度なカスタム絵文字の設定)
 を参照してください。
@@ -634,7 +644,8 @@ MfmText(
     emojiBuilder: (name) => MfmCustomEmoji(
       name: name,
       resolver: resolver,
-      size: 24.0,
+      size: 24.0, // 表示上の高さ
+      maxWidth: 70.0, // 任意
     ),
   ),
 )

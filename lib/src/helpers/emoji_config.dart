@@ -16,10 +16,12 @@ class MfmEmojiConfig {
   /// シンプルなセットアップ（最も一般的な使用ケース）
   ///
   /// サーバーURLを指定するだけで永続化ストレージ込みのEmojiResolverとMfmRenderConfigを構築
+  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
   static Future<MfmRenderConfig> quickSetup({
     required String serverUrl,
     String? storagePath,
     double emojiSize = 24.0,
+    double? emojiMaxWidth,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
     SyncErrorCallback? onSyncError,
     bool autoSync = true,
@@ -29,6 +31,7 @@ class MfmEmojiConfig {
       serverUrl: uri,
       storagePath: storagePath,
       emojiSize: emojiSize,
+      emojiMaxWidth: emojiMaxWidth,
       fallbackBuilder: fallbackBuilder,
       onSyncError: onSyncError,
       autoSync: autoSync,
@@ -38,10 +41,12 @@ class MfmEmojiConfig {
   /// カスタマイズ可能なセットアップ
   ///
   /// より詳細な制御が必要な場合に使用
+  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
   static Future<MfmRenderConfig> createDefault({
     required Uri serverUrl,
     String? storagePath,
     double emojiSize = 24.0,
+    double? emojiMaxWidth,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
     SyncErrorCallback? onSyncError,
     bool autoSync = true,
@@ -84,14 +89,18 @@ class MfmEmojiConfig {
     return fromResolver(
       resolver: resolver.call,
       emojiSize: emojiSize,
+      emojiMaxWidth: emojiMaxWidth,
       fallbackBuilder: fallbackBuilder,
     );
   }
 
   /// 作成済みのResolverからConfigを構築
+  ///
+  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
   static MfmRenderConfig fromResolver({
     required EmojiResolver resolver,
     double emojiSize = 24.0,
+    double? emojiMaxWidth,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
   }) {
     return MfmRenderConfig(
@@ -99,6 +108,7 @@ class MfmEmojiConfig {
         name: name,
         resolver: resolver,
         size: emojiSize,
+        maxWidth: emojiMaxWidth,
         fallbackBuilder: fallbackBuilder,
       ),
     );

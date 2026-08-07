@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+- カスタム絵文字に任意の最大幅を設定する `maxWidth` / `emojiMaxWidth` を追加
+
 ### Fixed
+- 横長のカスタム絵文字が正方形領域内で極端に小さく表示される問題を修正
+- カスタム絵文字のメモリキャッシュ生成時にアスペクト比が崩れる可能性がある問題を修正
+- 親ウィジェットの再ビルド時に同じカスタム絵文字が再解決される問題を修正
 - アニメーション関数の `speed` が0以下または1ms未満の場合に描画が失敗する問題を修正
 - 負の `delay` を本家Misskeyと同様に経過済み時間として反映
 

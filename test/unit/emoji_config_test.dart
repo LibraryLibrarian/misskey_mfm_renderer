@@ -16,6 +16,7 @@ void main() {
     final config = MfmEmojiConfig.fromResolver(
       resolver: resolver,
       emojiSize: 20,
+      emojiMaxWidth: 60,
     );
 
     expect(config.emojiBuilder, isNotNull);
@@ -24,6 +25,7 @@ void main() {
     final custom = widget as MfmCustomEmoji;
     expect(custom.name, 'test');
     expect(custom.size, 20);
+    expect(custom.maxWidth, 60);
   });
 
   test('quickSetup returns config with emojiBuilder', () async {
