@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.0 - 2026-08-08
+
+### Added
+- カスタム絵文字に任意の最大幅を設定する `maxWidth` / `emojiMaxWidth` を追加
+- カタログ更新後にカスタム絵文字を再解決する `refreshListenable` / `emojiRefreshListenable` を追加
+
+### Fixed
+- 横長のカスタム絵文字が正方形領域内で極端に小さく表示される問題を修正
+- カスタム絵文字のメモリキャッシュ生成時にアスペクト比が崩れる可能性がある問題を修正
+- 親ウィジェットの再ビルド時に解決済みの同じカスタム絵文字が再解決される問題を修正
+- カタログ同期後も未解決のカスタム絵文字や更新済みメタデータが反映されない問題を修正
+- アニメーション関数の `speed` が0以下または1ms未満の場合に描画が失敗する問題を修正
+- 負の `delay` を本家Misskeyと同様に経過済み時間として反映
+
 ## 0.2.0 - 2026-05-16
 
 ### Added
