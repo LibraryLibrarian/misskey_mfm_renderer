@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,6 +82,7 @@ void main() {
       expect(image.fit, BoxFit.contain);
       expect(image.memCacheWidth, isNull);
       expect(image.memCacheHeight, 64);
+      expect(image.imageBuilder, isNull);
     });
 
     testWidgets('最大幅を指定した場合のみ画像の幅を制約する', (tester) async {
@@ -115,6 +118,115 @@ void main() {
             widget is ConstrainedBox && widget.constraints.maxWidth == 70,
       );
       expect(widthConstraint, findsOneWidget);
+    });
+
+    testWidgets('未知の絵文字の読み込み中は正方形の幅を確保しない', (tester) async {
+      final pending = Completer<EmojiImage?>();
+      Future<EmojiImage?> resolver(String _) => pending.future;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmCustomEmoji(
+              name: 'unknown-size',
+              resolver: resolver,
+            ),
+          ),
+        ),
+      );
+
+      final placeholder = find.byWidgetPredicate(
+        (widget) =>
+            widget is SizedBox && widget.width == 0 && widget.height == 24,
+      );
+      expect(placeholder, findsOneWidget);
+    });
+
+    testWidgets('未知の絵文字は最大幅を読み込み中の幅として使用する', (tester) async {
+      final pending = Completer<EmojiImage?>();
+      Future<EmojiImage?> resolver(String _) => pending.future;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmCustomEmoji(
+              name: 'unknown-size-limited',
+              resolver: resolver,
+              maxWidth: 70,
+            ),
+          ),
+        ),
+      );
+
+      final placeholder = find.byWidgetPredicate(
+        (widget) =>
+            widget is SizedBox && widget.width == 70 && widget.height == 24,
+      );
+      expect(placeholder, findsOneWidget);
+    });
+
+    testWidgets('既知のアスペクト比を初回の読み込み表示に反映する', (tester) async {
+      final pending = Completer<EmojiImage?>();
+      Future<EmojiImage?> resolver(String _) => pending.future;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmCustomEmoji(
+              name: 'known-size',
+              resolver: resolver,
+              aspectRatio: 4,
+            ),
+          ),
+        ),
+      );
+
+      final placeholder = find.byWidgetPredicate(
+        (widget) =>
+            widget is SizedBox && widget.width == 96 && widget.height == 24,
+      );
+      expect(placeholder, findsOneWidget);
+    });
+
+    testWidgets('判明済みのアスペクト比をState再生成時に再利用する', (tester) async {
+      final image = EmojiImage(
+        url: Uri.parse('https://example.com/cached-ratio.png'),
+        animated: false,
+        isSensitive: false,
+      );
+      final pending = Completer<EmojiImage?>();
+      var resolveCount = 0;
+      Future<EmojiImage?> resolver(String _) {
+        resolveCount++;
+        return resolveCount == 1 ? Future.value(image) : pending.future;
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'cached-ratio',
+            resolver: resolver,
+            aspectRatio: 4,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'cached-ratio',
+            resolver: resolver,
+          ),
+        ),
+      );
+
+      final placeholder = find.byWidgetPredicate(
+        (widget) =>
+            widget is SizedBox && widget.width == 96 && widget.height == 24,
+      );
+      expect(placeholder, findsOneWidget);
     });
 
     testWidgets('親が再ビルドされても同じ絵文字を再解決しない', (tester) async {

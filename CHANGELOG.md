@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+- カスタム絵文字の既知アスペクト比を指定する `aspectRatio` を追加
+
+### Fixed
+- カスタム絵文字の読み込み中に正方形の幅を確保して本文がリフローする問題を修正
+- 判明済みのカスタム絵文字のアスペクト比を再利用し、再生成時のリフローを抑制
+
 ## 0.3.0 - 2026-08-08
 
 ### Added
