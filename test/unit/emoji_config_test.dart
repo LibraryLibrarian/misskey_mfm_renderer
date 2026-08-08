@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
@@ -7,6 +8,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('fromResolver builds MfmCustomEmoji', () {
+    final refreshNotifier = ValueNotifier(0);
+    addTearDown(refreshNotifier.dispose);
+
     Future<EmojiImage?> resolver(String _) async => EmojiImage(
       url: Uri.parse('https://example.com/emoji.png'),
       animated: false,
@@ -16,6 +20,8 @@ void main() {
     final config = MfmEmojiConfig.fromResolver(
       resolver: resolver,
       emojiSize: 20,
+      emojiMaxWidth: 60,
+      emojiRefreshListenable: refreshNotifier,
     );
 
     expect(config.emojiBuilder, isNotNull);
@@ -24,6 +30,8 @@ void main() {
     final custom = widget as MfmCustomEmoji;
     expect(custom.name, 'test');
     expect(custom.size, 20);
+    expect(custom.maxWidth, 60);
+    expect(custom.refreshListenable, same(refreshNotifier));
   });
 
   test('quickSetup returns config with emojiBuilder', () async {
