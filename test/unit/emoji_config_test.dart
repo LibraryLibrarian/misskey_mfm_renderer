@@ -36,21 +36,40 @@ void main() {
 
   test('quickSetup returns config with emojiBuilder', () async {
     final dir = await Directory.systemTemp.createTemp('mfm_emoji_quick');
+    final store = _FakeEmojiStore();
+    Uri? factoryServerUrl;
+    String? factoryDirectory;
     addTearDown(() async {
       await dir.delete(recursive: true);
     });
 
     final config = await MfmEmojiConfig.quickSetup(
-      serverUrl: 'https://example.com',
+      serverUrl: 'example.com',
       storagePath: dir.path,
       autoSync: false,
+      emojiStoreFactory: ({required Uri serverUrl, required String directory}) {
+        factoryServerUrl = serverUrl;
+        factoryDirectory = directory;
+        return store;
+      },
     );
+    addTearDown(config.dispose);
 
+    expect(config, isA<MfmEmojiConfigHandle>());
     expect(config.emojiBuilder, isNotNull);
+    expect(factoryServerUrl, Uri.parse('https://example.com'));
+    expect(factoryDirectory, dir.path);
+
+    await config.dispose();
+    await config.dispose();
+
+    expect(config.isDisposed, isTrue);
+    expect(store.disposeCalls, 1);
   });
 
-  test('createDefault returns config with emojiBuilder', () async {
-    final dir = await Directory.systemTemp.createTemp('mfm_emoji_default');
+  test('copyWith preserves shared lifecycle ownership', () async {
+    final dir = await Directory.systemTemp.createTemp('mfm_emoji_copy');
+    final store = _FakeEmojiStore();
     addTearDown(() async {
       await dir.delete(recursive: true);
     });
@@ -59,8 +78,61 @@ void main() {
       serverUrl: Uri.parse('https://example.com'),
       storagePath: dir.path,
       autoSync: false,
+      emojiStoreFactory:
+          ({required Uri serverUrl, required String directory}) => store,
     );
+    addTearDown(config.dispose);
 
-    expect(config.emojiBuilder, isNotNull);
+    final copied = config.copyWith(enableAnimation: false);
+
+    expect(copied, isA<MfmEmojiConfigHandle>());
+    expect(copied.enableAnimation, isFalse);
+    expect(config.enableAnimation, isTrue);
+
+    await copied.dispose();
+    await config.dispose();
+
+    expect(copied.isDisposed, isTrue);
+    expect(config.isDisposed, isTrue);
+    expect(store.disposeCalls, 1);
   });
+
+  test('createDefault returns config with emojiBuilder', () async {
+    final dir = await Directory.systemTemp.createTemp('mfm_emoji_default');
+    final store = _FakeEmojiStore();
+    addTearDown(() async {
+      await dir.delete(recursive: true);
+    });
+
+    final config = await MfmEmojiConfig.createDefault(
+      serverUrl: Uri.parse('https://example.com'),
+      storagePath: dir.path,
+      autoSync: false,
+      emojiStoreFactory:
+          ({required Uri serverUrl, required String directory}) => store,
+    );
+    addTearDown(config.dispose);
+
+    expect(config, isA<MfmEmojiConfigHandle>());
+    expect(config.emojiBuilder, isNotNull);
+
+    await config.dispose();
+
+    expect(store.disposeCalls, 1);
+  });
+}
+
+class _FakeEmojiStore implements EmojiStore {
+  int disposeCalls = 0;
+
+  @override
+  Future<List<EmojiRecord>> loadAll() async => [];
+
+  @override
+  Future<void> saveAll(List<EmojiRecord> all) async {}
+
+  @override
+  Future<void> dispose() async {
+    disposeCalls++;
+  }
 }

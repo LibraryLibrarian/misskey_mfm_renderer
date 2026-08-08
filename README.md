@@ -134,7 +134,16 @@ MfmText(
   text: ':custom_emoji: **Hello** World!',
   config: config,
 )
+
+// Later, release resources when the owner is disposed.
+await config.dispose();
 ```
+
+`quickSetup` and `createDefault` return an `MfmEmojiConfigHandle`, which can be
+used anywhere an `MfmRenderConfig` is accepted. The handle owns its persistent
+store and must be disposed. Unit tests can pass `emojiStoreFactory` to inject a
+test double without loading Isar's native library. Configurations created with
+`copyWith` share the same lifecycle; disposing any copy disposes them all.
 
 For advanced customization, see
 [Advanced Custom Emoji Configuration](#advanced-custom-emoji-configuration).
@@ -229,7 +238,7 @@ final isar = await openEmojiIsarForServer(baseUrl, directory: dir.path);
 // Create persistent catalog and resolver
 final catalog = PersistentEmojiCatalog(
   api: emojiApi,
-  store: IsarEmojiStore(isar),
+  store: IsarEmojiStore(isar, ownsIsar: true),
   meta: MetaClient(httpClient),
 );
 final resolver = MisskeyEmojiResolver(catalog);
@@ -260,7 +269,14 @@ MfmText(
 )
 ```
 
-#### 4. (Optional) Customize Fallback Display
+#### 4. Release Resources
+
+```dart
+emojiRefreshNotifier.dispose();
+await catalog.dispose();
+```
+
+#### 5. (Optional) Customize Fallback Display
 
 ```dart
 MfmCustomEmoji(
@@ -539,7 +555,17 @@ MfmText(
   text: ':custom_emoji: **こんにちは**',
   config: config,
 )
+
+// 後で、所有元の破棄時にリソースを解放
+await config.dispose();
 ```
+
+`quickSetup` と `createDefault` は、`MfmRenderConfig` としてそのまま使える
+`MfmEmojiConfigHandle` を返します。このハンドルは永続ストアを所有するため、
+不要になったら `dispose()` を呼んでください。ユニットテストでは
+`emojiStoreFactory` にテストダブルを注入すると、Isarのネイティブライブラリを
+ロードせずに構成処理を検証できます。`copyWith` で作成した設定は同じ
+ライフサイクルを共有し、いずれかを破棄するとすべて破棄済みになります。
 
 より詳細な制御が必要な場合は、
 [高度なカスタム絵文字の設定](#高度なカスタム絵文字の設定) を参照してください。
@@ -634,7 +660,7 @@ final isar = await openEmojiIsarForServer(baseUrl, directory: dir.path);
 // 永続化カタログとリゾルバーを作成
 final catalog = PersistentEmojiCatalog(
   api: emojiApi,
-  store: IsarEmojiStore(isar),
+  store: IsarEmojiStore(isar, ownsIsar: true),
   meta: MetaClient(httpClient),
 );
 final resolver = MisskeyEmojiResolver(catalog);
@@ -665,7 +691,14 @@ MfmText(
 )
 ```
 
-#### 4. (任意) フォールバック表示のカスタマイズ
+#### 4. リソースの解放
+
+```dart
+emojiRefreshNotifier.dispose();
+await catalog.dispose();
+```
+
+#### 5. (任意) フォールバック表示のカスタマイズ
 
 ```dart
 MfmCustomEmoji(
