@@ -242,6 +242,7 @@ class MfmEmojiConfig {
     final config = MfmRenderConfig(
       emojiBuilder: _createEmojiBuilder(
         resolver: resolver.call,
+        cacheScope: resolver,
         emojiSize: emojiSize,
         emojiMaxWidth: emojiMaxWidth,
         emojiRefreshListenable: effectiveRefreshListenable,
@@ -272,6 +273,7 @@ class MfmEmojiConfig {
     return MfmRenderConfig(
       emojiBuilder: _createEmojiBuilder(
         resolver: resolver,
+        cacheScope: resolver,
         emojiSize: emojiSize,
         emojiMaxWidth: emojiMaxWidth,
         emojiRefreshListenable: emojiRefreshListenable,
@@ -282,6 +284,7 @@ class MfmEmojiConfig {
 
   static Widget Function(String name) _createEmojiBuilder({
     required EmojiResolver resolver,
+    required Object cacheScope,
     required double emojiSize,
     required double? emojiMaxWidth,
     required Listenable? emojiRefreshListenable,
@@ -291,6 +294,7 @@ class MfmEmojiConfig {
     return (name) => MfmCustomEmoji(
       name: name,
       resolver: resolver,
+      cacheScope: cacheScope,
       size: emojiSize,
       maxWidth: emojiMaxWidth,
       refreshListenable: emojiRefreshListenable,
