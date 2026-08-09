@@ -126,7 +126,7 @@ Add the dependency to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.4.0
+  misskey_mfm_renderer: ^0.5.0
 ```
 
 ## Quick Start
@@ -220,7 +220,7 @@ If your project enforces direct dependencies for imported packages, add:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.4.0
+  misskey_mfm_renderer: ^0.5.0
   misskey_api_core: ^1.0.0
   path_provider: ^2.1.5
 ```
@@ -561,7 +561,7 @@ scopeはレイアウトヒントのキャッシュだけを制御し、resolver�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.4.0
+  misskey_mfm_renderer: ^0.5.0
 ```
 
 ## クイックスタート
@@ -656,7 +656,7 @@ import対象パッケージを直接依存に置きたい場合は追加して�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.4.0
+  misskey_mfm_renderer: ^0.5.0
   misskey_api_core: ^1.0.0
   path_provider: ^2.1.5
 ```
