@@ -31,6 +31,7 @@ void main() {
     expect(custom.name, 'test');
     expect(custom.size, 20);
     expect(custom.maxWidth, 60);
+    expect(custom.cacheScope, same(resolver));
     expect(custom.refreshListenable, same(refreshNotifier));
   });
 

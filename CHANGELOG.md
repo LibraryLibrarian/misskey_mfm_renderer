@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+- カスタム絵文字のURL・アスペクト比キャッシュを安定した識別子で分離する `cacheScope` を追加
+
+### Fixed
+- resolverクロージャを再生成する利用方法で、判明済みのアスペクト比が再利用されない問題を修正
+- アスペクト比が未知の場合に `maxWidth` をプレースホルダの推定幅として使用し、実画像の表示後に逆方向のリフローが発生する問題を修正
+- 幅0のプレースホルダ内で描画できないローディングインジケータを生成する問題を修正
+
 ## 0.4.0 - 2026-08-10
 
 ### Added
