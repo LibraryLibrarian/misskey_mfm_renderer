@@ -68,11 +68,14 @@ Custom emoji rendering is supported through integration with the `misskey_emoji`
 - Automatic emoji metadata resolution
 - Image caching with `cached_network_image`
 - Aspect-ratio-preserving rendering with a fixed display height
+- Reuse of decoded aspect ratios to stabilize loading placeholders
 - Fallback display for unavailable emojis
 - Animated emoji support (GIF, APNG, WebP)
 
 Custom emojis use their natural width by default. To cap very wide emojis,
 pass `emojiMaxWidth` to `MfmEmojiConfig` or `maxWidth` to `MfmCustomEmoji`.
+If an image ratio is already available in application metadata, pass it to
+`MfmCustomEmoji.aspectRatio` to stabilize the very first loading layout too.
 When a custom resolver's catalog changes, pass a `Listenable` through
 `emojiRefreshListenable` or `refreshListenable` and notify it to re-resolve
 visible emojis. `MfmEmojiConfig` does this automatically after `autoSync`.
@@ -488,12 +491,15 @@ Misskeyの猫モードと同等の挙動で、テキストノードの文字列�
 - 絵文字メタデータの自動解決
 - `cached_network_image` による画像キャッシュ
 - 高さを固定し、元画像のアスペクト比を維持した表示
+- 読み込み済みアスペクト比の再利用によるプレースホルダのレイアウト安定化
 - 未取得時のフォールバック表示
 - アニメーション絵文字（GIF/APNG/WebP）に対応
 
 カスタム絵文字の幅は既定で元画像の比率に従います。極端に横長な絵文字の幅を
 制限する場合は、`MfmEmojiConfig` の `emojiMaxWidth` または
 `MfmCustomEmoji` の `maxWidth` を指定してください。
+画像比率を別のメタデータから取得済みの場合は、`MfmCustomEmoji` の
+`aspectRatio` に渡すことで初回読み込み時のレイアウトも安定します。
 独自リゾルバーのカタログを更新した場合は、`emojiRefreshListenable` または
 `refreshListenable` に渡した `Listenable` を通知すると、表示中の絵文字を
 再解決できます。`MfmEmojiConfig` は `autoSync` 完了後に自動で通知します。

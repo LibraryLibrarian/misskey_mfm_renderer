@@ -10,9 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `MfmEmojiConfig.quickSetup()` / `createDefault()` が返す設定に、永続ストアを解放する `dispose()` を追加
 - `emojiStoreFactory` による絵文字ストアの注入に対応
+- カスタム絵文字の既知アスペクト比を指定する `aspectRatio` を追加
 
 ### Fixed
 - `emoji_config_test` がユニットテスト内で実Isarを開き、ネイティブライブラリ不在やインスタンス名衝突で失敗する問題を修正
+- カスタム絵文字の読み込み中に正方形の幅を確保して本文がリフローする問題を修正
+- 判明済みのカスタム絵文字のアスペクト比を再利用し、再生成時のリフローを抑制
 
 ## 0.3.0 - 2026-08-08
 
