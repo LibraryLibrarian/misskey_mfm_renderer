@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.0 - 2026-08-10
+
+### Added
+- `MfmEmojiConfig.quickSetup()` / `createDefault()` が返す設定に、永続ストアを解放する `dispose()` を追加
+- `emojiStoreFactory` による絵文字ストアの注入に対応
+- カスタム絵文字の既知アスペクト比を指定する `aspectRatio` を追加
+
+### Changed
+- `MfmEmojiConfig.quickSetup()` / `createDefault()` の戻り値を `MfmRenderConfig` のサブクラスである `MfmEmojiConfigHandle` に変更
+  - `MfmRenderConfig` として扱う既存コードは変更不要
+  - `copyWith()` で作成した設定はライフサイクルを共有し、いずれかを破棄するとすべて破棄済みになる
+
+### Fixed
+- `emoji_config_test` がユニットテスト内で実Isarを開き、ネイティブライブラリ不在やインスタンス名衝突で失敗する問題を修正
+- カスタム絵文字の読み込み中に正方形の幅を確保して本文がリフローする問題を修正
+- 判明済みのカスタム絵文字のアスペクト比を再利用し、再生成時のリフローを抑制
+
 ## 0.3.0 - 2026-08-08
 
 ### Added
