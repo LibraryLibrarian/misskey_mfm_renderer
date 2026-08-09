@@ -14,6 +14,7 @@ class MfmCustomEmoji extends StatefulWidget {
     this.size = 24.0,
     this.maxWidth,
     this.aspectRatio,
+    this.cacheScope,
     this.refreshListenable,
     this.fallbackBuilder,
     this.errorBuilder,
@@ -43,6 +44,15 @@ class MfmCustomEmoji extends StatefulWidget {
   /// the first time. When omitted, decoded ratios are retained in a bounded
   /// in-memory cache and reused by later widgets for the same emoji.
   final double? aspectRatio;
+
+  /// A stable identity used to scope cached URLs and aspect ratios.
+  ///
+  /// When omitted, [resolver] itself is used. Pass a stable server, catalog,
+  /// or resolver owner when the resolver closure is recreated during builds.
+  /// Resolvers with the same cache scope are treated as equivalent across
+  /// widget updates; notify [refreshListenable] when their backing data
+  /// changes.
+  final Object? cacheScope;
 
   /// An optional signal that causes the emoji metadata to be resolved again.
   ///
@@ -84,7 +94,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
       widget.refreshListenable?.addListener(_refresh);
     }
     if (oldWidget.name != widget.name ||
-        oldWidget.resolver != widget.resolver ||
+        _cacheScopeOf(oldWidget) != _cacheScopeOf(widget) ||
         _retryOnUpdate) {
       _resolveEmoji();
     }
@@ -175,9 +185,12 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   }
 
   _EmojiCacheKey get _cacheKey => _EmojiCacheKey(
-    resolver: widget.resolver,
+    scope: _cacheScopeOf(widget),
     name: widget.name,
   );
+
+  Object _cacheScopeOf(MfmCustomEmoji target) =>
+      target.cacheScope ?? target.resolver;
 
   double? get _knownAspectRatio {
     final suppliedAspectRatio = widget.aspectRatio;
@@ -234,9 +247,14 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 
   Widget _defaultLoadingWidget(double? aspectRatio) {
     final maxWidth = widget.maxWidth;
-    final width = aspectRatio == null
-        ? maxWidth ?? 0.0
-        : math.min(widget.size * aspectRatio, maxWidth ?? double.infinity);
+    if (aspectRatio == null) {
+      return SizedBox(width: 0, height: widget.size);
+    }
+
+    final width = math.min(
+      widget.size * aspectRatio,
+      maxWidth ?? double.infinity,
+    );
 
     return SizedBox(
       width: width,
@@ -269,21 +287,19 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 
 class _EmojiCacheKey {
   const _EmojiCacheKey({
-    required this.resolver,
+    required this.scope,
     required this.name,
   });
 
-  final EmojiResolver resolver;
+  final Object scope;
   final String name;
 
   @override
   bool operator ==(Object other) =>
-      other is _EmojiCacheKey &&
-      other.resolver == resolver &&
-      other.name == name;
+      other is _EmojiCacheKey && other.scope == scope && other.name == name;
 
   @override
-  int get hashCode => Object.hash(resolver, name);
+  int get hashCode => Object.hash(scope, name);
 }
 
 class _LruCache<K, V> {
