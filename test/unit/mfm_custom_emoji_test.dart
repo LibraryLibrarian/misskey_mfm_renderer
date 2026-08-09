@@ -38,6 +38,8 @@ class TestRefreshNotifier extends ChangeNotifier {
 
 void main() {
   group('MfmCustomEmoji', () {
+    setUp(MfmCustomEmoji.debugClearCaches);
+
     testWidgets('解決成功時に画像ウィジェットを表示する', (tester) async {
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -341,40 +343,92 @@ void main() {
       expect(placeholder, findsOneWidget);
     });
 
-    testWidgets('同じcacheScopeではresolverクロージャの再生成時に再解決しない', (
+    testWidgets('debugClearCachesで判明済み比率を破棄する', (tester) async {
+      final scope = Object();
+      final image = EmojiImage(
+        url: Uri.parse('https://example.com/cleared-ratio.png'),
+        animated: false,
+        isSensitive: false,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmCustomEmoji(
+              name: 'cleared-ratio',
+              resolver: (_) async => image,
+              aspectRatio: 4,
+              cacheScope: scope,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      MfmCustomEmoji.debugClearCaches();
+
+      final pending = Completer<EmojiImage?>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmCustomEmoji(
+              name: 'cleared-ratio',
+              resolver: (_) => pending.future,
+              cacheScope: scope,
+            ),
+          ),
+        ),
+      );
+
+      final placeholder = find.byWidgetPredicate(
+        (widget) =>
+            widget is SizedBox && widget.width == 0 && widget.height == 24,
+      );
+      expect(placeholder, findsOneWidget);
+    });
+
+    testWidgets('同じcacheScopeでもresolverクロージャが変われば再解決する', (
       tester,
     ) async {
       final scope = Object();
       var resolveCount = 0;
-      Future<EmojiImage?> resolve(String _) async {
-        resolveCount++;
-        return EmojiImage(
-          url: Uri.parse('https://example.com/scoped-stable.png'),
-          animated: false,
-          isSensitive: false,
-        );
-      }
-
-      Widget buildApp(ThemeMode themeMode) => MaterialApp(
-        themeMode: themeMode,
+      Widget buildApp(String preferredHost) => MaterialApp(
         home: Scaffold(
           body: MfmCustomEmoji(
-            name: 'scoped-stable',
-            // A fresh closure on every build is the behavior under test.
-            // ignore: unnecessary_lambdas
-            resolver: (name) => resolve(name),
+            name: 'scoped-host',
+            resolver: (_) async {
+              resolveCount++;
+              return EmojiImage(
+                url: Uri.parse('https://$preferredHost/emoji.png'),
+                animated: false,
+                isSensitive: false,
+              );
+            },
             cacheScope: scope,
           ),
         ),
       );
 
-      await tester.pumpWidget(buildApp(ThemeMode.light));
+      await tester.pumpWidget(buildApp('first.example.com'));
       await tester.pump();
       expect(resolveCount, 1);
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://first.example.com/emoji.png',
+      );
 
-      await tester.pumpWidget(buildApp(ThemeMode.dark));
+      await tester.pumpWidget(buildApp('second.example.com'));
       await tester.pump();
-      expect(resolveCount, 1);
+      expect(resolveCount, 2);
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://second.example.com/emoji.png',
+      );
     });
 
     testWidgets('cacheScopeが変わった場合は同じ絵文字を再解決する', (tester) async {

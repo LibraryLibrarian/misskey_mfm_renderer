@@ -76,10 +76,15 @@ Custom emojis use their natural width by default. To cap very wide emojis,
 pass `emojiMaxWidth` to `MfmEmojiConfig` or `maxWidth` to `MfmCustomEmoji`.
 If an image ratio is already available in application metadata, pass it to
 `MfmCustomEmoji.aspectRatio` to stabilize the very first loading layout too.
-If a resolver closure is recreated during builds, pass a stable server,
-catalog, or resolver owner to `MfmCustomEmoji.cacheScope`. This lets decoded
-ratios be reused without mixing emojis from different servers. When omitted,
-the resolver function object itself is used as the cache scope.
+When the ratio is unknown, the first load intentionally starts at zero width
+and can still reflow; an exact initial width requires `aspectRatio`.
+If a resolver closure is recreated during builds, pass a stable value to
+`MfmCustomEmoji.cacheScope`. Widgets sharing a scope must resolve the same name
+to the same URL for a given catalog state, so include every captured host,
+account, or other input that affects the result, for example
+`cacheScope: (resolverOwner, preferredHost, accountId)`.
+The scope only controls cached layout hints; a changed resolver is still run
+again. When omitted, the resolver function object itself is used.
 When a custom resolver's catalog changes, pass a `Listenable` through
 `emojiRefreshListenable` or `refreshListenable` and notify it to re-resolve
 visible emojis. `MfmEmojiConfig` does this automatically after `autoSync`.
@@ -506,10 +511,15 @@ Misskeyの猫モードと同等の挙動で、テキストノードの文字列�
 `MfmCustomEmoji` の `maxWidth` を指定してください。
 画像比率を別のメタデータから取得済みの場合は、`MfmCustomEmoji` の
 `aspectRatio` に渡すことで初回読み込み時のレイアウトも安定します。
-ビルドのたびにresolverクロージャを生成する場合は、サーバー、カタログ、
-resolverの所有者など安定した値を `MfmCustomEmoji.cacheScope` に渡してください。
-これにより異なるサーバーの絵文字を混同せず、判明済みの比率を再利用できます。
-省略時はresolver関数オブジェクト自体がキャッシュのスコープになります。
+比率が未知の場合、真の初回は意図的に幅0から始まるためリフローし得ます。
+正確な初期幅が必要な場合は `aspectRatio` を指定してください。
+ビルドのたびにresolverクロージャを生成する場合は、安定した値を
+`MfmCustomEmoji.cacheScope` に渡してください。同じscopeを共有するWidgetは、
+同じカタログ状態において同名絵文字を同じURLへ解決する必要があります。結果に
+影響するホスト、アカウントなどをすべて含めてください。
+例: `cacheScope: (resolverOwner, preferredHost, accountId)`。
+scopeはレイアウトヒントのキャッシュだけを制御し、resolverが変わった場合は
+再解決されます。省略時はresolver関数オブジェクト自体が使用されます。
 独自リゾルバーのカタログを更新した場合は、`emojiRefreshListenable` または
 `refreshListenable` に渡した `Listenable` を通知すると、表示中の絵文字を
 再解決できます。`MfmEmojiConfig` は `autoSync` 完了後に自動で通知します。

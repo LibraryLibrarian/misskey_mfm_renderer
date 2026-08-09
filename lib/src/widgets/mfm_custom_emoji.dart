@@ -45,13 +45,15 @@ class MfmCustomEmoji extends StatefulWidget {
   /// in-memory cache and reused by later widgets for the same emoji.
   final double? aspectRatio;
 
-  /// A stable identity used to scope cached URLs and aspect ratios.
+  /// A stable namespace used to scope cached URLs and aspect ratios.
   ///
-  /// When omitted, [resolver] itself is used. Pass a stable server, catalog,
-  /// or resolver owner when the resolver closure is recreated during builds.
-  /// Resolvers with the same cache scope are treated as equivalent across
-  /// widget updates; notify [refreshListenable] when their backing data
-  /// changes.
+  /// Widgets sharing this value must resolve the same [name] to the same URL
+  /// for a given backing-data state. Include every captured input that can
+  /// affect the result, such as a host or account. A Dart record such as
+  /// `(resolverOwner, preferredHost)` can combine multiple inputs.
+  ///
+  /// When omitted, [resolver] itself is used. This value only controls cache
+  /// reuse; changing [resolver] still causes the emoji to be resolved again.
   final Object? cacheScope;
 
   /// An optional signal that causes the emoji metadata to be resolved again.
@@ -65,6 +67,10 @@ class MfmCustomEmoji extends StatefulWidget {
   errorBuilder;
   final Widget Function(BuildContext context)? loadingBuilder;
 
+  /// Clears the process-wide custom emoji layout caches.
+  @visibleForTesting
+  static void debugClearCaches() => _MfmCustomEmojiState._debugClearCaches();
+
   @override
   State<MfmCustomEmoji> createState() => _MfmCustomEmojiState();
 }
@@ -75,9 +81,17 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     256,
   );
   static final Set<String> _observingUrls = {};
+  static int _cacheGeneration = 0;
 
   late Future<EmojiImage?> _emojiFuture;
   bool _retryOnUpdate = false;
+
+  static void _debugClearCaches() {
+    _cacheGeneration++;
+    _aspectRatios.clear();
+    _resolvedUrls.clear();
+    _observingUrls.clear();
+  }
 
   @override
   void initState() {
@@ -94,6 +108,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
       widget.refreshListenable?.addListener(_refresh);
     }
     if (oldWidget.name != widget.name ||
+        oldWidget.resolver != widget.resolver ||
         _cacheScopeOf(oldWidget) != _cacheScopeOf(widget) ||
         _retryOnUpdate) {
       _resolveEmoji();
@@ -205,6 +220,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     if (_aspectRatios[url] != null || !_observingUrls.add(url)) {
       return;
     }
+    final cacheGeneration = _cacheGeneration;
 
     final imageProvider = ResizeImage.resizeIfNeeded(
       null,
@@ -218,6 +234,9 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     listener = ImageStreamListener(
       (imageInfo, _) {
         stream.removeListener(listener);
+        if (cacheGeneration != _MfmCustomEmojiState._cacheGeneration) {
+          return;
+        }
         _MfmCustomEmojiState._observingUrls.remove(url);
 
         final width = imageInfo.image.width;
@@ -228,6 +247,9 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
       },
       onError: (Object _, StackTrace? _) {
         stream.removeListener(listener);
+        if (cacheGeneration != _MfmCustomEmojiState._cacheGeneration) {
+          return;
+        }
         _MfmCustomEmojiState._observingUrls.remove(url);
       },
     );
@@ -246,11 +268,11 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   }
 
   Widget _defaultLoadingWidget(double? aspectRatio) {
-    final maxWidth = widget.maxWidth;
     if (aspectRatio == null) {
       return SizedBox(width: 0, height: widget.size);
     }
 
+    final maxWidth = widget.maxWidth;
     final width = math.min(
       widget.size * aspectRatio,
       maxWidth ?? double.infinity,
@@ -324,4 +346,6 @@ class _LruCache<K, V> {
       _values.remove(_values.keys.first);
     }
   }
+
+  void clear() => _values.clear();
 }
