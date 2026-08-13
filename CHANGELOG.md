@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Breaking:** `MfmEmojiConfig.quickSetup()` / `createDefault()` で、呼び出し元が所有する `MisskeyClient` を必須化
+  - 絵文字取得専用のHTTPクライアント生成を廃止し、アプリの接続設定・認証情報を再利用
+  - `MisskeyClient` の公開APIからベースURLを取得できないため、サーバー別ストアの識別用として `serverUrl` は引き続き指定
+  - `MfmEmojiConfigHandle.dispose()` はカタログとストアのみを破棄し、渡された `MisskeyClient` は破棄しない
+- `misskey_api_core` への依存を廃止し、`misskey_client` と `misskey_emoji` 2.0の `EmojiSource` APIへ移行
+
 ## 0.5.0 - 2026-08-10
 
 ### Added

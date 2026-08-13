@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 void main() {
@@ -45,6 +46,7 @@ void main() {
     });
 
     final config = await MfmEmojiConfig.quickSetup(
+      client: _createClient(),
       serverUrl: 'example.com',
       storagePath: dir.path,
       autoSync: false,
@@ -76,6 +78,7 @@ void main() {
     });
 
     final config = await MfmEmojiConfig.createDefault(
+      client: _createClient(),
       serverUrl: Uri.parse('https://example.com'),
       storagePath: dir.path,
       autoSync: false,
@@ -106,6 +109,7 @@ void main() {
     });
 
     final config = await MfmEmojiConfig.createDefault(
+      client: _createClient(),
       serverUrl: Uri.parse('https://example.com'),
       storagePath: dir.path,
       autoSync: false,
@@ -122,6 +126,10 @@ void main() {
     expect(store.disposeCalls, 1);
   });
 }
+
+MisskeyClient _createClient() => MisskeyClient(
+  config: MisskeyClientConfig(baseUrl: Uri.parse('https://example.com')),
+);
 
 class _FakeEmojiStore implements EmojiStore {
   int disposeCalls = 0;

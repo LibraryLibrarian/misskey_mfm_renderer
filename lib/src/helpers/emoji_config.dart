@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
-import 'package:misskey_api_core/misskey_api_core.dart';
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -149,11 +149,14 @@ class MfmEmojiConfig {
 
   /// シンプルなセットアップ（最も一般的な使用ケース）
   ///
-  /// サーバーURLを指定するだけで永続化ストレージ込みのEmojiResolverとMfmRenderConfigを構築
+  /// [client]を利用して永続化ストレージ込みのEmojiResolverとMfmRenderConfigを構築
+  /// [serverUrl]はサーバーごとに永続ストアを分離するために使用する。
+  /// [client]の所有権は呼び出し元にあり、返されたハンドルの破棄対象には含まれない。
   /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
   static Future<MfmEmojiConfigHandle> quickSetup({
+    required MisskeyClient client,
     required String serverUrl,
     String? storagePath,
     double emojiSize = 24.0,
@@ -166,6 +169,7 @@ class MfmEmojiConfig {
   }) {
     final uri = _normalizeServerUrl(serverUrl);
     return createDefault(
+      client: client,
       serverUrl: uri,
       storagePath: storagePath,
       emojiSize: emojiSize,
@@ -181,10 +185,13 @@ class MfmEmojiConfig {
   /// カスタマイズ可能なセットアップ
   ///
   /// より詳細な制御が必要な場合に使用
+  /// [serverUrl]はサーバーごとに永続ストアを分離するために使用する。
+  /// [client]の所有権は呼び出し元にあり、返されたハンドルの破棄対象には含まれない。
   /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
   static Future<MfmEmojiConfigHandle> createDefault({
+    required MisskeyClient client,
     required Uri serverUrl,
     String? storagePath,
     double emojiSize = 24.0,
@@ -206,15 +213,9 @@ class MfmEmojiConfig {
       directory: directory,
     );
 
-    final httpClient = MisskeyHttpClient(
-      config: MisskeyApiConfig(baseUrl: serverUrl),
-    );
-    final api = MisskeyEmojiApi(httpClient);
-
     final catalog = PersistentEmojiCatalog(
-      api: api,
+      source: MisskeyClientEmojiSource(client),
       store: store,
-      meta: MetaClient(httpClient),
       onSyncError: onSyncError,
     );
     final resolver = MisskeyEmojiResolver(catalog);

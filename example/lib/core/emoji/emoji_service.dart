@@ -1,3 +1,4 @@
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 /// Misskey.ioの絵文字設定を管理するシングルトンサービス
@@ -7,6 +8,10 @@ class EmojiService {
   static const String _misskeyIoUrl = 'https://misskey.io';
   static final EmojiService instance = EmojiService._();
 
+  /// 絵文字取得に使うAPIクライアント
+  ///
+  /// 所有権はこのサービスにあり、[MfmEmojiConfigHandle.dispose]では破棄されない
+  MisskeyClient? _client;
   MfmEmojiConfigHandle? _config;
   Future<MfmEmojiConfigHandle>? _initFuture;
   Future<void>? _disposeFuture;
@@ -35,7 +40,11 @@ class EmojiService {
     if (_config != null) return _config!;
     if (_initFuture != null) return _initFuture!;
 
+    final client = _client ??= MisskeyClient(
+      config: MisskeyClientConfig(baseUrl: Uri.parse(_misskeyIoUrl)),
+    );
     _initFuture = MfmEmojiConfig.quickSetup(
+      client: client,
       serverUrl: _misskeyIoUrl,
     );
     try {
@@ -55,6 +64,8 @@ class EmojiService {
       final config = _config ?? (pending == null ? null : await pending);
       _config = null;
       await config?.dispose();
+      // MisskeyClientの所有権はこのサービスにあるため、ここで破棄する
+      _client = null;
     } finally {
       _disposeFuture = null;
     }
