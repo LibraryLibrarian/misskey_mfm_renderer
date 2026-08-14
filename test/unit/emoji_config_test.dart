@@ -36,7 +36,7 @@ void main() {
     expect(custom.refreshListenable, same(refreshNotifier));
   });
 
-  test('quickSetup returns config with emojiBuilder', () async {
+  test('createDefault derives the store scope from client.baseUrl', () async {
     final dir = await Directory.systemTemp.createTemp('mfm_emoji_quick');
     final store = _FakeEmojiStore();
     Uri? factoryServerUrl;
@@ -45,9 +45,8 @@ void main() {
       await dir.delete(recursive: true);
     });
 
-    final config = await MfmEmojiConfig.quickSetup(
+    final config = await MfmEmojiConfig.createDefault(
       client: _createClient(),
-      serverUrl: 'example.com',
       storagePath: dir.path,
       autoSync: false,
       emojiStoreFactory: ({required Uri serverUrl, required String directory}) {
@@ -79,7 +78,6 @@ void main() {
 
     final config = await MfmEmojiConfig.createDefault(
       client: _createClient(),
-      serverUrl: Uri.parse('https://example.com'),
       storagePath: dir.path,
       autoSync: false,
       emojiStoreFactory:
@@ -110,7 +108,6 @@ void main() {
 
     final config = await MfmEmojiConfig.createDefault(
       client: _createClient(),
-      serverUrl: Uri.parse('https://example.com'),
       storagePath: dir.path,
       autoSync: false,
       emojiStoreFactory:

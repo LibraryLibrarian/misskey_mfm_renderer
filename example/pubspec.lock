@@ -324,17 +324,18 @@ packages:
     dependency: "direct main"
     description:
       name: misskey_client
-      sha256: "469db5c2add672789c84fd41347ca94329260aff495a98e8003f201d08382177"
+      sha256: "5c9ec223f29f551462af42da7cbe70875245fe01684dbb0c81b35f9153feccc2"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.0-beta.5"
+    version: "1.0.0-beta.6"
   misskey_emoji:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
-      path: "../../misskey_emoji"
-      relative: true
-    source: path
-    version: "1.0.0"
+      name: misskey_emoji
+      sha256: "4abace668b9dd72d62cdc5cf6f24743589a7b853f478b3cdb3aa88ddf941b348"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0-beta.1"
   misskey_mfm_parser:
     dependency: transitive
     description:

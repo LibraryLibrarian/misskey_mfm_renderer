@@ -8,11 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- **Breaking:** `MfmEmojiConfig.quickSetup()` / `createDefault()` で、呼び出し元が所有する `MisskeyClient` を必須化
+- **Breaking:** `MfmEmojiConfig.createDefault()` で、呼び出し元が所有する `MisskeyClient` を必須化
   - 絵文字取得専用のHTTPクライアント生成を廃止し、アプリの接続設定・認証情報を再利用
-  - `MisskeyClient` の公開APIからベースURLを取得できないため、サーバー別ストアの識別用として `serverUrl` は引き続き指定
   - `MfmEmojiConfigHandle.dispose()` はカタログとストアのみを破棄し、渡された `MisskeyClient` は破棄しない
 - `misskey_api_core` への依存を廃止し、`misskey_client` と `misskey_emoji` 2.0の `EmojiSource` APIへ移行
+
+### Removed
+- **Breaking:** `MfmEmojiConfig.quickSetup()` / `createDefault()` から `serverUrl` 引数を削除
+  - `misskey_client` 1.0.0-beta.6 で追加された `MisskeyClient.baseUrl` から導出するようになったため
+  - 従来は `client` と `serverUrl` の両方を要求しており、食い違う値を渡せてしまう問題があった
+
+- **Breaking:** `MfmEmojiConfig.quickSetup()` を削除。`serverUrl` の廃止により `createDefault()` と同一シグネチャになったため。`createDefault()` を使用すること
 
 ## 0.5.0 - 2026-08-10
 

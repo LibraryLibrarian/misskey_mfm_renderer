@@ -144,10 +144,7 @@ final client = MisskeyClient(
 );
 
 // One-time setup (e.g., in main())
-final config = await MfmEmojiConfig.quickSetup(
-  client: client,
-  serverUrl: serverUrl.toString(),
-);
+final config = await MfmEmojiConfig.createDefault(client: client);
 
 // Use anywhere in your app
 MfmText(
@@ -159,14 +156,14 @@ MfmText(
 await config.dispose();
 ```
 
-`quickSetup` and `createDefault` return an `MfmEmojiConfigHandle`, which can be
+`createDefault` returns an `MfmEmojiConfigHandle`, which can be
 used anywhere an `MfmRenderConfig` is accepted. The handle owns its persistent
 store and must be disposed. Unit tests can pass `emojiStoreFactory` to inject a
 test double without loading Isar's native library. Configurations created with
 `copyWith` share the same lifecycle; disposing any copy disposes them all.
 The provided `MisskeyClient` remains owned by the application and is not
-disposed with the handle. `serverUrl` is also required only to partition the
-persistent emoji store because `MisskeyClient` does not expose its base URL.
+disposed with the handle. The persistent emoji store is partitioned per server
+using `MisskeyClient.baseUrl`, so no separate server URL argument is needed.
 
 For advanced customization, see
 [Advanced Custom Emoji Configuration](#advanced-custom-emoji-configuration).
@@ -590,10 +587,7 @@ final client = MisskeyClient(
 );
 
 // 1回だけ初期化（例: main()）
-final config = await MfmEmojiConfig.quickSetup(
-  client: client,
-  serverUrl: serverUrl.toString(),
-);
+final config = await MfmEmojiConfig.createDefault(client: client);
 
 // アプリ内のどこでも利用可能
 MfmText(
@@ -605,15 +599,15 @@ MfmText(
 await config.dispose();
 ```
 
-`quickSetup` と `createDefault` は、`MfmRenderConfig` としてそのまま使える
+`createDefault` は、`MfmRenderConfig` としてそのまま使える
 `MfmEmojiConfigHandle` を返します。このハンドルは永続ストアを所有するため、
 不要になったら `dispose()` を呼んでください。ユニットテストでは
 `emojiStoreFactory` にテストダブルを注入すると、Isarのネイティブライブラリを
 ロードせずに構成処理を検証できます。`copyWith` で作成した設定は同じ
 ライフサイクルを共有し、いずれかを破棄するとすべて破棄済みになります。
 渡した `MisskeyClient` の所有権はアプリ側に残り、ハンドルと一緒には破棄されません。
-`MisskeyClient` はベースURLを公開していないため、`serverUrl` は永続絵文字ストアを
-サーバーごとに分離する目的にのみ、併せて指定します。
+永続絵文字ストアは `MisskeyClient.baseUrl` を用いてサーバーごとに分離されるため、
+サーバーURLを別途指定する必要はありません。
 
 より詳細な制御が必要な場合は、
 [高度なカスタム絵文字の設定](#高度なカスタム絵文字の設定) を参照してください。

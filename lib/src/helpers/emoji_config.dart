@@ -147,52 +147,15 @@ class _MfmEmojiConfigLifecycle {
 class MfmEmojiConfig {
   const MfmEmojiConfig._();
 
-  /// シンプルなセットアップ（最も一般的な使用ケース）
+  /// 永続化ストレージ込みのEmojiResolverとMfmRenderConfigを構築
   ///
-  /// [client]を利用して永続化ストレージ込みのEmojiResolverとMfmRenderConfigを構築
-  /// [serverUrl]はサーバーごとに永続ストアを分離するために使用する。
-  /// [client]の所有権は呼び出し元にあり、返されたハンドルの破棄対象には含まれない。
-  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
-  /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
-  /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
-  static Future<MfmEmojiConfigHandle> quickSetup({
-    required MisskeyClient client,
-    required String serverUrl,
-    String? storagePath,
-    double emojiSize = 24.0,
-    double? emojiMaxWidth,
-    Listenable? emojiRefreshListenable,
-    Widget Function(BuildContext context, String name)? fallbackBuilder,
-    SyncErrorCallback? onSyncError,
-    bool autoSync = true,
-    MfmEmojiStoreFactory? emojiStoreFactory,
-  }) {
-    final uri = _normalizeServerUrl(serverUrl);
-    return createDefault(
-      client: client,
-      serverUrl: uri,
-      storagePath: storagePath,
-      emojiSize: emojiSize,
-      emojiMaxWidth: emojiMaxWidth,
-      emojiRefreshListenable: emojiRefreshListenable,
-      fallbackBuilder: fallbackBuilder,
-      onSyncError: onSyncError,
-      autoSync: autoSync,
-      emojiStoreFactory: emojiStoreFactory,
-    );
-  }
-
-  /// カスタマイズ可能なセットアップ
-  ///
-  /// より詳細な制御が必要な場合に使用
-  /// [serverUrl]はサーバーごとに永続ストアを分離するために使用する。
+  /// 接続先は[client]から導出され、サーバーごとに永続ストアが分離される。
   /// [client]の所有権は呼び出し元にあり、返されたハンドルの破棄対象には含まれない。
   /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
   static Future<MfmEmojiConfigHandle> createDefault({
     required MisskeyClient client,
-    required Uri serverUrl,
     String? storagePath,
     double emojiSize = 24.0,
     double? emojiMaxWidth,
@@ -209,7 +172,7 @@ class MfmEmojiConfig {
     await Directory(directory).create(recursive: true);
 
     final store = await (emojiStoreFactory ?? _createDefaultStore)(
-      serverUrl: serverUrl,
+      serverUrl: client.baseUrl,
       directory: directory,
     );
 
@@ -312,13 +275,5 @@ class MfmEmojiConfig {
       directory: directory,
     );
     return IsarEmojiStore(isar, ownsIsar: true);
-  }
-
-  static Uri _normalizeServerUrl(String serverUrl) {
-    final parsed = Uri.parse(serverUrl);
-    if (parsed.hasScheme) {
-      return parsed;
-    }
-    return Uri.parse('https://$serverUrl');
   }
 }

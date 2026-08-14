@@ -43,10 +43,8 @@ class EmojiService {
     final client = _client ??= MisskeyClient(
       config: MisskeyClientConfig(baseUrl: Uri.parse(_misskeyIoUrl)),
     );
-    _initFuture = MfmEmojiConfig.quickSetup(
-      client: client,
-      serverUrl: _misskeyIoUrl,
-    );
+    // 接続先は client から導出されるため serverUrl の指定は不要
+    _initFuture = MfmEmojiConfig.createDefault(client: client);
     try {
       _config = await _initFuture;
       return _config!;

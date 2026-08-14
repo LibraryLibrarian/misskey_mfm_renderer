@@ -10,7 +10,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  misskey_client: ^1.0.0-beta.5
+  misskey_client: ^1.0.0-beta.6
   misskey_mfm_renderer:
     path: ../
 dev_dependencies:
@@ -22,6 +22,3 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-dependency_overrides:
-  misskey_emoji:
-    path: ../../misskey_emoji
