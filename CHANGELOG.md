@@ -20,8 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking:** `MfmEmojiConfig.quickSetup()` を削除。`serverUrl` の廃止により `createDefault()` と同一シグネチャになったため。`createDefault()` を使用すること
 
-## 0.5.0 - 2026-08-10
-
+## [0.5.0] - 2026-08-10
 ### Added
 - カスタム絵文字のURL・アスペクト比キャッシュを安定した識別子で分離する `cacheScope` を追加
 
@@ -30,8 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - アスペクト比が未知の場合に `maxWidth` をプレースホルダの推定幅として使用し、実画像の表示後に逆方向のリフローが発生する問題を修正
 - 幅0のプレースホルダ内で描画できないローディングインジケータを生成する問題を修正
 
-## 0.4.0 - 2026-08-10
-
+## [0.4.0] - 2026-08-10
 ### Added
 - `MfmEmojiConfig.quickSetup()` / `createDefault()` が返す設定に、永続ストアを解放する `dispose()` を追加
 - `emojiStoreFactory` による絵文字ストアの注入に対応
@@ -47,8 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - カスタム絵文字の読み込み中に正方形の幅を確保して本文がリフローする問題を修正
 - 判明済みのカスタム絵文字のアスペクト比を再利用し、再生成時のリフローを抑制
 
-## 0.3.0 - 2026-08-08
-
+## [0.3.0] - 2026-08-08
 ### Added
 - カスタム絵文字に任意の最大幅を設定する `maxWidth` / `emojiMaxWidth` を追加
 - カタログ更新後にカスタム絵文字を再解決する `refreshListenable` / `emojiRefreshListenable` を追加
@@ -61,8 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - アニメーション関数の `speed` が0以下または1ms未満の場合に描画が失敗する問題を修正
 - 負の `delay` を本家Misskeyと同様に経過済み時間として反映
 
-## 0.2.0 - 2026-05-16
-
+## [0.2.0] - 2026-05-16
 ### Added
 - Nyaize（猫モード相当のテキスト変換）に対応
   - `nyaize(String)` 純粋関数を公開API（`misskey_mfm_renderer` から直接 import 可）
@@ -71,8 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `link` / `quote` / `plain` 配下のサブツリーは本家挙動に準拠して変換対象外
   - URL / メンション / ハッシュタグ / 各種コード / 数式 / 絵文字 / 検索ノードは構造上テキストノードを経由しないため自然と除外
 
-## 0.1.0 - 2026-02-09
-
+## [0.1.0] - 2026-02-09
 Initial release of misskey_mfm_renderer - A Flutter widget library for rendering Misskey MFM (Misskey Flavored Markdown) content.
 
 ### Added

@@ -17,8 +17,10 @@ final _enRegex1 = RegExp('(?<=n)a', caseSensitive: false);
 final _enRegex2 = RegExp('(?<=morn)ing', caseSensitive: false);
 final _enRegex3 = RegExp('(?<=every)one', caseSensitive: false);
 final _koRegex1 = RegExp('[나-낳]');
-final _koRegex2 = RegExp(r'(다$)|(다(?=\.))|(다(?= ))|(다(?=!))|(다(?=\?))',
-    multiLine: true);
+final _koRegex2 = RegExp(
+  r'(다$)|(다(?=\.))|(다(?= ))|(다(?=!))|(다(?=\?))',
+  multiLine: true,
+);
 final _koRegex3 = RegExp(r'(야(?=\?))|(야$)|(야(?= ))', multiLine: true);
 
 // '냐' (U+B0D0) - '나' (U+B098) = 56。Hangul音節ブロックでの
