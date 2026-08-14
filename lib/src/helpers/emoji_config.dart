@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
-import 'package:misskey_api_core/misskey_api_core.dart';
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -147,45 +147,15 @@ class _MfmEmojiConfigLifecycle {
 class MfmEmojiConfig {
   const MfmEmojiConfig._();
 
-  /// シンプルなセットアップ（最も一般的な使用ケース）
+  /// 永続化ストレージ込みのEmojiResolverとMfmRenderConfigを構築
   ///
-  /// サーバーURLを指定するだけで永続化ストレージ込みのEmojiResolverとMfmRenderConfigを構築
-  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
-  /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
-  /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
-  static Future<MfmEmojiConfigHandle> quickSetup({
-    required String serverUrl,
-    String? storagePath,
-    double emojiSize = 24.0,
-    double? emojiMaxWidth,
-    Listenable? emojiRefreshListenable,
-    Widget Function(BuildContext context, String name)? fallbackBuilder,
-    SyncErrorCallback? onSyncError,
-    bool autoSync = true,
-    MfmEmojiStoreFactory? emojiStoreFactory,
-  }) {
-    final uri = _normalizeServerUrl(serverUrl);
-    return createDefault(
-      serverUrl: uri,
-      storagePath: storagePath,
-      emojiSize: emojiSize,
-      emojiMaxWidth: emojiMaxWidth,
-      emojiRefreshListenable: emojiRefreshListenable,
-      fallbackBuilder: fallbackBuilder,
-      onSyncError: onSyncError,
-      autoSync: autoSync,
-      emojiStoreFactory: emojiStoreFactory,
-    );
-  }
-
-  /// カスタマイズ可能なセットアップ
-  ///
-  /// より詳細な制御が必要な場合に使用
+  /// 接続先は[client]から導出され、サーバーごとに永続ストアが分離される。
+  /// [client]の所有権は呼び出し元にあり、返されたハンドルの破棄対象には含まれない。
   /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
   static Future<MfmEmojiConfigHandle> createDefault({
-    required Uri serverUrl,
+    required MisskeyClient client,
     String? storagePath,
     double emojiSize = 24.0,
     double? emojiMaxWidth,
@@ -202,19 +172,13 @@ class MfmEmojiConfig {
     await Directory(directory).create(recursive: true);
 
     final store = await (emojiStoreFactory ?? _createDefaultStore)(
-      serverUrl: serverUrl,
+      serverUrl: client.baseUrl,
       directory: directory,
     );
 
-    final httpClient = MisskeyHttpClient(
-      config: MisskeyApiConfig(baseUrl: serverUrl),
-    );
-    final api = MisskeyEmojiApi(httpClient);
-
     final catalog = PersistentEmojiCatalog(
-      api: api,
+      source: MisskeyClientEmojiSource(client),
       store: store,
-      meta: MetaClient(httpClient),
       onSyncError: onSyncError,
     );
     final resolver = MisskeyEmojiResolver(catalog);
@@ -311,13 +275,5 @@ class MfmEmojiConfig {
       directory: directory,
     );
     return IsarEmojiStore(isar, ownsIsar: true);
-  }
-
-  static Uri _normalizeServerUrl(String serverUrl) {
-    final parsed = Uri.parse(serverUrl);
-    if (parsed.hasScheme) {
-      return parsed;
-    }
-    return Uri.parse('https://$serverUrl');
   }
 }

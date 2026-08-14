@@ -10,6 +10,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  misskey_client: ^1.0.0-beta.6
   misskey_mfm_renderer:
     path: ../
 dev_dependencies:
@@ -20,3 +21,4 @@ dev_dependencies:
   pubspec_dependency_sorter: ^1.0.5
 flutter:
   uses-material-design: true
+

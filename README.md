@@ -127,6 +127,7 @@ Add the dependency to your `pubspec.yaml`:
 ```yaml
 dependencies:
   misskey_mfm_renderer: ^0.5.0
+  misskey_client: ^1.0.0-beta.5
 ```
 
 ## Quick Start
@@ -134,12 +135,16 @@ dependencies:
 For most use cases, use the helper function to quickly set up emoji support:
 
 ```dart
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
-// One-time setup (e.g., in main())
-final config = await MfmEmojiConfig.quickSetup(
-  serverUrl: 'https://misskey.io',
+final serverUrl = Uri.parse('https://misskey.io');
+final client = MisskeyClient(
+  config: MisskeyClientConfig(baseUrl: serverUrl),
 );
+
+// One-time setup (e.g., in main())
+final config = await MfmEmojiConfig.createDefault(client: client);
 
 // Use anywhere in your app
 MfmText(
@@ -151,11 +156,14 @@ MfmText(
 await config.dispose();
 ```
 
-`quickSetup` and `createDefault` return an `MfmEmojiConfigHandle`, which can be
+`createDefault` returns an `MfmEmojiConfigHandle`, which can be
 used anywhere an `MfmRenderConfig` is accepted. The handle owns its persistent
 store and must be disposed. Unit tests can pass `emojiStoreFactory` to inject a
 test double without loading Isar's native library. Configurations created with
 `copyWith` share the same lifecycle; disposing any copy disposes them all.
+The provided `MisskeyClient` remains owned by the application and is not
+disposed with the handle. The persistent emoji store is partitioned per server
+using `MisskeyClient.baseUrl`, so no separate server URL argument is needed.
 
 For advanced customization, see
 [Advanced Custom Emoji Configuration](#advanced-custom-emoji-configuration).
@@ -221,7 +229,8 @@ If your project enforces direct dependencies for imported packages, add:
 ```yaml
 dependencies:
   misskey_mfm_renderer: ^0.5.0
-  misskey_api_core: ^1.0.0
+  misskey_client: ^1.0.0-beta.5
+  misskey_emoji: ^2.0.0-beta.1
   path_provider: ^2.1.5
 ```
 
@@ -229,19 +238,19 @@ dependencies:
 
 ```dart
 import 'package:flutter/foundation.dart';
-import 'package:misskey_api_core/misskey_api_core.dart';
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
 
 final baseUrl = Uri.parse('https://misskey.io');
 
-// Create HTTP client for Misskey API
-final httpClient = MisskeyHttpClient(
-  config: MisskeyApiConfig(baseUrl: baseUrl),
+// Reuse the application's Misskey client
+final client = MisskeyClient(
+  config: MisskeyClientConfig(baseUrl: baseUrl),
 );
 
-// Create emoji API client
-final emojiApi = MisskeyEmojiApi(httpClient);
+// Create an emoji source backed by the Misskey client
+final emojiSource = MisskeyClientEmojiSource(client);
 
 // Open Isar for emoji metadata storage
 final dir = await getApplicationDocumentsDirectory();
@@ -249,9 +258,8 @@ final isar = await openEmojiIsarForServer(baseUrl, directory: dir.path);
 
 // Create persistent catalog and resolver
 final catalog = PersistentEmojiCatalog(
-  api: emojiApi,
+  source: emojiSource,
   store: IsarEmojiStore(isar, ownsIsar: true),
-  meta: MetaClient(httpClient),
 );
 final resolver = MisskeyEmojiResolver(catalog);
 final emojiRefreshNotifier = ValueNotifier(0);
@@ -562,6 +570,7 @@ scopeはレイアウトヒントのキャッシュだけを制御し、resolver�
 ```yaml
 dependencies:
   misskey_mfm_renderer: ^0.5.0
+  misskey_client: ^1.0.0-beta.5
 ```
 
 ## クイックスタート
@@ -569,12 +578,16 @@ dependencies:
 多くのケースでは、ヘルパー関数で簡単に絵文字対応を設定できます：
 
 ```dart
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
-// 1回だけ初期化（例: main()）
-final config = await MfmEmojiConfig.quickSetup(
-  serverUrl: 'https://misskey.io',
+final serverUrl = Uri.parse('https://misskey.io');
+final client = MisskeyClient(
+  config: MisskeyClientConfig(baseUrl: serverUrl),
 );
+
+// 1回だけ初期化（例: main()）
+final config = await MfmEmojiConfig.createDefault(client: client);
 
 // アプリ内のどこでも利用可能
 MfmText(
@@ -586,12 +599,15 @@ MfmText(
 await config.dispose();
 ```
 
-`quickSetup` と `createDefault` は、`MfmRenderConfig` としてそのまま使える
+`createDefault` は、`MfmRenderConfig` としてそのまま使える
 `MfmEmojiConfigHandle` を返します。このハンドルは永続ストアを所有するため、
 不要になったら `dispose()` を呼んでください。ユニットテストでは
 `emojiStoreFactory` にテストダブルを注入すると、Isarのネイティブライブラリを
 ロードせずに構成処理を検証できます。`copyWith` で作成した設定は同じ
 ライフサイクルを共有し、いずれかを破棄するとすべて破棄済みになります。
+渡した `MisskeyClient` の所有権はアプリ側に残り、ハンドルと一緒には破棄されません。
+永続絵文字ストアは `MisskeyClient.baseUrl` を用いてサーバーごとに分離されるため、
+サーバーURLを別途指定する必要はありません。
 
 より詳細な制御が必要な場合は、
 [高度なカスタム絵文字の設定](#高度なカスタム絵文字の設定) を参照してください。
@@ -657,7 +673,8 @@ import対象パッケージを直接依存に置きたい場合は追加して�
 ```yaml
 dependencies:
   misskey_mfm_renderer: ^0.5.0
-  misskey_api_core: ^1.0.0
+  misskey_client: ^1.0.0-beta.5
+  misskey_emoji: ^2.0.0-beta.1
   path_provider: ^2.1.5
 ```
 
@@ -665,19 +682,19 @@ dependencies:
 
 ```dart
 import 'package:flutter/foundation.dart';
-import 'package:misskey_api_core/misskey_api_core.dart';
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
 
 final baseUrl = Uri.parse('https://misskey.io');
 
-// Misskey API用のHTTPクライアントを作成
-final httpClient = MisskeyHttpClient(
-  config: MisskeyApiConfig(baseUrl: baseUrl),
+// アプリのMisskeyクライアントを再利用
+final client = MisskeyClient(
+  config: MisskeyClientConfig(baseUrl: baseUrl),
 );
 
-// 絵文字APIクライアントを作成
-final emojiApi = MisskeyEmojiApi(httpClient);
+// Misskeyクライアントを使用する絵文字ソースを作成
+final emojiSource = MisskeyClientEmojiSource(client);
 
 // 絵文字メタデータ保存用のIsarをオープン
 final dir = await getApplicationDocumentsDirectory();
@@ -685,9 +702,8 @@ final isar = await openEmojiIsarForServer(baseUrl, directory: dir.path);
 
 // 永続化カタログとリゾルバーを作成
 final catalog = PersistentEmojiCatalog(
-  api: emojiApi,
+  source: emojiSource,
   store: IsarEmojiStore(isar, ownsIsar: true),
-  meta: MetaClient(httpClient),
 );
 final resolver = MisskeyEmojiResolver(catalog);
 final emojiRefreshNotifier = ValueNotifier(0);
