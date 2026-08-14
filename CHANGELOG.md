@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-beta.1] - 2026-08-15
+
 ### Changed
 - **Breaking:** `MfmEmojiConfig.createDefault()` で、呼び出し元が所有する `MisskeyClient` を必須化
   - 絵文字取得専用のHTTPクライアント生成を廃止し、アプリの接続設定・認証情報を再利用

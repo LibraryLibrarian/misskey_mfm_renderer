@@ -124,7 +124,7 @@ scopeはレイアウトヒントのキャッシュだけを制御し、resolver�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.5.0
+  misskey_mfm_renderer: ^0.6.0-beta.1
   misskey_client: ^1.0.0-beta.5
 ```
 
@@ -227,7 +227,7 @@ import対象パッケージを直接依存に置きたい場合は追加して�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.5.0
+  misskey_mfm_renderer: ^0.6.0-beta.1
   misskey_client: ^1.0.0-beta.5
   misskey_emoji: ^2.0.0-beta.1
   path_provider: ^2.1.5
