@@ -4,6 +4,14 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
+    # 新しいFlutterが自動で書き加える除外設定。あらかじめ記載しておく
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 include: package:pedantic_mono/analysis_options.yaml
 
 linter:
