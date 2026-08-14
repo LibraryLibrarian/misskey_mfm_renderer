@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 void main() {
@@ -35,7 +36,7 @@ void main() {
     expect(custom.refreshListenable, same(refreshNotifier));
   });
 
-  test('quickSetup returns config with emojiBuilder', () async {
+  test('createDefault derives the store scope from client.baseUrl', () async {
     final dir = await Directory.systemTemp.createTemp('mfm_emoji_quick');
     final store = _FakeEmojiStore();
     Uri? factoryServerUrl;
@@ -44,8 +45,8 @@ void main() {
       await dir.delete(recursive: true);
     });
 
-    final config = await MfmEmojiConfig.quickSetup(
-      serverUrl: 'example.com',
+    final config = await MfmEmojiConfig.createDefault(
+      client: _createClient(),
       storagePath: dir.path,
       autoSync: false,
       emojiStoreFactory: ({required Uri serverUrl, required String directory}) {
@@ -76,7 +77,7 @@ void main() {
     });
 
     final config = await MfmEmojiConfig.createDefault(
-      serverUrl: Uri.parse('https://example.com'),
+      client: _createClient(),
       storagePath: dir.path,
       autoSync: false,
       emojiStoreFactory:
@@ -106,7 +107,7 @@ void main() {
     });
 
     final config = await MfmEmojiConfig.createDefault(
-      serverUrl: Uri.parse('https://example.com'),
+      client: _createClient(),
       storagePath: dir.path,
       autoSync: false,
       emojiStoreFactory:
@@ -122,6 +123,10 @@ void main() {
     expect(store.disposeCalls, 1);
   });
 }
+
+MisskeyClient _createClient() => MisskeyClient(
+  config: MisskeyClientConfig(baseUrl: Uri.parse('https://example.com')),
+);
 
 class _FakeEmojiStore implements EmojiStore {
   int disposeCalls = 0;

@@ -85,10 +85,10 @@ packages:
     dependency: transitive
     description:
       name: dio
-      sha256: b9d46faecab38fc8cc286f80bc4d61a3bb5d4ac49e51ed877b4d6706efe57b25
+      sha256: "0df44ebba85e503958eb75d07eedd3c86275a58c1d3eda2f2ce8f0a2c3abbb3c"
       url: "https://pub.dev"
     source: hosted
-    version: "5.9.1"
+    version: "5.11.0"
   dio_web_adapter:
     dependency: transitive
     description:
@@ -220,18 +220,18 @@ packages:
     dependency: transitive
     description:
       name: isar_community
-      sha256: d92315e1862448f236489c2b2b1f9a7ad5ba2405f42d87216234be4fb2e1dd2d
+      sha256: "683fd093956eac3a660776afb70d65d50a3391b3587b40b89e3d12586b8cc47f"
       url: "https://pub.dev"
     source: hosted
-    version: "3.3.0"
+    version: "3.3.2"
   isar_community_flutter_libs:
     dependency: transitive
     description:
       name: isar_community_flutter_libs
-      sha256: "3c072d8d77e820196fa23839b88481c50d903c73b3c0db6e647b29509d04fe3b"
+      sha256: c44340fa38c81ef16d924202d443bbe799cde4826be9a31a9dc92ee612e1966f
       url: "https://pub.dev"
     source: hosted
-    version: "3.3.0"
+    version: "3.3.2"
   js:
     dependency: transitive
     description:
@@ -244,10 +244,10 @@ packages:
     dependency: transitive
     description:
       name: json_annotation
-      sha256: "1ce844379ca14835a50d2f019a3099f419082cfdd231cd86a142af94dd5c6bb1"
+      sha256: "2a743920d81b7910627f68ee2c9ac1fc0bfee32b9fc3403587d7c6791ca12f80"
       url: "https://pub.dev"
     source: hosted
-    version: "4.9.0"
+    version: "4.12.0"
   leak_tracker:
     dependency: transitive
     description:
@@ -284,10 +284,10 @@ packages:
     dependency: transitive
     description:
       name: logger
-      sha256: a7967e31b703831a893bbc3c3dd11db08126fe5f369b5c648a36f821979f5be3
+      sha256: "25aee487596a6257655a1e091ec2ae66bc30e7af663592cc3a27e6591e05035c"
       url: "https://pub.dev"
     source: hosted
-    version: "2.6.2"
+    version: "2.7.0"
   matcher:
     dependency: transitive
     description:
@@ -320,22 +320,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
-  misskey_api_core:
-    dependency: transitive
+  misskey_client:
+    dependency: "direct main"
     description:
-      name: misskey_api_core
-      sha256: "32e17877e5e8044027b6815b510001d4329854d559269b405464e796a16b1ae5"
+      name: misskey_client
+      sha256: "5c9ec223f29f551462af42da7cbe70875245fe01684dbb0c81b35f9153feccc2"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.0"
+    version: "1.0.0-beta.6"
   misskey_emoji:
     dependency: transitive
     description:
       name: misskey_emoji
-      sha256: ed33718d9e06fcfc41a58991ac2e467ddd66a98b84db8365e3c7abf145fa0b33
+      sha256: "4abace668b9dd72d62cdc5cf6f24743589a7b853f478b3cdb3aa88ddf941b348"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.0"
+    version: "2.0.0-beta.1"
   misskey_mfm_parser:
     dependency: transitive
     description:
@@ -350,7 +350,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.5.0"
+    version: "0.6.0-beta.1"
   octo_image:
     dependency: transitive
     description:
@@ -479,14 +479,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.2.2"
-  rate_limiter:
-    dependency: transitive
-    description:
-      name: rate_limiter
-      sha256: "2bae2e961adedf7fc2e8b0305d30e3a3619baf001d050c6907870c5c6235b559"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
   retry:
     dependency: transitive
     description:
@@ -660,22 +652,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
-  web_socket:
-    dependency: transitive
-    description:
-      name: web_socket
-      sha256: "34d64019aa8e36bf9842ac014bb5d2f5586ca73df5e4d9bf5c936975cae6982c"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.1"
-  web_socket_channel:
-    dependency: transitive
-    description:
-      name: web_socket_channel
-      sha256: d645757fb0f4773d602444000a8131ff5d48c9e47adfe9772652dd1a4f2d45c8
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.3"
   xdg_directories:
     dependency: transitive
     description:
@@ -702,4 +678,4 @@ packages:
     version: "2.1.0"
 sdks:
   dart: ">=3.10.0 <4.0.0"
-  flutter: ">=3.35.0"
+  flutter: ">=3.38.1"

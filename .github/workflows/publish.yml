@@ -1,0 +1,69 @@
+name: Publish to pub.dev
+
+on:
+  push:
+    # プレリリースを含むバージョンタグをpub.dev側のtag patternで検証する
+    tags: ['v*']
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.7'
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify release version
+        run: dart run tool/verify_release.dart "${GITHUB_REF_NAME#v}"
+
+  publish:
+    needs: verify
+    permissions:
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      environment: pub.dev
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.7'
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Extract release notes
+        run: >-
+          dart run tool/release_notes.dart "${GITHUB_REF_NAME#v}"
+          > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_options=()
+          if [[ "${GITHUB_REF_NAME#v}" == *-* ]]; then
+            release_options+=(--prerelease --latest=false)
+          fi
+
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            "${release_options[@]}"
