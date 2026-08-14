@@ -22,8 +22,8 @@ jobs:
       matrix:
         include:
           # 最低サポートバージョン。pubspec.yaml の flutter 制約の下限と揃える
-          - name: '3.38.0'
-            flutter-version: '3.38.0'
+          - name: '3.38.1'
+            flutter-version: '3.38.1'
           # 最新安定版。flutter-version を空にすると channel の最新が使われる
           # (subosito/flutter-action は flutter-version に 'stable' を指定できない)
           - name: stable
