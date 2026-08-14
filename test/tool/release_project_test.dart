@@ -37,7 +37,7 @@ void main() {
       _read(root, 'CHANGELOG.md'),
       contains(
         '## [Unreleased]\n\n'
-        '## 1.0.0-beta.4 - 2026-08-13\n\n'
+        '## [1.0.0-beta.4] - 2026-08-13\n\n'
         '### Added',
       ),
     );
@@ -173,8 +173,8 @@ void main() {
       'CHANGELOG.md',
       '# Changelog\n\n'
           '## [Unreleased]\n\n'
-          '## 1.0.0-beta.3 - 2026-08-05\n\n'
-          '## 1.0.0-beta.2 - 2026-07-01\n\n'
+          '## [1.0.0-beta.3] - 2026-08-05\n\n'
+          '## [1.0.0-beta.2] - 2026-07-01\n\n'
           '### Fixed\n\n'
           '- Older change\n',
     );
@@ -226,10 +226,10 @@ void _createProject(Directory root) {
         '## [Unreleased]\n\n'
         '### Added\n\n'
         '- Pending change\n\n'
-        '## 1.0.0-beta.3 - 2026-08-05\n\n'
+        '## [1.0.0-beta.3] - 2026-08-05\n\n'
         '### Added\n\n'
         '- Released change\n\n'
-        '## 1.0.0-beta.2 - 2026-07-01\n\n'
+        '## [1.0.0-beta.2] - 2026-07-01\n\n'
         '### Fixed\n\n'
         '- Older change\n',
   );

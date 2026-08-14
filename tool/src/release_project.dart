@@ -115,7 +115,7 @@ String extractReleaseNotes(Directory root, String version) {
   final changelog = _readFile(root, 'CHANGELOG.md');
   final heading = _releaseHeading(changelog, version);
   final nextHeading = RegExp(
-    r'^## (?:\[[^\]]+\]|[^ \t\r\n]+)(?:[ \t]+-[ \t]+.*)?$',
+    r'^## \[[^\]]+\](?:[ \t]+-[ \t]+.*)?$',
     multiLine: true,
   ).firstMatch(changelog.substring(heading.end));
   final end = nextHeading == null
@@ -132,7 +132,7 @@ String extractReleaseNotes(Directory root, String version) {
 
 RegExpMatch _releaseHeading(String changelog, String version) {
   final headingPattern = RegExp(
-    '^## ${RegExp.escape(version)} - '
+    '^## \\[${RegExp.escape(version)}\\] - '
     r'(\d{4}-\d{2}-\d{2})[ \t]*$',
     multiLine: true,
   );
@@ -300,7 +300,7 @@ String _addChangelogRelease(
   DateTime releaseDate,
 ) {
   final existingHeading = RegExp(
-    '^## ${RegExp.escape(nextVersion)}(?:[ \\t]+-[ \\t]+.*)?\$',
+    '^## \\[${RegExp.escape(nextVersion)}\\](?:[ \\t]+-[ \\t]+.*)?\$',
     multiLine: true,
   );
   if (existingHeading.hasMatch(changelog)) {
@@ -324,7 +324,7 @@ String _addChangelogRelease(
   final date = _formatDate(releaseDate);
   final replacement =
       '## [Unreleased]$newline$newline'
-      '## $nextVersion - $date$newline$newline';
+      '## [$nextVersion] - $date$newline$newline';
   final match = unreleasedMatches.single;
   return changelog.replaceRange(match.start, match.end, replacement);
 }
