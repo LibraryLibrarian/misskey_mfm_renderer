@@ -15,17 +15,6 @@ class MfmAuthorContext {
   final String? host;
 }
 
-const _authorNotSet = _AuthorNotSet();
-const _localHostNotSet = _LocalHostNotSet();
-
-class _AuthorNotSet extends MfmAuthorContext {
-  const _AuthorNotSet();
-}
-
-class _LocalHostNotSet {
-  const _LocalHostNotSet();
-}
-
 /// MFMレンダリングの設定クラス
 class MfmRenderConfig {
   const MfmRenderConfig({
@@ -145,8 +134,11 @@ class MfmRenderConfig {
 
   /// 設定をコピーして新しいインスタンスを作成。
   ///
-  /// [author]と[localHost]は、省略すると現在の値を維持し、`null`を
-  /// 明示すると値を削除する。
+  /// {@template mfm_render_config_copy_with_mention_context}
+  /// [author]と[localHost]は、`null`または省略時に現在の値を維持する。
+  /// 値を削除する場合は、対応する[clearAuthor]または[clearLocalHost]を
+  /// `true`にする。値の指定と削除を同時に要求すると[ArgumentError]を投げる。
+  /// {@endtemplate}
   MfmRenderConfig copyWith({
     TextStyle? baseTextStyle,
     bool? enableAdvancedMfm,
@@ -158,8 +150,10 @@ class MfmRenderConfig {
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
     void Function(String query)? onSearchTap,
-    MfmAuthorContext? author = _authorNotSet,
-    Object? localHost = _localHostNotSet,
+    MfmAuthorContext? author,
+    String? localHost,
+    bool clearAuthor = false,
+    bool clearLocalHost = false,
     void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
@@ -169,6 +163,21 @@ class MfmRenderConfig {
     Color? inlineCodeBgColorLight,
     Color? inlineCodeBgColorDark,
   }) {
+    if (clearAuthor && author != null) {
+      throw ArgumentError.value(
+        author,
+        'author',
+        'clearAuthorがtrueの場合は指定できません',
+      );
+    }
+    if (clearLocalHost && localHost != null) {
+      throw ArgumentError.value(
+        localHost,
+        'localHost',
+        'clearLocalHostがtrueの場合は指定できません',
+      );
+    }
+
     return MfmRenderConfig(
       baseTextStyle: baseTextStyle ?? this.baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm ?? this.enableAdvancedMfm,
@@ -180,10 +189,8 @@ class MfmRenderConfig {
       onMentionTap: onMentionTap ?? this.onMentionTap,
       onHashtagTap: onHashtagTap ?? this.onHashtagTap,
       onSearchTap: onSearchTap ?? this.onSearchTap,
-      author: identical(author, _authorNotSet) ? this.author : author,
-      localHost: identical(localHost, _localHostNotSet)
-          ? this.localHost
-          : localHost as String?,
+      author: clearAuthor ? null : author ?? this.author,
+      localHost: clearLocalHost ? null : localHost ?? this.localHost,
       onClickableEvent: onClickableEvent ?? this.onClickableEvent,
       fontFamilyResolver: fontFamilyResolver ?? this.fontFamilyResolver,
       codeTheme: codeTheme ?? this.codeTheme,

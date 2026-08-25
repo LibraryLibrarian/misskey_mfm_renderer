@@ -102,7 +102,31 @@ void main() {
     expect(identical(preserved.author, author), isTrue);
     expect(preserved.localHost, 'local.example');
 
-    final cleared = preserved.copyWith(author: null, localHost: null);
+    final preservedWithNull = preserved.copyWith(
+      // ignore: avoid_redundant_argument_values
+      author: null,
+      // ignore: avoid_redundant_argument_values
+      localHost: null,
+    );
+    expect(identical(preservedWithNull.author, author), isTrue);
+    expect(preservedWithNull.localHost, 'local.example');
+
+    expect(
+      () => preserved.copyWith(author: author, clearAuthor: true),
+      throwsArgumentError,
+    );
+    expect(
+      () => preserved.copyWith(
+        localHost: 'other.example',
+        clearLocalHost: true,
+      ),
+      throwsArgumentError,
+    );
+
+    final cleared = preserved.copyWith(
+      clearAuthor: true,
+      clearLocalHost: true,
+    );
     expect(cleared, isA<MfmEmojiConfigHandle>());
     expect(cleared.author, isNull);
     expect(cleared.localHost, isNull);

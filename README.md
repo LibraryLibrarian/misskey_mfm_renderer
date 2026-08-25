@@ -424,6 +424,11 @@ void main() {
 | `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback |
 | `fontFamilyResolver` | `String? Function(String)?` | null | Font family resolver function |
 
+`copyWith` preserves the current `author` and `localHost` when their nullable
+arguments are omitted or `null`. Set `clearAuthor: true` or
+`clearLocalHost: true` to remove a value. Providing a replacement value and its
+corresponding clear flag in the same call throws `ArgumentError`.
+
 ## Technical Notes
 
 ### Text Selection
