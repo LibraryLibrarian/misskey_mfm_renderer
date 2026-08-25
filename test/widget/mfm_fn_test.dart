@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -494,6 +495,75 @@ void main() {
       expect(find.byType(ImageFiltered), findsOneWidget);
     });
 
+    testWidgets('hover中はブラーを解除し、exit後に再適用する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[blur blurred]'),
+          ),
+        ),
+      );
+
+      final imageFilteredFinder = find.byType(ImageFiltered);
+      final mouseRegionFinder = find.ancestor(
+        of: imageFilteredFinder,
+        matching: find.byType(MouseRegion),
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(tester.getCenter(mouseRegionFinder.first));
+      await tester.pumpAndSettle();
+
+      var imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
+      expect(imageFiltered.enabled, isFalse);
+
+      await mouse.moveTo(const Offset(799, 599));
+      await tester.pumpAndSettle();
+
+      imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
+      expect(imageFiltered.enabled, isTrue);
+    });
+
+    testWidgets('ブラー強度を300msで補間する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[blur blurred]'),
+          ),
+        ),
+      );
+
+      final animationFinder = find.byType(TweenAnimationBuilder<double>);
+      final imageFilteredFinder = find.byType(ImageFiltered);
+      final gestureDetectorFinder = find.ancestor(
+        of: imageFilteredFinder,
+        matching: find.byType(GestureDetector),
+      );
+      final animation = tester.widget<TweenAnimationBuilder<double>>(
+        animationFinder,
+      );
+      expect(animation.duration, const Duration(milliseconds: 300));
+
+      await tester.tap(gestureDetectorFinder.first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+
+      var imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
+      expect(
+        imageFiltered.imageFilter,
+        isNot(ImageFilter.blur(sigmaX: 6, sigmaY: 6)),
+      );
+      expect(imageFiltered.imageFilter, isNot(ImageFilter.blur()));
+
+      await tester.pump(const Duration(milliseconds: 150));
+
+      imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
+      expect(imageFiltered.enabled, isFalse);
+      expect(imageFiltered.imageFilter, ImageFilter.blur());
+    });
+
     testWidgets('タップでブラーをトグルできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -503,24 +573,22 @@ void main() {
         ),
       );
 
-      // 初期状態はブラーがかかっている
-      var imageFiltered = tester.widget<ImageFiltered>(
-        find.byType(ImageFiltered),
+      final imageFilteredFinder = find.byType(ImageFiltered);
+      final gestureDetectorFinder = find.ancestor(
+        of: imageFilteredFinder,
+        matching: find.byType(GestureDetector),
       );
-      expect(imageFiltered.enabled, isTrue);
 
-      // タップしてブラーを解除
-      await tester.tap(find.byType(GestureDetector).first);
-      await tester.pump();
+      await tester.tap(gestureDetectorFinder.first);
+      await tester.pumpAndSettle();
 
-      imageFiltered = tester.widget<ImageFiltered>(find.byType(ImageFiltered));
+      var imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
       expect(imageFiltered.enabled, isFalse);
 
-      // 再度タップしてブラーを適用
-      await tester.tap(find.byType(GestureDetector).first);
-      await tester.pump();
+      await tester.tap(gestureDetectorFinder.first);
+      await tester.pumpAndSettle();
 
-      imageFiltered = tester.widget<ImageFiltered>(find.byType(ImageFiltered));
+      imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
       expect(imageFiltered.enabled, isTrue);
     });
   });
