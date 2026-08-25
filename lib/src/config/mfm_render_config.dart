@@ -198,8 +198,8 @@ class MfmRenderConfig {
     }
 
     final effectiveUseLocaleSearchButtonLabel =
-        searchButtonLabel == null &&
-        (useLocaleSearchButtonLabel ?? this.useLocaleSearchButtonLabel);
+        useLocaleSearchButtonLabel ??
+        (searchButtonLabel == null && this.useLocaleSearchButtonLabel);
     return MfmRenderConfig(
       baseTextStyle: baseTextStyle ?? this.baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm ?? this.enableAdvancedMfm,

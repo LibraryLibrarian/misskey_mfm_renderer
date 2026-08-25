@@ -38,6 +38,13 @@ void main() {
       expect(localizedConfig.searchButtonLabel, isNull);
       expect(localizedConfig.useLocaleSearchButtonLabel, isTrue);
 
+      final explicitLocaleWins = newConfig.copyWith(
+        searchButtonLabel: 'Ignored',
+        useLocaleSearchButtonLabel: true,
+      );
+      expect(explicitLocaleWins.searchButtonLabel, isNull);
+      expect(explicitLocaleWins.useLocaleSearchButtonLabel, isTrue);
+
       final overriddenAgain = localizedConfig.copyWith(
         searchButtonLabel: 'Search again',
       );
