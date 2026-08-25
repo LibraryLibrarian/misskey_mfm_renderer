@@ -134,9 +134,17 @@ void main() {
     expect(cleared.author, isNull);
     expect(cleared.localHost, isNull);
 
-    await cleared.dispose();
+    final localized = copied.copyWith(useLocaleSearchButtonLabel: true);
+    expect(localized, isA<MfmEmojiConfigHandle>());
+    expect(identical(localized.author, author), isTrue);
+    expect(localized.localHost, 'local.example');
+    expect(localized.searchButtonLabel, isNull);
+    expect(localized.useLocaleSearchButtonLabel, isTrue);
+
+    await localized.dispose();
     await config.dispose();
 
+    expect(localized.isDisposed, isTrue);
     expect(cleared.isDisposed, isTrue);
     expect(copied.isDisposed, isTrue);
     expect(config.isDisposed, isTrue);

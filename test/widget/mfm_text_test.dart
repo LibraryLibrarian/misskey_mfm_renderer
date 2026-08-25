@@ -802,6 +802,38 @@ void main() {
       expect(find.text('検索'), findsNothing);
     });
 
+    testWidgets('同じMfmTextがロケール更新を検索ラベルに反映する', (tester) async {
+      final locale = ValueNotifier(const Locale('en'));
+      addTearDown(locale.dispose);
+      const mfmText = MfmText(text: 'flutter Search');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ValueListenableBuilder<Locale>(
+              valueListenable: locale,
+              child: mfmText,
+              builder: (context, currentLocale, child) =>
+                  Localizations.override(
+                    context: context,
+                    locale: currentLocale,
+                    child: child,
+                  ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Search'), findsOneWidget);
+      expect(find.text('検索'), findsNothing);
+
+      locale.value = const Locale('ja');
+      await tester.pump();
+
+      expect(find.text('検索'), findsOneWidget);
+      expect(find.text('Search'), findsNothing);
+    });
+
     testWidgets('ローカライズ取得不可時はSearchを表示する', (tester) async {
       await tester.pumpWidget(
         const MediaQuery(

@@ -126,8 +126,13 @@ MfmRenderConfig _mergeConfigs(
     onSearchTap: explicit.onSearchTap ?? inherited.onSearchTap,
     author: explicit.author ?? inherited.author,
     localHost: explicit.localHost ?? inherited.localHost,
-    searchButtonLabel:
-        explicit.searchButtonLabel ?? inherited.searchButtonLabel,
+    searchButtonLabel: explicit.useLocaleSearchButtonLabel
+        ? null
+        : explicit.searchButtonLabel ?? inherited.searchButtonLabel,
+    useLocaleSearchButtonLabel:
+        explicit.searchButtonLabel == null &&
+        (explicit.useLocaleSearchButtonLabel ||
+            inherited.useLocaleSearchButtonLabel),
     onClickableEvent: explicit.onClickableEvent ?? inherited.onClickableEvent,
     fontFamilyResolver:
         explicit.fontFamilyResolver ?? inherited.fontFamilyResolver,
@@ -158,6 +163,8 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.author == defaults.author &&
       config.localHost == defaults.localHost &&
       config.searchButtonLabel == defaults.searchButtonLabel &&
+      config.useLocaleSearchButtonLabel ==
+          defaults.useLocaleSearchButtonLabel &&
       config.onClickableEvent == defaults.onClickableEvent &&
       config.fontFamilyResolver == defaults.fontFamilyResolver &&
       config.codeTheme == defaults.codeTheme &&

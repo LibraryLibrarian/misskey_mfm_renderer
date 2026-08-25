@@ -12,6 +12,14 @@ void main() {
       expect(config.author, null);
       expect(config.localHost, null);
       expect(config.searchButtonLabel, null);
+      expect(config.useLocaleSearchButtonLabel, false);
+
+      const localized = MfmRenderConfig(
+        searchButtonLabel: 'Ignored',
+        useLocaleSearchButtonLabel: true,
+      );
+      expect(localized.searchButtonLabel, isNull);
+      expect(localized.useLocaleSearchButtonLabel, isTrue);
     });
 
     test('copyWith works correctly', () {
@@ -23,6 +31,18 @@ void main() {
       expect(newConfig.enableAdvancedMfm, false);
       expect(newConfig.enableAnimation, true);
       expect(newConfig.searchButtonLabel, 'Find');
+
+      final localizedConfig = newConfig.copyWith(
+        useLocaleSearchButtonLabel: true,
+      );
+      expect(localizedConfig.searchButtonLabel, isNull);
+      expect(localizedConfig.useLocaleSearchButtonLabel, isTrue);
+
+      final overriddenAgain = localizedConfig.copyWith(
+        searchButtonLabel: 'Search again',
+      );
+      expect(overriddenAgain.searchButtonLabel, 'Search again');
+      expect(overriddenAgain.useLocaleSearchButtonLabel, isFalse);
     });
 
     test('copyWith preserves and overrides mention context', () {

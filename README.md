@@ -192,6 +192,25 @@ MfmText(
 )
 ```
 
+`searchButtonLabel` overrides both the locale-derived label and an inherited
+label. To remove an existing or inherited override and return to the current
+locale (`検索` for Japanese, `Search` otherwise), set
+`useLocaleSearchButtonLabel`. When true, it takes precedence over
+`searchButtonLabel` and stores the label as `null`:
+
+```dart
+final localizedConfig = config.copyWith(
+  useLocaleSearchButtonLabel: true,
+);
+
+MfmText(
+  text: 'flutter Search',
+  config: const MfmRenderConfig(
+    useLocaleSearchButtonLabel: true,
+  ),
+)
+```
+
 ### Callbacks Configuration
 
 ```dart
@@ -440,6 +459,7 @@ void main() {
 | `author` | `MfmAuthorContext?` | null | Author context used for host-dependent rendering |
 | `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback |
 | `searchButtonLabel` | `String?` | current locale | Search button label override (`検索` for Japanese, `Search` otherwise) |
+| `useLocaleSearchButtonLabel` | `bool` | false | Clear a configured or inherited search label and resolve it from the current locale |
 | `fontFamilyResolver` | `String? Function(String)?` | null | Font family resolver function |
 
 `copyWith` preserves the current `author` and `localHost` when their nullable
