@@ -85,10 +85,17 @@ void main() {
     );
     addTearDown(config.dispose);
 
-    final copied = config.copyWith(enableAnimation: false);
+    const author = MfmAuthorContext(host: 'remote.example');
+    final copied = config.copyWith(
+      enableAnimation: false,
+      author: author,
+      localHost: 'local.example',
+    );
 
     expect(copied, isA<MfmEmojiConfigHandle>());
     expect(copied.enableAnimation, isFalse);
+    expect(identical(copied.author, author), isTrue);
+    expect(copied.localHost, 'local.example');
     expect(config.enableAnimation, isTrue);
 
     await copied.dispose();

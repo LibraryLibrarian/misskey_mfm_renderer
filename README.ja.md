@@ -420,6 +420,8 @@ void main() {
 | `onMentionTap` | `void Function(String)?` | null | メンションタップコールバック |
 | `onHashtagTap` | `void Function(String)?` | null | ハッシュタグタップコールバック |
 | `onSearchTap` | `void Function(String)?` | null | 検索タップコールバック |
+| `author` | `MfmAuthorContext?` | null | ホスト依存の描画に使用する投稿者情報 |
+| `localHost` | `String?` | null | ホスト解決のフォールバックに使用するローカルMisskeyホスト |
 | `fontFamilyResolver` | `String? Function(String)?` | null | フォントファミリー解決関数 |
 
 ## 技術的な注意事項

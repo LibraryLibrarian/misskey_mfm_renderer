@@ -420,6 +420,8 @@ void main() {
 | `onMentionTap` | `void Function(String)?` | null | Mention tap callback |
 | `onHashtagTap` | `void Function(String)?` | null | Hashtag tap callback |
 | `onSearchTap` | `void Function(String)?` | null | Search tap callback |
+| `author` | `MfmAuthorContext?` | null | Author context used for host-dependent rendering |
+| `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback |
 | `fontFamilyResolver` | `String? Function(String)?` | null | Font family resolver function |
 
 ## Technical Notes

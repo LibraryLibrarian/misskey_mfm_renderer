@@ -119,6 +119,8 @@ MfmRenderConfig _mergeConfigs(
     onMentionTap: explicit.onMentionTap ?? inherited.onMentionTap,
     onHashtagTap: explicit.onHashtagTap ?? inherited.onHashtagTap,
     onSearchTap: explicit.onSearchTap ?? inherited.onSearchTap,
+    author: explicit.author ?? inherited.author,
+    localHost: explicit.localHost ?? inherited.localHost,
     onClickableEvent: explicit.onClickableEvent ?? inherited.onClickableEvent,
     fontFamilyResolver:
         explicit.fontFamilyResolver ?? inherited.fontFamilyResolver,
@@ -146,6 +148,8 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.onMentionTap == defaults.onMentionTap &&
       config.onHashtagTap == defaults.onHashtagTap &&
       config.onSearchTap == defaults.onSearchTap &&
+      config.author == defaults.author &&
+      config.localHost == defaults.localHost &&
       config.onClickableEvent == defaults.onClickableEvent &&
       config.fontFamilyResolver == defaults.fontFamilyResolver &&
       config.codeTheme == defaults.codeTheme &&

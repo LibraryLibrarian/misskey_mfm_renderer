@@ -1,5 +1,20 @@
 import 'package:flutter/widgets.dart';
 
+/// MFMを含むコンテンツの投稿者情報。
+///
+/// 本家Misskeyの`MkMfm`へ渡される`author`のうち、レンダリング時の
+/// ホスト解決に必要な情報を表す。将来ほかの投稿者依存の描画情報を
+/// 追加できるよう、ホスト文字列を直接設定する代わりに独立した型とする。
+@immutable
+class MfmAuthorContext {
+  const MfmAuthorContext({this.host});
+
+  /// 投稿者が所属するリモートホスト。
+  ///
+  /// ローカルユーザーの場合は`null`。
+  final String? host;
+}
+
 /// MFMレンダリングの設定クラス
 class MfmRenderConfig {
   const MfmRenderConfig({
@@ -13,6 +28,8 @@ class MfmRenderConfig {
     this.onMentionTap,
     this.onHashtagTap,
     this.onSearchTap,
+    this.author,
+    this.localHost,
     this.onClickableEvent,
     this.fontFamilyResolver,
     this.codeTheme,
@@ -56,6 +73,14 @@ class MfmRenderConfig {
 
   /// 検索タップ時のコールバック
   final void Function(String query)? onSearchTap;
+
+  /// MFMを含むコンテンツの投稿者情報。
+  final MfmAuthorContext? author;
+
+  /// 表示中のローカルMisskeyインスタンスのホスト。
+  ///
+  /// 投稿者やMFMノードにホストがない場合の解決に使用する。
+  final String? localHost;
 
   /// clickable fn関数のイベントコールバック
   /// eventIdにはclickable.ev引数の値が渡される
@@ -119,6 +144,8 @@ class MfmRenderConfig {
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
     void Function(String query)? onSearchTap,
+    MfmAuthorContext? author,
+    String? localHost,
     void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
@@ -139,6 +166,8 @@ class MfmRenderConfig {
       onMentionTap: onMentionTap ?? this.onMentionTap,
       onHashtagTap: onHashtagTap ?? this.onHashtagTap,
       onSearchTap: onSearchTap ?? this.onSearchTap,
+      author: author ?? this.author,
+      localHost: localHost ?? this.localHost,
       onClickableEvent: onClickableEvent ?? this.onClickableEvent,
       fontFamilyResolver: fontFamilyResolver ?? this.fontFamilyResolver,
       codeTheme: codeTheme ?? this.codeTheme,
