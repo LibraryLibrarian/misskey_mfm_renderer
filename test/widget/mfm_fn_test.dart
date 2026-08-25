@@ -526,6 +526,41 @@ void main() {
       expect(imageFiltered.enabled, isTrue);
     });
 
+    testWidgets('mouse click後もexitでブラーを再適用する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[blur blurred]'),
+          ),
+        ),
+      );
+
+      final imageFilteredFinder = find.byType(ImageFiltered);
+      final mouseRegionFinder = find.ancestor(
+        of: imageFilteredFinder,
+        matching: find.byType(MouseRegion),
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      final center = tester.getCenter(mouseRegionFinder.first);
+
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(center);
+      await tester.pumpAndSettle();
+      await mouse.down(center);
+      await mouse.up();
+      await tester.pumpAndSettle();
+
+      var imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
+      expect(imageFiltered.enabled, isFalse);
+
+      await mouse.moveTo(const Offset(799, 599));
+      await tester.pumpAndSettle();
+
+      imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
+      expect(imageFiltered.enabled, isTrue);
+    });
+
     testWidgets('ブラー強度を300msで補間する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -562,6 +597,26 @@ void main() {
       imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
       expect(imageFiltered.enabled, isFalse);
       expect(imageFiltered.imageFilter, ImageFilter.blur());
+
+      await tester.tap(gestureDetectorFinder.first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+
+      imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
+      expect(imageFiltered.enabled, isTrue);
+      expect(
+        imageFiltered.imageFilter,
+        isNot(ImageFilter.blur(sigmaX: 6, sigmaY: 6)),
+      );
+      expect(imageFiltered.imageFilter, isNot(ImageFilter.blur()));
+
+      await tester.pump(const Duration(milliseconds: 150));
+
+      imageFiltered = tester.widget<ImageFiltered>(imageFilteredFinder);
+      expect(
+        imageFiltered.imageFilter,
+        ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      );
     });
 
     testWidgets('タップでブラーをトグルできる', (tester) async {

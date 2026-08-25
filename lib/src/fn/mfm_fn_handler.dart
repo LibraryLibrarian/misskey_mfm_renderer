@@ -1079,11 +1079,25 @@ class _MfmBlurWidgetState extends State<_MfmBlurWidget> {
 
   var _isBlurred = true;
   var _isHovered = false;
+  PointerDeviceKind? _tapDeviceKind;
 
   void _toggleBlur() {
     setState(() {
       _isBlurred = !_isBlurred;
     });
+  }
+
+  void _handleTapDown(TapDownDetails details) {
+    _tapDeviceKind = details.kind;
+  }
+
+  void _handleTap() {
+    final deviceKind = _tapDeviceKind;
+    _tapDeviceKind = null;
+    if (deviceKind == PointerDeviceKind.mouse) {
+      return;
+    }
+    _toggleBlur();
   }
 
   void _setHovered({required bool isHovered}) {
@@ -1100,7 +1114,9 @@ class _MfmBlurWidgetState extends State<_MfmBlurWidget> {
       onEnter: (_) => _setHovered(isHovered: true),
       onExit: (_) => _setHovered(isHovered: false),
       child: GestureDetector(
-        onTap: _toggleBlur,
+        onTapDown: _handleTapDown,
+        onTapCancel: () => _tapDeviceKind = null,
+        onTap: _handleTap,
         child: TweenAnimationBuilder<double>(
           tween: Tween(end: targetSigma),
           duration: _transitionDuration,
