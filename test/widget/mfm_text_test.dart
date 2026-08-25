@@ -611,6 +611,29 @@ void main() {
       expect(tappedMention, '@alice@local.example');
     });
 
+    testWidgets('投稿者情報がなくてもlocalHostで省略メンションを解決する', (
+      tester,
+    ) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice',
+              config: MfmRenderConfig(
+                localHost: 'local.example',
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice@local.example');
+    });
+
     testWidgets('明示されたメンションホストを投稿者ホストより優先する', (
       tester,
     ) async {
