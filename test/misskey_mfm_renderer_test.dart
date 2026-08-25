@@ -38,6 +38,10 @@ void main() {
       );
       expect(identical(overridden.author, replacement), isTrue);
       expect(overridden.localHost, 'new-local.example');
+
+      final cleared = config.copyWith(author: null, localHost: null);
+      expect(cleared.author, isNull);
+      expect(cleared.localHost, isNull);
     });
   });
 }

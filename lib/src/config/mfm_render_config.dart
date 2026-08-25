@@ -15,6 +15,17 @@ class MfmAuthorContext {
   final String? host;
 }
 
+const _authorNotSet = _AuthorNotSet();
+const _localHostNotSet = _LocalHostNotSet();
+
+class _AuthorNotSet extends MfmAuthorContext {
+  const _AuthorNotSet();
+}
+
+class _LocalHostNotSet {
+  const _LocalHostNotSet();
+}
+
 /// MFMレンダリングの設定クラス
 class MfmRenderConfig {
   const MfmRenderConfig({
@@ -132,7 +143,10 @@ class MfmRenderConfig {
   /// nullの場合は #121212 を使用（Misskey本家に準拠）
   final Color? inlineCodeBgColorDark;
 
-  /// 設定をコピーして新しいインスタンスを作成
+  /// 設定をコピーして新しいインスタンスを作成。
+  ///
+  /// [author]と[localHost]は、省略すると現在の値を維持し、`null`を
+  /// 明示すると値を削除する。
   MfmRenderConfig copyWith({
     TextStyle? baseTextStyle,
     bool? enableAdvancedMfm,
@@ -144,8 +158,8 @@ class MfmRenderConfig {
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
     void Function(String query)? onSearchTap,
-    MfmAuthorContext? author,
-    String? localHost,
+    MfmAuthorContext? author = _authorNotSet,
+    Object? localHost = _localHostNotSet,
     void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
@@ -166,8 +180,10 @@ class MfmRenderConfig {
       onMentionTap: onMentionTap ?? this.onMentionTap,
       onHashtagTap: onHashtagTap ?? this.onHashtagTap,
       onSearchTap: onSearchTap ?? this.onSearchTap,
-      author: author ?? this.author,
-      localHost: localHost ?? this.localHost,
+      author: identical(author, _authorNotSet) ? this.author : author,
+      localHost: identical(localHost, _localHostNotSet)
+          ? this.localHost
+          : localHost as String?,
       onClickableEvent: onClickableEvent ?? this.onClickableEvent,
       fontFamilyResolver: fontFamilyResolver ?? this.fontFamilyResolver,
       codeTheme: codeTheme ?? this.codeTheme,

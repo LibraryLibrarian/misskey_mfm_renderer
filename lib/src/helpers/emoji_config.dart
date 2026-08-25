@@ -9,6 +9,17 @@ import 'package:path_provider/path_provider.dart';
 import '../config/mfm_render_config.dart';
 import '../widgets/mfm_custom_emoji.dart';
 
+const _authorNotSet = _AuthorNotSet();
+const _localHostNotSet = _LocalHostNotSet();
+
+class _AuthorNotSet extends MfmAuthorContext {
+  const _AuthorNotSet();
+}
+
+class _LocalHostNotSet {
+  const _LocalHostNotSet();
+}
+
 /// カスタム絵文字の永続ストアを生成するファクトリー
 ///
 /// 返したストアの所有権は[MfmEmojiConfigHandle]へ移り、
@@ -77,8 +88,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
     void Function(String query)? onSearchTap,
-    MfmAuthorContext? author,
-    String? localHost,
+    MfmAuthorContext? author = _authorNotSet,
+    Object? localHost = _localHostNotSet,
     void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
@@ -99,8 +110,10 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       onMentionTap: onMentionTap,
       onHashtagTap: onHashtagTap,
       onSearchTap: onSearchTap,
-      author: author,
-      localHost: localHost,
+      author: identical(author, _authorNotSet) ? this.author : author,
+      localHost: identical(localHost, _localHostNotSet)
+          ? this.localHost
+          : localHost,
       onClickableEvent: onClickableEvent,
       fontFamilyResolver: fontFamilyResolver,
       codeTheme: codeTheme,

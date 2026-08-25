@@ -98,9 +98,19 @@ void main() {
     expect(copied.localHost, 'local.example');
     expect(config.enableAnimation, isTrue);
 
-    await copied.dispose();
+    final preserved = copied.copyWith(enableNyaize: true);
+    expect(identical(preserved.author, author), isTrue);
+    expect(preserved.localHost, 'local.example');
+
+    final cleared = preserved.copyWith(author: null, localHost: null);
+    expect(cleared, isA<MfmEmojiConfigHandle>());
+    expect(cleared.author, isNull);
+    expect(cleared.localHost, isNull);
+
+    await cleared.dispose();
     await config.dispose();
 
+    expect(cleared.isDisposed, isTrue);
     expect(copied.isDisposed, isTrue);
     expect(config.isDisposed, isTrue);
     expect(store.disposeCalls, 1);
