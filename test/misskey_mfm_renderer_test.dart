@@ -11,13 +11,18 @@ void main() {
       expect(config.baseTextStyle, null);
       expect(config.author, null);
       expect(config.localHost, null);
+      expect(config.searchButtonLabel, null);
     });
 
     test('copyWith works correctly', () {
       const config = MfmRenderConfig();
-      final newConfig = config.copyWith(enableAdvancedMfm: false);
+      final newConfig = config.copyWith(
+        enableAdvancedMfm: false,
+        searchButtonLabel: 'Find',
+      );
       expect(newConfig.enableAdvancedMfm, false);
       expect(newConfig.enableAnimation, true);
+      expect(newConfig.searchButtonLabel, 'Find');
     });
 
     test('copyWith preserves and overrides mention context', () {

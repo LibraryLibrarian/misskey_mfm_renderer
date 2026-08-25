@@ -213,6 +213,8 @@ MfmText(
     onSearchTap: (query) {
       performSearch(query);
     },
+    // 任意: ローカライズされた検索ボタンラベルを上書き
+    searchButtonLabel: '検索する',
   ),
 )
 ```
@@ -437,6 +439,7 @@ void main() {
 | `onSearchTap` | `void Function(String)?` | null | 検索タップコールバック |
 | `author` | `MfmAuthorContext?` | null | ホスト依存の描画に使用する投稿者情報 |
 | `localHost` | `String?` | null | ホスト解決のフォールバックに使用するローカルMisskeyホスト |
+| `searchButtonLabel` | `String?` | 現在のロケール | 検索ボタンのラベル上書き（日本語は`検索`、その他は`Search`） |
 | `fontFamilyResolver` | `String? Function(String)?` | null | フォントファミリー解決関数 |
 
 `copyWith`では、`author`と`localHost`の引数を省略または`null`にすると

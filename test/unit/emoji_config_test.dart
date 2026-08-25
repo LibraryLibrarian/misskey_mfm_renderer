@@ -90,13 +90,16 @@ void main() {
       enableAnimation: false,
       author: author,
       localHost: 'local.example',
+      searchButtonLabel: 'Find',
     );
 
     expect(copied, isA<MfmEmojiConfigHandle>());
     expect(copied.enableAnimation, isFalse);
     expect(identical(copied.author, author), isTrue);
     expect(copied.localHost, 'local.example');
+    expect(copied.searchButtonLabel, 'Find');
     expect(config.enableAnimation, isTrue);
+    expect(config.searchButtonLabel, isNull);
 
     final preserved = copied.copyWith(enableNyaize: true);
     expect(identical(preserved.author, author), isTrue);

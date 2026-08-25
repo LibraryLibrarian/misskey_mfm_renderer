@@ -102,6 +102,38 @@ void main() {
 
     expect(find.text('explicit'), findsOneWidget);
   });
+
+  testWidgets('MfmText inherits searchButtonLabel', (tester) async {
+    await tester.pumpWidget(
+      const MfmConfig(
+        config: MfmRenderConfig(searchButtonLabel: 'Inherited search'),
+        child: MaterialApp(
+          home: Scaffold(body: MfmText(text: 'flutter Search')),
+        ),
+      ),
+    );
+
+    expect(find.text('Inherited search'), findsOneWidget);
+  });
+
+  testWidgets('explicit searchButtonLabel overrides inherited', (tester) async {
+    await tester.pumpWidget(
+      const MfmConfig(
+        config: MfmRenderConfig(searchButtonLabel: 'Inherited search'),
+        child: MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: 'flutter Search',
+              config: MfmRenderConfig(searchButtonLabel: 'Explicit search'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Explicit search'), findsOneWidget);
+    expect(find.text('Inherited search'), findsNothing);
+  });
 }
 
 Widget _emojiTextBuilder(String _) => const Text('inherited');

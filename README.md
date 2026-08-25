@@ -214,6 +214,8 @@ MfmText(
     onSearchTap: (query) {
       performSearch(query);
     },
+    // Optional: override the localized search button label
+    searchButtonLabel: 'Find',
   ),
 )
 ```
@@ -437,6 +439,7 @@ void main() {
 | `onSearchTap` | `void Function(String)?` | null | Search tap callback |
 | `author` | `MfmAuthorContext?` | null | Author context used for host-dependent rendering |
 | `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback |
+| `searchButtonLabel` | `String?` | current locale | Search button label override (`検索` for Japanese, `Search` otherwise) |
 | `fontFamilyResolver` | `String? Function(String)?` | null | Font family resolver function |
 
 `copyWith` preserves the current `author` and `localHost` when their nullable

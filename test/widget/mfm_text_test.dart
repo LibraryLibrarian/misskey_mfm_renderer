@@ -498,7 +498,7 @@ void main() {
       );
 
       expect(find.text('test query'), findsOneWidget);
-      expect(find.text('検索'), findsOneWidget);
+      expect(find.text('Search'), findsOneWidget);
     });
   });
 
@@ -738,11 +738,12 @@ void main() {
       expect(tappedTag, 'flutter');
     });
 
-    testWidgets('検索ボタンタップ時にonSearchTapが呼ばれる', (tester) async {
+    testWidgets('英語ロケールで検索ボタンにSearchを表示する', (tester) async {
       String? tappedQuery;
 
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
           home: Scaffold(
             body: MfmText(
               text: 'flutter Search',
@@ -754,11 +755,68 @@ void main() {
         ),
       );
 
-      // 検索ボタンを検索してタップ
-      await tester.tap(find.text('検索'));
+      await tester.tap(find.text('Search'));
       await tester.pump();
 
       expect(tappedQuery, 'flutter');
+    });
+
+    testWidgets('日本語ロケールで検索ボタンに検索を表示する', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Localizations.override(
+                context: context,
+                locale: const Locale('ja'),
+                child: const MfmText(text: 'flutter Search'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('検索'), findsOneWidget);
+      expect(find.text('Search'), findsNothing);
+    });
+
+    testWidgets('検索ボタンの明示ラベルがロケールより優先される', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Localizations.override(
+                context: context,
+                locale: const Locale('ja'),
+                child: const MfmText(
+                  text: 'flutter Search',
+                  config: MfmRenderConfig(searchButtonLabel: 'Find'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Find'), findsOneWidget);
+      expect(find.text('検索'), findsNothing);
+    });
+
+    testWidgets('ローカライズ取得不可時はSearchを表示する', (tester) async {
+      await tester.pumpWidget(
+        const MediaQuery(
+          data: MediaQueryData(),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: DefaultTextStyle(
+              style: TextStyle(),
+              child: MfmText(text: 'flutter Search'),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Search'), findsOneWidget);
     });
   });
 
