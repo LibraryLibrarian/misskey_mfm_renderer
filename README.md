@@ -218,6 +218,21 @@ MfmText(
 )
 ```
 
+For hostless mentions in remote posts, provide the author and local instance
+hosts. `onMentionTap` then receives the resolved full acct. When neither host
+can be resolved, the original acct is passed through unchanged.
+
+```dart
+MfmText(
+  text: '@alice',
+  config: MfmRenderConfig(
+    author: const MfmAuthorContext(host: 'remote.example'),
+    localHost: 'local.example',
+    onMentionTap: navigateToUser,
+  ),
+)
+```
+
 ### Advanced Custom Emoji Configuration
 
 To display custom emojis from a Misskey server, integrate the `misskey_emoji` library:

@@ -63,8 +63,11 @@ class MfmRenderConfig {
   /// リンクタップ時のコールバック
   final void Function(String url)? onLinkTap;
 
-  /// メンションタップ時のコールバック
-  /// acctには完全なacct文字列が渡される（例: "@user@example.com"）
+  /// メンションタップ時のコールバック。
+  ///
+  /// [author]または[localHost]からホストを解決できる場合、acctには
+  /// 完全な文字列が渡される（例: "@user@example.com"）。解決情報がなく、
+  /// 元のメンションにもホストがない場合はraw acct（例: "@user"）を渡す。
   final void Function(String acct)? onMentionTap;
 
   /// ハッシュタグタップ時のコールバック
