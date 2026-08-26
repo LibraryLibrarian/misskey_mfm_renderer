@@ -290,6 +290,7 @@ class MfmNodeBuilder {
 
   InlineSpan _buildMention(MentionNode node) {
     final onMentionTap = config.onMentionTap;
+    final resolvedAcct = _resolveMentionAcct(node);
     return TextSpan(
       text: node.acct,
       style: const TextStyle(
@@ -297,8 +298,28 @@ class MfmNodeBuilder {
       ),
       recognizer: onMentionTap == null
           ? null
-          : (TapGestureRecognizer()..onTap = () => onMentionTap(node.acct)),
+          : (TapGestureRecognizer()..onTap = () => onMentionTap(resolvedAcct)),
     );
+  }
+
+  String _resolveMentionAcct(MentionNode node) {
+    if (_nonEmptyHost(node.host) != null) {
+      return node.acct;
+    }
+
+    final host =
+        _nonEmptyHost(config.author?.host) ?? _nonEmptyHost(config.localHost);
+    if (host == null) {
+      return node.acct;
+    }
+    return '@${node.username}@$host';
+  }
+
+  String? _nonEmptyHost(String? host) {
+    if (host == null || host.isEmpty) {
+      return null;
+    }
+    return host;
   }
 
   InlineSpan _buildHashtag(HashtagNode node) {

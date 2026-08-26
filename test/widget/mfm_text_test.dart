@@ -565,6 +565,149 @@ void main() {
       expect(tappedMention, '@user@example.com');
     });
 
+    testWidgets('リモート投稿者のホストで省略メンションを解決する', (tester) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice',
+              config: MfmRenderConfig(
+                author: const MfmAuthorContext(host: 'remote.example'),
+                localHost: 'local.example',
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice@remote.example');
+    });
+
+    testWidgets('ローカル投稿者ではlocalHostで省略メンションを解決する', (
+      tester,
+    ) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice',
+              config: MfmRenderConfig(
+                author: const MfmAuthorContext(),
+                localHost: 'local.example',
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice@local.example');
+    });
+
+    testWidgets('投稿者情報がなくてもlocalHostで省略メンションを解決する', (
+      tester,
+    ) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice',
+              config: MfmRenderConfig(
+                localHost: 'local.example',
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice@local.example');
+    });
+
+    testWidgets('明示されたメンションホストを投稿者ホストより優先する', (
+      tester,
+    ) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice@explicit.example',
+              config: MfmRenderConfig(
+                author: const MfmAuthorContext(host: 'remote.example'),
+                localHost: 'local.example',
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice@explicit.example');
+      expect(tappedMention, '@alice@explicit.example');
+    });
+
+    testWidgets('Inherited configの投稿者ホストを明示コールバックと結合する', (
+      tester,
+    ) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MfmConfig(
+          config: const MfmRenderConfig(
+            author: MfmAuthorContext(host: 'remote.example'),
+            localHost: 'local.example',
+          ),
+          child: MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '@alice',
+                config: MfmRenderConfig(
+                  onMentionTap: (acct) => tappedMention = acct,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice@remote.example');
+    });
+
+    testWidgets('解決コンテキストがなければ省略メンションをそのまま渡す', (
+      tester,
+    ) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice',
+              config: MfmRenderConfig(
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice');
+    });
+
     testWidgets('ハッシュタグタップ時にonHashtagTapが呼ばれる', (tester) async {
       String? tappedTag;
 
@@ -738,4 +881,14 @@ TextSpan? _findSpanWithText(TextSpan parent, String text) {
   }
 
   return null;
+}
+
+void _invokeSpanTap(WidgetTester tester, String text) {
+  final richText = tester.widget<RichText>(find.byType(RichText));
+  final textSpan = richText.text as TextSpan;
+  final targetSpan = _findSpanWithText(textSpan, text);
+  expect(targetSpan, isNotNull);
+  final recognizer = targetSpan?.recognizer;
+  expect(recognizer, isA<TapGestureRecognizer>());
+  (recognizer! as TapGestureRecognizer).onTap?.call();
 }

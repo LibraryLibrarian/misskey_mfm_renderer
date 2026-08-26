@@ -217,6 +217,21 @@ MfmText(
 )
 ```
 
+リモート投稿内のホスト省略メンションを解決するには、投稿者とローカル
+インスタンスのホストを指定します。`onMentionTap`には解決後の完全なacctが
+渡されます。どちらのホストも解決できない場合は、元のacctがそのまま渡されます。
+
+```dart
+MfmText(
+  text: '@alice',
+  config: MfmRenderConfig(
+    author: const MfmAuthorContext(host: 'remote.example'),
+    localHost: 'local.example',
+    onMentionTap: navigateToUser,
+  ),
+)
+```
+
 ### 高度なカスタム絵文字の設定
 
 Misskeyサーバーのカスタム絵文字を表示するには、`misskey_emoji` ライブラリと連携します：
