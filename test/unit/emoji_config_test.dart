@@ -85,15 +85,56 @@ void main() {
     );
     addTearDown(config.dispose);
 
-    final copied = config.copyWith(enableAnimation: false);
+    const author = MfmAuthorContext(host: 'remote.example');
+    final copied = config.copyWith(
+      enableAnimation: false,
+      author: author,
+      localHost: 'local.example',
+    );
 
     expect(copied, isA<MfmEmojiConfigHandle>());
     expect(copied.enableAnimation, isFalse);
+    expect(identical(copied.author, author), isTrue);
+    expect(copied.localHost, 'local.example');
     expect(config.enableAnimation, isTrue);
 
-    await copied.dispose();
+    final preserved = copied.copyWith(enableNyaize: true);
+    expect(identical(preserved.author, author), isTrue);
+    expect(preserved.localHost, 'local.example');
+
+    final preservedWithNull = preserved.copyWith(
+      // ignore: avoid_redundant_argument_values
+      author: null,
+      // ignore: avoid_redundant_argument_values
+      localHost: null,
+    );
+    expect(identical(preservedWithNull.author, author), isTrue);
+    expect(preservedWithNull.localHost, 'local.example');
+
+    expect(
+      () => preserved.copyWith(author: author, clearAuthor: true),
+      throwsArgumentError,
+    );
+    expect(
+      () => preserved.copyWith(
+        localHost: 'other.example',
+        clearLocalHost: true,
+      ),
+      throwsArgumentError,
+    );
+
+    final cleared = preserved.copyWith(
+      clearAuthor: true,
+      clearLocalHost: true,
+    );
+    expect(cleared, isA<MfmEmojiConfigHandle>());
+    expect(cleared.author, isNull);
+    expect(cleared.localHost, isNull);
+
+    await cleared.dispose();
     await config.dispose();
 
+    expect(cleared.isDisposed, isTrue);
     expect(copied.isDisposed, isTrue);
     expect(config.isDisposed, isTrue);
     expect(store.disposeCalls, 1);

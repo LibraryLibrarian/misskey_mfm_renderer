@@ -39,6 +39,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          onMentionTap: config.onMentionTap,
          onHashtagTap: config.onHashtagTap,
          onSearchTap: config.onSearchTap,
+         author: config.author,
+         localHost: config.localHost,
          onClickableEvent: config.onClickableEvent,
          fontFamilyResolver: config.fontFamilyResolver,
          codeTheme: config.codeTheme,
@@ -63,6 +65,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
   ///
   /// いずれかのコピーで[dispose]を呼ぶと、同じライフサイクルを共有する
   /// すべてのコピーが破棄済みになる。
+  ///
+  /// {@macro mfm_render_config_copy_with_mention_context}
   @override
   MfmEmojiConfigHandle copyWith({
     TextStyle? baseTextStyle,
@@ -75,6 +79,10 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
     void Function(String query)? onSearchTap,
+    MfmAuthorContext? author,
+    String? localHost,
+    bool clearAuthor = false,
+    bool clearLocalHost = false,
     void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
@@ -95,6 +103,10 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       onMentionTap: onMentionTap,
       onHashtagTap: onHashtagTap,
       onSearchTap: onSearchTap,
+      author: author,
+      localHost: localHost,
+      clearAuthor: clearAuthor,
+      clearLocalHost: clearLocalHost,
       onClickableEvent: onClickableEvent,
       fontFamilyResolver: fontFamilyResolver,
       codeTheme: codeTheme,

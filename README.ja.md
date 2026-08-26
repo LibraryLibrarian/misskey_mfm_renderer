@@ -420,7 +420,14 @@ void main() {
 | `onMentionTap` | `void Function(String)?` | null | メンションタップコールバック |
 | `onHashtagTap` | `void Function(String)?` | null | ハッシュタグタップコールバック |
 | `onSearchTap` | `void Function(String)?` | null | 検索タップコールバック |
+| `author` | `MfmAuthorContext?` | null | ホスト依存の描画に使用する投稿者情報 |
+| `localHost` | `String?` | null | ホスト解決のフォールバックに使用するローカルMisskeyホスト |
 | `fontFamilyResolver` | `String? Function(String)?` | null | フォントファミリー解決関数 |
+
+`copyWith`では、`author`と`localHost`の引数を省略または`null`にすると
+現在値を維持します。値を削除するには`clearAuthor: true`または
+`clearLocalHost: true`を指定します。置換値と対応するclearフラグを同時に
+指定した場合は`ArgumentError`を投げます。
 
 ## 技術的な注意事項
 

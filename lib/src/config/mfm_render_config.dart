@@ -1,5 +1,20 @@
 import 'package:flutter/widgets.dart';
 
+/// MFMを含むコンテンツの投稿者情報。
+///
+/// 本家Misskeyの`MkMfm`へ渡される`author`のうち、レンダリング時の
+/// ホスト解決に必要な情報を表す。将来ほかの投稿者依存の描画情報を
+/// 追加できるよう、ホスト文字列を直接設定する代わりに独立した型とする。
+@immutable
+class MfmAuthorContext {
+  const MfmAuthorContext({this.host});
+
+  /// 投稿者が所属するリモートホスト。
+  ///
+  /// ローカルユーザーの場合は`null`。
+  final String? host;
+}
+
 /// MFMレンダリングの設定クラス
 class MfmRenderConfig {
   const MfmRenderConfig({
@@ -13,6 +28,8 @@ class MfmRenderConfig {
     this.onMentionTap,
     this.onHashtagTap,
     this.onSearchTap,
+    this.author,
+    this.localHost,
     this.onClickableEvent,
     this.fontFamilyResolver,
     this.codeTheme,
@@ -56,6 +73,14 @@ class MfmRenderConfig {
 
   /// 検索タップ時のコールバック
   final void Function(String query)? onSearchTap;
+
+  /// MFMを含むコンテンツの投稿者情報。
+  final MfmAuthorContext? author;
+
+  /// 表示中のローカルMisskeyインスタンスのホスト。
+  ///
+  /// 投稿者やMFMノードにホストがない場合の解決に使用する。
+  final String? localHost;
 
   /// clickable fn関数のイベントコールバック
   /// eventIdにはclickable.ev引数の値が渡される
@@ -107,7 +132,13 @@ class MfmRenderConfig {
   /// nullの場合は #121212 を使用（Misskey本家に準拠）
   final Color? inlineCodeBgColorDark;
 
-  /// 設定をコピーして新しいインスタンスを作成
+  /// 設定をコピーして新しいインスタンスを作成。
+  ///
+  /// {@template mfm_render_config_copy_with_mention_context}
+  /// [author]と[localHost]は、`null`または省略時に現在の値を維持する。
+  /// 値を削除する場合は、対応する[clearAuthor]または[clearLocalHost]を
+  /// `true`にする。値の指定と削除を同時に要求すると[ArgumentError]を投げる。
+  /// {@endtemplate}
   MfmRenderConfig copyWith({
     TextStyle? baseTextStyle,
     bool? enableAdvancedMfm,
@@ -119,6 +150,10 @@ class MfmRenderConfig {
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
     void Function(String query)? onSearchTap,
+    MfmAuthorContext? author,
+    String? localHost,
+    bool clearAuthor = false,
+    bool clearLocalHost = false,
     void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
@@ -128,6 +163,21 @@ class MfmRenderConfig {
     Color? inlineCodeBgColorLight,
     Color? inlineCodeBgColorDark,
   }) {
+    if (clearAuthor && author != null) {
+      throw ArgumentError.value(
+        author,
+        'author',
+        'clearAuthorがtrueの場合は指定できません',
+      );
+    }
+    if (clearLocalHost && localHost != null) {
+      throw ArgumentError.value(
+        localHost,
+        'localHost',
+        'clearLocalHostがtrueの場合は指定できません',
+      );
+    }
+
     return MfmRenderConfig(
       baseTextStyle: baseTextStyle ?? this.baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm ?? this.enableAdvancedMfm,
@@ -139,6 +189,8 @@ class MfmRenderConfig {
       onMentionTap: onMentionTap ?? this.onMentionTap,
       onHashtagTap: onHashtagTap ?? this.onHashtagTap,
       onSearchTap: onSearchTap ?? this.onSearchTap,
+      author: clearAuthor ? null : author ?? this.author,
+      localHost: clearLocalHost ? null : localHost ?? this.localHost,
       onClickableEvent: onClickableEvent ?? this.onClickableEvent,
       fontFamilyResolver: fontFamilyResolver ?? this.fontFamilyResolver,
       codeTheme: codeTheme ?? this.codeTheme,
