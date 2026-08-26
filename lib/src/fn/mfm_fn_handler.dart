@@ -1074,7 +1074,12 @@ class _MfmBlurWidget extends StatefulWidget {
 }
 
 class _MfmBlurWidgetState extends State<_MfmBlurWidget> {
+  static const _blurSigma = 6.0;
+  static const _transitionDuration = Duration(milliseconds: 300);
+
   var _isBlurred = true;
+  var _isHovered = false;
+  PointerDeviceKind? _tapDeviceKind;
 
   void _toggleBlur() {
     setState(() {
@@ -1082,17 +1087,50 @@ class _MfmBlurWidgetState extends State<_MfmBlurWidget> {
     });
   }
 
+  void _handleTapDown(TapDownDetails details) {
+    _tapDeviceKind = details.kind;
+  }
+
+  void _handleTap() {
+    final deviceKind = _tapDeviceKind;
+    _tapDeviceKind = null;
+    if (deviceKind == PointerDeviceKind.mouse) {
+      return;
+    }
+    _toggleBlur();
+  }
+
+  void _setHovered({required bool isHovered}) {
+    setState(() {
+      _isHovered = isHovered;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _toggleBlur,
-      child: ImageFiltered(
-        enabled: _isBlurred,
-        imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-        child: RichText(
-          text: TextSpan(
-            style: widget.baseTextStyle,
-            children: widget.children,
+    final targetSigma = _isBlurred && !_isHovered ? _blurSigma : 0.0;
+
+    return MouseRegion(
+      onEnter: (_) => _setHovered(isHovered: true),
+      onExit: (_) => _setHovered(isHovered: false),
+      child: GestureDetector(
+        onTapDown: _handleTapDown,
+        onTapCancel: () => _tapDeviceKind = null,
+        onTap: _handleTap,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(end: targetSigma),
+          duration: _transitionDuration,
+          curve: Curves.ease,
+          builder: (context, sigma, child) => ImageFiltered(
+            enabled: sigma > 0,
+            imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+            child: child,
+          ),
+          child: RichText(
+            text: TextSpan(
+              style: widget.baseTextStyle,
+              children: widget.children,
+            ),
           ),
         ),
       ),
