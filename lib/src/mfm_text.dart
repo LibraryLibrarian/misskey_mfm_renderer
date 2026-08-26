@@ -47,12 +47,17 @@ class MfmText extends StatelessWidget {
 
     // baseTextStyleとbrightnessを設定
     final effectiveConfig =
-        mergedConfig.baseTextStyle == null || mergedConfig.brightness == null
+        mergedConfig.baseTextStyle == null ||
+            mergedConfig.brightness == null ||
+            mergedConfig.searchButtonLabel == null
         ? mergedConfig.copyWith(
             baseTextStyle:
                 mergedConfig.baseTextStyle ??
                 DefaultTextStyle.of(context).style,
             brightness: mergedConfig.brightness ?? brightness,
+            searchButtonLabel:
+                mergedConfig.searchButtonLabel ??
+                _resolveSearchButtonLabel(Localizations.maybeLocaleOf(context)),
           )
         : mergedConfig;
 
@@ -121,6 +126,13 @@ MfmRenderConfig _mergeConfigs(
     onSearchTap: explicit.onSearchTap ?? inherited.onSearchTap,
     author: explicit.author ?? inherited.author,
     localHost: explicit.localHost ?? inherited.localHost,
+    searchButtonLabel: explicit.useLocaleSearchButtonLabel
+        ? null
+        : explicit.searchButtonLabel ?? inherited.searchButtonLabel,
+    useLocaleSearchButtonLabel:
+        explicit.searchButtonLabel == null &&
+        (explicit.useLocaleSearchButtonLabel ||
+            inherited.useLocaleSearchButtonLabel),
     onClickableEvent: explicit.onClickableEvent ?? inherited.onClickableEvent,
     fontFamilyResolver:
         explicit.fontFamilyResolver ?? inherited.fontFamilyResolver,
@@ -150,6 +162,9 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.onSearchTap == defaults.onSearchTap &&
       config.author == defaults.author &&
       config.localHost == defaults.localHost &&
+      config.searchButtonLabel == defaults.searchButtonLabel &&
+      config.useLocaleSearchButtonLabel ==
+          defaults.useLocaleSearchButtonLabel &&
       config.onClickableEvent == defaults.onClickableEvent &&
       config.fontFamilyResolver == defaults.fontFamilyResolver &&
       config.codeTheme == defaults.codeTheme &&
@@ -158,4 +173,8 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.showCodeBlockCopyButton == defaults.showCodeBlockCopyButton &&
       config.inlineCodeBgColorLight == defaults.inlineCodeBgColorLight &&
       config.inlineCodeBgColorDark == defaults.inlineCodeBgColorDark;
+}
+
+String _resolveSearchButtonLabel(Locale? locale) {
+  return locale?.languageCode == 'ja' ? '検索' : 'Search';
 }

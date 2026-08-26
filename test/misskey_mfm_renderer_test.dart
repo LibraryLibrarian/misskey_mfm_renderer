@@ -11,13 +11,45 @@ void main() {
       expect(config.baseTextStyle, null);
       expect(config.author, null);
       expect(config.localHost, null);
+      expect(config.searchButtonLabel, null);
+      expect(config.useLocaleSearchButtonLabel, false);
+
+      const localized = MfmRenderConfig(
+        searchButtonLabel: 'Ignored',
+        useLocaleSearchButtonLabel: true,
+      );
+      expect(localized.searchButtonLabel, isNull);
+      expect(localized.useLocaleSearchButtonLabel, isTrue);
     });
 
     test('copyWith works correctly', () {
       const config = MfmRenderConfig();
-      final newConfig = config.copyWith(enableAdvancedMfm: false);
+      final newConfig = config.copyWith(
+        enableAdvancedMfm: false,
+        searchButtonLabel: 'Find',
+      );
       expect(newConfig.enableAdvancedMfm, false);
       expect(newConfig.enableAnimation, true);
+      expect(newConfig.searchButtonLabel, 'Find');
+
+      final localizedConfig = newConfig.copyWith(
+        useLocaleSearchButtonLabel: true,
+      );
+      expect(localizedConfig.searchButtonLabel, isNull);
+      expect(localizedConfig.useLocaleSearchButtonLabel, isTrue);
+
+      final explicitLocaleWins = newConfig.copyWith(
+        searchButtonLabel: 'Ignored',
+        useLocaleSearchButtonLabel: true,
+      );
+      expect(explicitLocaleWins.searchButtonLabel, isNull);
+      expect(explicitLocaleWins.useLocaleSearchButtonLabel, isTrue);
+
+      final overriddenAgain = localizedConfig.copyWith(
+        searchButtonLabel: 'Search again',
+      );
+      expect(overriddenAgain.searchButtonLabel, 'Search again');
+      expect(overriddenAgain.useLocaleSearchButtonLabel, isFalse);
     });
 
     test('copyWith preserves and overrides mention context', () {

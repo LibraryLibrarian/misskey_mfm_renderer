@@ -30,6 +30,8 @@ class MfmRenderConfig {
     this.onSearchTap,
     this.author,
     this.localHost,
+    String? searchButtonLabel,
+    this.useLocaleSearchButtonLabel = false,
     this.onClickableEvent,
     this.fontFamilyResolver,
     this.codeTheme,
@@ -38,7 +40,9 @@ class MfmRenderConfig {
     this.showCodeBlockCopyButton,
     this.inlineCodeBgColorLight,
     this.inlineCodeBgColorDark,
-  });
+  }) : searchButtonLabel = useLocaleSearchButtonLabel
+           ? null
+           : searchButtonLabel;
 
   /// ベースのテキストスタイル（指定しない場合はデフォルトを使用）
   final TextStyle? baseTextStyle;
@@ -84,6 +88,16 @@ class MfmRenderConfig {
   ///
   /// 投稿者やMFMノードにホストがない場合の解決に使用する。
   final String? localHost;
+
+  /// 検索ボタンのラベル
+  ///
+  /// nullの場合は現在のロケールから解決し、解決できない場合は"Search"を使用
+  final String? searchButtonLabel;
+
+  /// 継承または設定済みの[searchButtonLabel]を解除し、現在のロケールを使うか
+  ///
+  /// trueは[searchButtonLabel]より優先され、[searchButtonLabel]はnullになる。
+  final bool useLocaleSearchButtonLabel;
 
   /// clickable fn関数のイベントコールバック
   /// eventIdにはclickable.ev引数の値が渡される
@@ -157,6 +171,8 @@ class MfmRenderConfig {
     String? localHost,
     bool clearAuthor = false,
     bool clearLocalHost = false,
+    String? searchButtonLabel,
+    bool? useLocaleSearchButtonLabel,
     void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
@@ -181,6 +197,9 @@ class MfmRenderConfig {
       );
     }
 
+    final effectiveUseLocaleSearchButtonLabel =
+        useLocaleSearchButtonLabel ??
+        (searchButtonLabel == null && this.useLocaleSearchButtonLabel);
     return MfmRenderConfig(
       baseTextStyle: baseTextStyle ?? this.baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm ?? this.enableAdvancedMfm,
@@ -194,6 +213,10 @@ class MfmRenderConfig {
       onSearchTap: onSearchTap ?? this.onSearchTap,
       author: clearAuthor ? null : author ?? this.author,
       localHost: clearLocalHost ? null : localHost ?? this.localHost,
+      searchButtonLabel: effectiveUseLocaleSearchButtonLabel
+          ? null
+          : searchButtonLabel ?? this.searchButtonLabel,
+      useLocaleSearchButtonLabel: effectiveUseLocaleSearchButtonLabel,
       onClickableEvent: onClickableEvent ?? this.onClickableEvent,
       fontFamilyResolver: fontFamilyResolver ?? this.fontFamilyResolver,
       codeTheme: codeTheme ?? this.codeTheme,

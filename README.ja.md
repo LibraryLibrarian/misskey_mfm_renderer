@@ -191,6 +191,24 @@ MfmText(
 )
 ```
 
+`searchButtonLabel` はロケールから解決されたラベルと継承したラベルを上書きします。
+設定済みまたは継承した上書きを解除し、現在のロケール（日本語は`検索`、
+その他は`Search`）へ戻すには `useLocaleSearchButtonLabel` を指定します。
+trueの場合は `searchButtonLabel` より優先され、ラベルはnullとして保持されます。
+
+```dart
+final localizedConfig = config.copyWith(
+  useLocaleSearchButtonLabel: true,
+);
+
+MfmText(
+  text: 'flutter Search',
+  config: const MfmRenderConfig(
+    useLocaleSearchButtonLabel: true,
+  ),
+)
+```
+
 ### コールバックの設定
 
 ```dart
@@ -213,6 +231,8 @@ MfmText(
     onSearchTap: (query) {
       performSearch(query);
     },
+    // 任意: ローカライズされた検索ボタンラベルを上書き
+    searchButtonLabel: '検索する',
   ),
 )
 ```
@@ -437,6 +457,8 @@ void main() {
 | `onSearchTap` | `void Function(String)?` | null | 検索タップコールバック |
 | `author` | `MfmAuthorContext?` | null | ホスト依存の描画に使用する投稿者情報 |
 | `localHost` | `String?` | null | ホスト解決のフォールバックに使用するローカルMisskeyホスト |
+| `searchButtonLabel` | `String?` | 現在のロケール | 検索ボタンのラベル上書き（日本語は`検索`、その他は`Search`） |
+| `useLocaleSearchButtonLabel` | `bool` | false | 設定済みまたは継承した検索ラベルを解除し、現在のロケールから解決 |
 | `fontFamilyResolver` | `String? Function(String)?` | null | フォントファミリー解決関数 |
 
 `copyWith`では、`author`と`localHost`の引数を省略または`null`にすると

@@ -373,9 +373,9 @@ class MfmNodeBuilder {
                   color: const Color(0xFF0066CC),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
-                  '検索',
-                  style: TextStyle(
+                child: Text(
+                  config.searchButtonLabel ?? 'Search',
+                  style: const TextStyle(
                     color: Color(0xFFFFFFFF),
                     fontSize: 14,
                   ),

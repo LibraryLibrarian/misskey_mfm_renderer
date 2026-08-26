@@ -102,6 +102,69 @@ void main() {
 
     expect(find.text('explicit'), findsOneWidget);
   });
+
+  testWidgets('MfmText inherits searchButtonLabel', (tester) async {
+    await tester.pumpWidget(
+      const MfmConfig(
+        config: MfmRenderConfig(searchButtonLabel: 'Inherited search'),
+        child: MaterialApp(
+          home: Scaffold(body: MfmText(text: 'flutter Search')),
+        ),
+      ),
+    );
+
+    expect(find.text('Inherited search'), findsOneWidget);
+  });
+
+  testWidgets('explicit searchButtonLabel overrides inherited', (tester) async {
+    await tester.pumpWidget(
+      const MfmConfig(
+        config: MfmRenderConfig(searchButtonLabel: 'Inherited search'),
+        child: MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: 'flutter Search',
+              config: MfmRenderConfig(searchButtonLabel: 'Explicit search'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Explicit search'), findsOneWidget);
+    expect(find.text('Inherited search'), findsNothing);
+  });
+
+  testWidgets('explicit locale label clears inherited searchButtonLabel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MfmConfig(
+        config: const MfmRenderConfig(
+          searchButtonLabel: 'Inherited search',
+        ),
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Localizations.override(
+                context: context,
+                locale: const Locale('ja'),
+                child: const MfmText(
+                  text: 'flutter Search',
+                  config: MfmRenderConfig(
+                    useLocaleSearchButtonLabel: true,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('検索'), findsOneWidget);
+    expect(find.text('Inherited search'), findsNothing);
+  });
 }
 
 Widget _emojiTextBuilder(String _) => const Text('inherited');

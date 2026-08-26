@@ -90,13 +90,16 @@ void main() {
       enableAnimation: false,
       author: author,
       localHost: 'local.example',
+      searchButtonLabel: 'Find',
     );
 
     expect(copied, isA<MfmEmojiConfigHandle>());
     expect(copied.enableAnimation, isFalse);
     expect(identical(copied.author, author), isTrue);
     expect(copied.localHost, 'local.example');
+    expect(copied.searchButtonLabel, 'Find');
     expect(config.enableAnimation, isTrue);
+    expect(config.searchButtonLabel, isNull);
 
     final preserved = copied.copyWith(enableNyaize: true);
     expect(identical(preserved.author, author), isTrue);
@@ -131,9 +134,20 @@ void main() {
     expect(cleared.author, isNull);
     expect(cleared.localHost, isNull);
 
-    await cleared.dispose();
+    final localized = copied.copyWith(
+      searchButtonLabel: 'Ignored',
+      useLocaleSearchButtonLabel: true,
+    );
+    expect(localized, isA<MfmEmojiConfigHandle>());
+    expect(identical(localized.author, author), isTrue);
+    expect(localized.localHost, 'local.example');
+    expect(localized.searchButtonLabel, isNull);
+    expect(localized.useLocaleSearchButtonLabel, isTrue);
+
+    await localized.dispose();
     await config.dispose();
 
+    expect(localized.isDisposed, isTrue);
     expect(cleared.isDisposed, isTrue);
     expect(copied.isDisposed, isTrue);
     expect(config.isDisposed, isTrue);
