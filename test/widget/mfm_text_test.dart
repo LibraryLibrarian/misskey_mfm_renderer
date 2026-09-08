@@ -137,23 +137,88 @@ void main() {
       expect(style!.color!.a, closeTo(0.35, 0.000001));
     });
 
-    testWidgets('small内側の前景色指定は赤を維持する', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(
-              text: r'<small>$[fg.color=f00 abc]</small>',
-              config: MfmRenderConfig(baseTextStyle: baseStyle),
+    for (final depth in [0, 1, 2]) {
+      testWidgets('前景色指定にもsmallを$depth回分だけ適用する', (tester) async {
+        final text =
+            '${'<small>' * depth}'
+            r'$[fg.color=f00 abc]'
+            '${'</small>' * depth}';
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: text,
+                config: const MfmRenderConfig(baseTextStyle: baseStyle),
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
-      final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
-      // 色patch方式では子のfgがalphaも上書きする。本家の親opacityとの差は許容。
-      expect(style!.color!.withValues(alpha: 1), const Color(0xFFFF0000));
-    });
+        final richText = tester.widget<RichText>(find.byType(RichText));
+        final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
+        // 本家のopacityはスタッキングコンテキストを作るため、
+        // 子のfgでも減光を上書きできない。
+        expect(style!.color!.withValues(alpha: 1), const Color(0xFFFF0000));
+        expect(
+          style.color!.a,
+          closeTo(
+            depth == 0
+                ? 1.0
+                : depth == 1
+                ? 0.7
+                : 0.49,
+            0.000001,
+          ),
+        );
+      });
+    }
+
+    final linkCases = [
+      (name: 'リンク', text: '[link](https://example.com)', label: 'link'),
+      (name: 'URL', text: 'https://example.com', label: 'https://example.com'),
+      (name: 'メンション', text: '@user', label: '@user'),
+      (name: 'ハッシュタグ', text: '#tag', label: '#tag'),
+    ];
+    for (final testCase in linkCases) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('${testCase.name}色にもsmallを$depth回分だけ適用する', (tester) async {
+          final text =
+              '${'<small>' * depth}${testCase.text}${'</small>' * depth}';
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: text,
+                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                ),
+              ),
+            ),
+          );
+
+          final richText = tester.widget<RichText>(find.byType(RichText));
+          final style = _effectiveStyleForText(
+            richText.text as TextSpan,
+            testCase.label,
+          );
+          expect(style, isNotNull);
+          expect(
+            style!.color!.withValues(alpha: 1),
+            const Color(0xFF0066CC),
+          );
+          expect(
+            style.color!.a,
+            closeTo(
+              depth == 0
+                  ? 1.0
+                  : depth == 1
+                  ? 0.7
+                  : 0.49,
+              0.000001,
+            ),
+          );
+        });
+      }
+    }
 
     testWidgets('継承色が未指定なら色patchを追加しない', (tester) async {
       await tester.pumpWidget(
@@ -391,49 +456,63 @@ void main() {
       }
     }
 
-    testWidgets('引用の罫線と文字を別々に減光し絵文字を二重に減光しない', (tester) async {
-      const emojiKey = Key('quoted-emoji');
-      final quote = MfmParser().build().parse('> abc :emoji:').value;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: MfmText(
-              parsedNodes: [SmallNode(quote)],
-              config: MfmRenderConfig(
-                baseTextStyle: baseStyle,
-                emojiBuilder: (_, _) =>
-                    const SizedBox(key: emojiKey, width: 24, height: 24),
+    for (final depth in [0, 1]) {
+      testWidgets('引用の罫線と文字を別々に減光し絵文字を二重に減光しない(small $depth回)', (
+        tester,
+      ) async {
+        const emojiKey = Key('quoted-emoji');
+        var nodes = MfmParser().build().parse('> abc :emoji:').value;
+        for (var i = 0; i < depth; i++) {
+          nodes = [SmallNode(nodes)];
+        }
+        // 引用は本家QUOTE_STYLEと同じく要素全体に0.7を掛けるため、
+        // smallの累積不透明度と乗算される。
+        final expected = depth == 0 ? 0.7 : 0.49;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                parsedNodes: nodes,
+                config: MfmRenderConfig(
+                  baseTextStyle: baseStyle,
+                  emojiBuilder: (_, _) =>
+                      const SizedBox(key: emojiKey, width: 24, height: 24),
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      final root = tester.widget<RichText>(find.byType(RichText).first);
-      final container =
-          _firstWidgetSpan(root.text as TextSpan)!.child as Container;
-      final border = (container.decoration! as BoxDecoration).border! as Border;
-      expect(border.left.color.a, closeTo(0.7, 0.000001));
-      final innerText = container.child! as RichText;
-      expect(innerText.text.style!.fontSize, closeTo(11.2, 0.000001));
-      expect(innerText.text.style!.color!.a, closeTo(0.49, 0.000001));
-      expect(
-        find.ancestor(
-          of: find.byWidget(container),
+        final root = tester.widget<RichText>(find.byType(RichText).first);
+        final container =
+            _firstWidgetSpan(root.text as TextSpan)!.child as Container;
+        final border =
+            (container.decoration! as BoxDecoration).border! as Border;
+        expect(border.left.color.a, closeTo(expected, 0.000001));
+        final innerText = container.child! as RichText;
+        expect(
+          innerText.text.style!.fontSize,
+          closeTo(depth == 0 ? 14 : 11.2, 0.000001),
+        );
+        expect(innerText.text.style!.color!.a, closeTo(expected, 0.000001));
+        expect(
+          find.ancestor(
+            of: find.byWidget(container),
+            matching: find.byType(Opacity),
+          ),
+          findsNothing,
+        );
+        final opacityFinder = find.ancestor(
+          of: find.byKey(emojiKey),
           matching: find.byType(Opacity),
-        ),
-        findsNothing,
-      );
-      final opacityFinder = find.ancestor(
-        of: find.byKey(emojiKey),
-        matching: find.byType(Opacity),
-      );
-      expect(opacityFinder, findsOneWidget);
-      expect(
-        tester.widget<Opacity>(opacityFinder).opacity,
-        closeTo(0.7, 0.000001),
-      );
-    });
+        );
+        expect(opacityFinder, findsOneWidget);
+        expect(
+          tester.widget<Opacity>(opacityFinder).opacity,
+          closeTo(expected, 0.000001),
+        );
+      });
+    }
 
     testWidgets('変形とアニメーションを越えて減光を維持し兄弟へ漏らさない', (tester) async {
       await tester.pumpWidget(

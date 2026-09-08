@@ -54,8 +54,12 @@ void main() {
       final cases = [
         (text: 'EMOJI', fontSize: 14.0, scale: 1.0),
         (text: r'$[x2 EMOJI]', fontSize: 28.0, scale: 2.0),
-        (text: r'$[x3 EMOJI]', fontSize: 56.0, scale: 4.0),
-        (text: r'$[x4 EMOJI]', fontSize: 84.0, scale: 6.0),
+        // scaleは本家がgenElへ渡す公称倍率（x2:2, x3:3, x4:4）で、
+        // フォントサイズ倍率（200/400/600%）とは別系統。
+        (text: r'$[x3 EMOJI]', fontSize: 56.0, scale: 3.0),
+        (text: r'$[x4 EMOJI]', fontSize: 84.0, scale: 4.0),
+        (text: r'$[x2 $[x2 EMOJI]]', fontSize: 42.0, scale: 4.0),
+        (text: r'$[x2 $[x2 $[x2 EMOJI]]]', fontSize: 42.0, scale: 8.0),
         // scale changes the paint transform, not the effective font size.
         (text: r'$[scale.x=3,y=3 EMOJI]', fontSize: 14.0, scale: 3.0),
         // 非等倍でも本家と同じくmax(x, y)を掛ける。
