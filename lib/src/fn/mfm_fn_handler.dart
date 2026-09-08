@@ -134,6 +134,8 @@ class MfmFnHandler {
     final children = builder.buildNodes(node.children);
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Transform(
         alignment: Alignment.center,
         transform: Matrix4.diagonal3Values(scaleX, scaleY, 1),
@@ -160,6 +162,8 @@ class MfmFnHandler {
     final children = builder.buildNodes(node.children);
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Transform.rotate(
         angle: radians,
         child: builder.buildInlineRichText(children),
@@ -198,6 +202,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmSpinWidget(
         axis: axis,
         direction: direction,
@@ -227,6 +233,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmJumpWidget(
         duration: duration,
         delay: delay,
@@ -254,6 +262,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmBounceWidget(
         duration: duration,
         delay: delay,
@@ -278,6 +288,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmRainbowWidget(
         duration: duration,
         delay: delay,
@@ -291,6 +303,8 @@ class MfmFnHandler {
     final children = builder.buildNodes(node.children);
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmSparkleWidget(
         enabled: builder.config.enableAnimation,
         child: builder.buildInlineRichText(children),
@@ -316,6 +330,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmShakeWidget(
         duration: duration,
         delay: delay,
@@ -343,6 +359,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmTwitchWidget(
         duration: duration,
         delay: delay,
@@ -366,6 +384,8 @@ class MfmFnHandler {
     final children = sized.buildNodes(node.children);
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmTadaWidget(
         duration: duration,
         delay: delay,
@@ -393,6 +413,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmJellyWidget(
         duration: duration,
         delay: delay,
@@ -433,6 +455,8 @@ class MfmFnHandler {
     final children = scaledBuilder.buildNodes(node.children);
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Transform.scale(
         scaleX: scaleX,
         scaleY: scaleY,
@@ -479,6 +503,8 @@ class MfmFnHandler {
     final offsetY = y * baseSize;
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Transform.translate(
         offset: Offset(offsetX, offsetY),
         child: builder.buildInlineRichText(children),
@@ -527,6 +553,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: ColoredBox(
         // 内側の文字は減光済みなので、背景色だけにsmallを反映する。
         color: color.withValues(alpha: color.a * builder.opacity),
@@ -579,6 +607,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(
@@ -788,6 +818,8 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: GestureDetector(
         onTap: () {
           onClickableEvent(eventId);

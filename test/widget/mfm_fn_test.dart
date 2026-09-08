@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
@@ -10,6 +11,159 @@ import 'package:misskey_mfm_renderer/src/fn/animated/mfm_shake_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_spin_widget.dart';
 
 void main() {
+  group('MfmText fnのWidgetSpanのベースライン', () {
+    const functions = [
+      'spin',
+      'jump',
+      'bounce',
+      'rainbow',
+      'sparkle',
+      'shake',
+      'twitch',
+      'tada',
+      'jelly',
+      'flip.h,v',
+      'rotate.deg=45',
+      'scale.x=2,y=2',
+      'position.x=1,y=1',
+      'bg.color=ff0000',
+      'border',
+      'clickable.ev=test',
+    ];
+
+    for (final function in functions) {
+      testWidgets('$functionのWidgetSpanをalphabeticベースラインに揃える', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                // TextSpanの入れ子を含むルートからWidgetSpanを収集する。
+                text: 'abc**\$[$function def]**ghi',
+                config: MfmRenderConfig(onClickableEvent: (_) {}),
+              ),
+            ),
+          ),
+        );
+
+        final root = tester.widget<RichText>(
+          find
+              .descendant(
+                of: find.byType(MfmText),
+                matching: find.byType(RichText),
+              )
+              .first,
+        );
+        final spans = _collectWidgetSpans(root.text).toList();
+        expect(spans, hasLength(1));
+        expect(spans.single.alignment, PlaceholderAlignment.baseline);
+        expect(spans.single.baseline, TextBaseline.alphabetic);
+      });
+    }
+
+    testWidgets('通常テキストとspinの描画ベースラインが混在行で一致する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'abc$[spin def]ghi',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 20, height: 1.5),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // 初期フレームの回転角は0。アニメーションを進めず配置だけを検証する。
+      final root = tester.renderObject<RenderParagraph>(
+        find
+            .descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(RichText),
+            )
+            .first,
+      );
+      final inner = tester.renderObject<RenderParagraph>(
+        find.descendant(
+          of: find.byType(MfmSpinWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      final rootBaseline = root.getDryBaseline(
+        root.constraints,
+        TextBaseline.alphabetic,
+      )!;
+      final innerBaseline = inner.getDryBaseline(
+        inner.constraints,
+        TextBaseline.alphabetic,
+      )!;
+
+      // 子の実際の配置を親座標に変換する。行高を明示して、旧bottom揃えで
+      // Ahemの文字ボックスとプレースホルダの高さが偶然一致するのを避ける。
+      expect(
+        inner.localToGlobal(Offset(0, innerBaseline), ancestor: root).dy,
+        closeTo(rootBaseline, 0.001),
+      );
+    });
+
+    testWidgets('positionはベースラインを揃えた位置から指定の距離だけ移動する', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'abc$[position.x=1,y=1 def]ghi',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 20, height: 1.5),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final root = tester.renderObject<RenderParagraph>(
+        find
+            .descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(RichText),
+            )
+            .first,
+      );
+      final inner = tester.renderObject<RenderParagraph>(
+        find.descendant(
+          of: find.descendant(
+            of: find.byType(MfmText),
+            matching: find.byType(Transform),
+          ),
+          matching: find.byType(RichText),
+        ),
+      );
+      final rootBaseline = root.getDryBaseline(
+        root.constraints,
+        TextBaseline.alphabetic,
+      )!;
+      final innerBaseline = inner.getDryBaseline(
+        inner.constraints,
+        TextBaseline.alphabetic,
+      )!;
+      final paintedBaseline = inner.localToGlobal(
+        Offset(0, innerBaseline),
+        ancestor: root,
+      );
+      // ルートの文字列はabc + プレースホルダ1文字 + ghi。
+      final placeholder = root
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 3, extentOffset: 4),
+          )
+          .single;
+      expect(paintedBaseline.dx, closeTo(placeholder.left + 20, 0.001));
+      expect(paintedBaseline.dy, closeTo(rootBaseline + 20, 0.001));
+    });
+  });
+
   group('MfmText WidgetSpan境界のスタイル継承', () {
     const baseStyle = TextStyle(fontSize: 14, color: Colors.blue);
     final styleCases = [
@@ -1292,6 +1446,16 @@ void main() {
       expect(find.byType(MfmText), findsOneWidget);
     });
   });
+}
+
+Iterable<WidgetSpan> _collectWidgetSpans(InlineSpan span) sync* {
+  if (span is WidgetSpan) {
+    yield span;
+  } else if (span is TextSpan) {
+    for (final child in span.children ?? <InlineSpan>[]) {
+      yield* _collectWidgetSpans(child);
+    }
+  }
 }
 
 /// 特定のスタイルを持つTextSpanを検索するヘルパー関数
