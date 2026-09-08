@@ -49,6 +49,8 @@ integration work.
 
 ### Additional Notes
 
+**Literal fn fallback**: Unknown fn names, `font` without a valid family, and `position` with `enableAdvancedMfm: false` are displayed as `$[name content]` (arguments omitted), preserving child formatting, matching Misskey.
+
 **Not Yet Implemented:**
 - **Math Rendering**: LaTeX formulas are displayed as plain text. Full math rendering with KaTeX or similar library is planned for future releases.
 - **Font Limitations**: Some font types in `$[font.xxx]` syntax (specifically `emoji` and `math`) fall back to default fonts due to platform limitations.
