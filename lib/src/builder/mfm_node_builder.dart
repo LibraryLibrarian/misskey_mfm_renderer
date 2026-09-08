@@ -323,15 +323,15 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildHashtag(HashtagNode node) {
+    final onHashtagTap = config.onHashtagTap;
     return TextSpan(
       text: '#${node.hashtag}',
       style: const TextStyle(
         color: Color(0xFF0066CC),
       ),
-      recognizer: TapGestureRecognizer()
-        ..onTap = () {
-          config.onHashtagTap?.call(node.hashtag);
-        },
+      recognizer: onHashtagTap == null
+          ? null
+          : (TapGestureRecognizer()..onTap = () => onHashtagTap(node.hashtag)),
     );
   }
 
