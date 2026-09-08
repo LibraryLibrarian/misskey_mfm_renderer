@@ -94,13 +94,16 @@ class MfmRenderConfig {
   /// context.fontSizeを基準に高さを決める（本家の既定は2em）。
   /// ビルダーの結果はalphabeticベースラインに揃える。画像の下降量は
   /// ビルダー側で設定する（MfmCustomEmoji.baselineOffsetなど）。
+  /// 本家のカスタム絵文字は`vertical-align: middle`なので、下降量は
+  /// `高さ / 2 - context.fontSize * 0.25`が相当する。
   final Widget Function(String name, MfmEmojiContext context)? emojiBuilder;
 
   /// Unicode絵文字ビルダー
   /// emojiには絵文字文字列が渡される（例: "😀"）。
   /// 未指定時はネイティブの文字として描画する。Twemoji等の画像表示は
   /// このビルダーで実装し、context.fontSizeを高さの基準に使う
-  /// （本家の既定は1.25em、ベースラインから下へ0.25em）。
+  /// （本家の既定は高さ1.25emで`vertical-align: -0.25em`。下降量は
+  /// `context.fontSize * 0.25`が相当する）。
   /// ビルダーの結果はalphabeticベースラインに揃える。
   final Widget Function(String emoji, MfmEmojiContext context)?
   unicodeEmojiBuilder;

@@ -58,6 +58,9 @@ void main() {
         (text: r'$[x4 EMOJI]', fontSize: 84.0, scale: 6.0),
         // scale changes the paint transform, not the effective font size.
         (text: r'$[scale.x=3,y=3 EMOJI]', fontSize: 14.0, scale: 3.0),
+        // 非等倍でも本家と同じくmax(x, y)を掛ける。
+        (text: r'$[scale.x=3,y=1 EMOJI]', fontSize: 14.0, scale: 3.0),
+        (text: r'$[scale.y=3 EMOJI]', fontSize: 14.0, scale: 3.0),
         (text: r'$[scale.x=3,y=3 $[x2 EMOJI]]', fontSize: 28.0, scale: 6.0),
         (text: r'$[tada EMOJI]', fontSize: 21.0, scale: 1.0),
         (text: r'$[x2 $[tada EMOJI]]', fontSize: 42.0, scale: 2.0),

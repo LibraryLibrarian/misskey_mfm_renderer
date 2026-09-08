@@ -335,7 +335,8 @@ MfmText(
       resolver: resolver,
       cacheScope: resolver,
       size: context.fontSize * 2, // 2em display height
-      baselineOffset: context.fontSize * 0.25, // Bottom sits 0.25em below baseline
+      // vertical-align: middle, i.e. size / 2 - context.fontSize * 0.25
+      baselineOffset: context.fontSize * 0.75,
       maxWidth: 70.0, // Optional
       refreshListenable: emojiRefreshNotifier,
     ),
@@ -377,6 +378,8 @@ widget). The publicly exported immutable `MfmEmojiContext` contains:
 - `scale`: the cumulative x2/x3/x4/scale-function multiplier. `tada` and
   `<small>` do not change it. For a 14px base, x2 gives `(28, 2)`, x4 gives
   `(84, 6)`, `scale.x=3,y=3` gives `(14, 3)`, and `tada` gives `(21, 1)`.
+  A non-uniform `scale` multiplies by `max(x, y)`, matching Misskey, so
+  `scale.x=3,y=1` also gives `(14, 3)`.
 - `useOriginalSize`: `scale >= 2.5`, matching Misskey's original-image hint.
   `misskey_emoji` 2.0.0-beta.1 exposes only one `EmojiImage.url`, with no
   original/thumbnail distinction. Automatic original-URL switching requires
@@ -387,7 +390,17 @@ Both builder results use an alphabetic-baseline `WidgetSpan`. The renderer
 cannot infer an arbitrary widget's image height or descent; the builder must
 provide its baseline. `MfmCustomEmoji.baselineOffset` reports a baseline above
 its box bottom without a paint-only translation, so line layout also accounts
-for the descent. `MfmEmojiConfig` sets this to `context.fontSize * 0.25`.
+for the descent.
+
+Misskey aligns a custom emoji with `vertical-align: middle`, which centers the
+box on `baseline + x-height / 2`. Approximating the x-height as 0.5em, the
+matching descent is `size / 2 - context.fontSize * 0.25`, and `MfmEmojiConfig`
+sets exactly that, including for a fixed `emojiSize`. Flutter's
+`PlaceholderAlignment.middle` centers on the midpoint of the text ascent and
+descent instead, so it is not equivalent; the renderer keeps baseline alignment
+and lets the builder position the box. A Unicode emoji image is different:
+Misskey renders it at a 1.25em height with `vertical-align: -0.25em`, so its
+descent is `context.fontSize * 0.25`.
 
 Without `unicodeEmojiBuilder`, Unicode emoji remain native text. To render
 Twemoji or another image set, implement `unicodeEmojiBuilder` yourself. For
@@ -405,8 +418,9 @@ MfmRenderConfig(
 )
 ```
 
-This matches Misskey's image height of 1.25em and bottom descent of 0.25em.
-The package does not bundle Twemoji assets or a Unicode-to-image resolver.
+This matches Misskey's Unicode emoji image: a 1.25em height with
+`vertical-align: -0.25em`. The package does not bundle Twemoji assets or a
+Unicode-to-image resolver.
 
 ### Custom Font Configuration
 

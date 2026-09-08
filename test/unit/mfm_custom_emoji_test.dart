@@ -89,63 +89,65 @@ void main() {
 
     for (final fontSize in [14.0, 28.0, 84.0]) {
       for (final fixedSize in [null, 24.0]) {
-        testWidgets('fontSize=$fontSize fixedSize=$fixedSizeで下端が0.25em下降する', (
-          tester,
-        ) async {
-          final pending = Completer<EmojiImage?>();
-          final config = MfmEmojiConfig.fromResolver(
-            resolver: (_) => pending.future,
-            emojiSize: fixedSize,
-          ).copyWith(baseTextStyle: TextStyle(fontSize: fontSize));
-          await tester.pumpWidget(
-            MaterialApp(
-              home: Scaffold(
-                body: MfmText(text: ':emoji:', config: config),
+        testWidgets(
+          'fontSize=$fontSize fixedSize=$fixedSizeで中心をbaseline+0.25emに揃える',
+          (tester) async {
+            final pending = Completer<EmojiImage?>();
+            final config = MfmEmojiConfig.fromResolver(
+              resolver: (_) => pending.future,
+              emojiSize: fixedSize,
+            ).copyWith(baseTextStyle: TextStyle(fontSize: fontSize));
+            await tester.pumpWidget(
+              MaterialApp(
+                home: Scaffold(
+                  body: MfmText(text: ':emoji:', config: config),
+                ),
               ),
-            ),
-          );
-
-          final size = fixedSize ?? fontSize * 2;
-          final placeholder = find.byWidgetPredicate(
-            (widget) =>
-                widget is SizedBox &&
-                widget.width == 0 &&
-                widget.height == size,
-          );
-          final paragraph = tester.renderObject<RenderBox>(
-            find.byType(RichText),
-          );
-          final baseline =
-              tester.getTopLeft(find.byType(RichText)).dy +
-              paragraph.getDryBaseline(
-                paragraph.constraints,
-                TextBaseline.alphabetic,
-              )!;
-          expect(
-            tester.getBottomLeft(placeholder).dy - baseline,
-            closeTo(fontSize * 0.25, 1e-6),
-          );
-          final emojiBox = tester.renderObject<RenderBox>(
-            find.byType(MfmCustomEmoji),
-          );
-          expect(emojiBox.size.height, size);
-          expect(
-            emojiBox.getDryBaseline(
-              emojiBox.constraints,
-              TextBaseline.alphabetic,
-            ),
-            closeTo(size - fontSize * 0.25, 1e-6),
-          );
-          for (final type in [Transform, LayoutBuilder]) {
-            expect(
-              find.descendant(
-                of: find.byType(MfmCustomEmoji),
-                matching: find.byType(type),
-              ),
-              findsNothing,
             );
-          }
-        });
+
+            final size = fixedSize ?? fontSize * 2;
+            final descent = size / 2 - fontSize * 0.25;
+            final placeholder = find.byWidgetPredicate(
+              (widget) =>
+                  widget is SizedBox &&
+                  widget.width == 0 &&
+                  widget.height == size,
+            );
+            final paragraph = tester.renderObject<RenderBox>(
+              find.byType(RichText),
+            );
+            final baseline =
+                tester.getTopLeft(find.byType(RichText)).dy +
+                paragraph.getDryBaseline(
+                  paragraph.constraints,
+                  TextBaseline.alphabetic,
+                )!;
+            expect(
+              tester.getBottomLeft(placeholder).dy - baseline,
+              closeTo(descent, 1e-6),
+            );
+            final emojiBox = tester.renderObject<RenderBox>(
+              find.byType(MfmCustomEmoji),
+            );
+            expect(emojiBox.size.height, size);
+            expect(
+              emojiBox.getDryBaseline(
+                emojiBox.constraints,
+                TextBaseline.alphabetic,
+              ),
+              closeTo(size - descent, 1e-6),
+            );
+            for (final type in [Transform, LayoutBuilder]) {
+              expect(
+                find.descendant(
+                  of: find.byType(MfmCustomEmoji),
+                  matching: find.byType(type),
+                ),
+                findsNothing,
+              );
+            }
+          },
+        );
       }
     }
 
