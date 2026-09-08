@@ -541,7 +541,8 @@ class MfmFnHandler {
     );
   }
 
-  static Color _resolveFgBgColor(Map<String, dynamic> args) {
+  /// 本家のvalidColor相当。nullは「色指定なし」を表す。
+  static Color? _resolveFgBgColor(Map<String, dynamic> args) {
     const fallback = Color(0xFFFF0000);
     final value = args['color'];
     // 本家と同じく、#や名前色を含まない3〜6桁の16進文字列だけを受理する。
@@ -561,14 +562,22 @@ class MfmFnHandler {
       );
     }
 
-    // 5桁は本家の正規表現には一致するがCSSでは無効。
-    // Flutterでは色に変換できない値として赤にフォールバックする。
+    // 5桁は本家の正規表現には一致するがCSSでは無効な色として
+    // 宣言ごと破棄されるため、本家と同じく色を付けない。
+    if (value.length == 5) {
+      return null;
+    }
+
     return ColorParser.parse(value) ?? fallback;
   }
 
   static InlineSpan _buildFg(FnNode node, MfmNodeBuilder builder) {
     final color = _resolveFgBgColor(node.args);
     final children = builder.buildNodes(node.children);
+
+    if (color == null) {
+      return TextSpan(children: children);
+    }
 
     return TextSpan(
       style: TextStyle(color: color),
@@ -579,6 +588,10 @@ class MfmFnHandler {
   static InlineSpan _buildBg(FnNode node, MfmNodeBuilder builder) {
     final color = _resolveFgBgColor(node.args);
     final children = builder.buildNodes(node.children);
+
+    if (color == null) {
+      return TextSpan(children: children);
+    }
 
     return WidgetSpan(
       child: ColoredBox(

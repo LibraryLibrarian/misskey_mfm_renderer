@@ -261,7 +261,6 @@ void main() {
     '.color=red': Color(0xFFFF0000), // 名前色は受理しない
     '.color=xyz': Color(0xFFFF0000),
     '.color=ab': Color(0xFFFF0000), // 2桁
-    '.color=abcde': Color(0xFFFF0000), // 5桁は変換不能のため赤
     '.color=abcdef0': Color(0xFFFF0000), // 7桁
     '.color=0000ffff': Color(0xFFFF0000), // 8桁
     '.00ff00': Color(0xFFFF0000), // 引数キーは色として扱わない
@@ -367,6 +366,48 @@ void main() {
         });
       }
     }
+  });
+
+  group('MfmText fn fg/bgの5桁color引数', () {
+    // 本家の正規表現には一致するがCSSでは無効な色として宣言が破棄されるため、
+    // 赤にもならず色指定なしになる。
+    testWidgets('fg.color=abcdeは色を付けない', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: MfmText(text: r'$[fg.color=abcde abc]')),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(find.byType(RichText).first);
+      final root = richText.text as TextSpan;
+      // ルートのstyle以外に色を持つspanが存在しない
+      final coloredChild = root.children!.whereType<TextSpan>().any(
+        (span) =>
+            span.style?.color != null ||
+            _findSpanWithStyle(span, (style) => style?.color != null) != null,
+      );
+      expect(coloredChild, isFalse);
+      expect(root.toPlainText(), 'abc');
+    });
+
+    testWidgets('bg.color=abcdeは背景を付けない', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: MfmText(text: r'$[bg.color=abcde abc]')),
+        ),
+      );
+
+      // MfmText配下にColoredBoxが挿入されない（Scaffold由来のものは除く）
+      expect(
+        find.descendant(
+          of: find.byType(MfmText),
+          matching: find.byType(ColoredBox),
+        ),
+        findsNothing,
+      );
+      final richText = tester.widget<RichText>(find.byType(RichText).first);
+      expect(richText.text.toPlainText(), 'abc');
+    });
   });
 
   group('MfmText fn border関数', () {
