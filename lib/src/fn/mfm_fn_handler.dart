@@ -102,17 +102,25 @@ class MfmFnHandler {
         sizeMultiplier = 1.0;
     }
 
-    final effectiveMultiplier =
-        1.0 + (sizeMultiplier - 1.0) * (1.0 / builder.scale);
-    final newScale = builder.scale * effectiveMultiplier;
+    final depth = builder.sizeDepth;
+    // 本家CSSと同じ親相対倍率。3階層目以降は拡大を無効化する。
+    final factor = depth == 0
+        ? sizeMultiplier
+        : depth == 1
+        ? sizeMultiplier / 2 + 0.5
+        : 1.0;
+    final sizedBuilder = builder.withSizeDepth(depth + 1);
+    if (factor == 1.0) {
+      return TextSpan(children: sizedBuilder.buildNodes(node.children));
+    }
 
-    final scaledBuilder = builder.withScale(newScale);
-    final baseSize = builder.config.baseTextStyle?.fontSize ?? 14.0;
-
-    return scaledBuilder.buildStyledSpan(
-      TextStyle(fontSize: baseSize * effectiveMultiplier),
-      node.children,
-    );
+    final fontSize = builder.effectiveStyle.fontSize! * factor;
+    return sizedBuilder
+        .withScale(builder.scale * factor)
+        .buildStyledSpan(
+          TextStyle(fontSize: fontSize),
+          node.children,
+        );
   }
 
   static InlineSpan _buildFlip(FnNode node, MfmNodeBuilder builder) {

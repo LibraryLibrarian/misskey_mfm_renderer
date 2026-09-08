@@ -15,6 +15,7 @@ class MfmNodeBuilder {
     required this.config,
     required this.effectiveStyle,
     this.scale = 1.0,
+    this.sizeDepth = 0,
     this.disableNyaize = false,
   });
 
@@ -27,6 +28,9 @@ class MfmNodeBuilder {
   /// 現在のスケール（ネストしたscale fnで使用）
   final double scale;
 
+  /// x2/x3/x4に共通のネスト深さ（他のノードでは増やさない）
+  final int sizeDepth;
+
   /// 現在のサブツリーで nyaize 変換を抑止するか
   /// link / quote / plain など、原文を保ちたいノード配下では true となる
   final bool disableNyaize;
@@ -34,12 +38,14 @@ class MfmNodeBuilder {
   MfmNodeBuilder _copyWith({
     TextStyle? effectiveStyle,
     double? scale,
+    int? sizeDepth,
     bool? disableNyaize,
   }) {
     return MfmNodeBuilder(
       config: config,
       effectiveStyle: effectiveStyle ?? this.effectiveStyle,
       scale: scale ?? this.scale,
+      sizeDepth: sizeDepth ?? this.sizeDepth,
       disableNyaize: disableNyaize ?? this.disableNyaize,
     );
   }
@@ -47,6 +53,11 @@ class MfmNodeBuilder {
   /// 新しいスケールでビルダーをコピー
   MfmNodeBuilder withScale(double newScale) {
     return _copyWith(scale: newScale);
+  }
+
+  /// サイズ関数のネスト深さを更新したビルダーを返す
+  MfmNodeBuilder withSizeDepth(int newSizeDepth) {
+    return _copyWith(sizeDepth: newSizeDepth);
   }
 
   /// 差分スタイル（inherit: true）を実効スタイルに反映したビルダーを返す
