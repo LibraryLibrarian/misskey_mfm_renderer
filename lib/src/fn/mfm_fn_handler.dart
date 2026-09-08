@@ -90,16 +90,23 @@ class MfmFnHandler {
   // 各fn関数の実装（初期はプレースホルダー、後続タスクで実装）
 
   static InlineSpan _buildSize(FnNode node, MfmNodeBuilder builder) {
-    double sizeMultiplier;
+    // sizeMultiplierはCSSの--mfm-zoom-size（200/400/600%）、
+    // nominalScaleは本家がgenElへ渡すscale（x2:2, x3:3, x4:4）に対応する。
+    final double sizeMultiplier;
+    final double nominalScale;
     switch (node.name) {
       case 'x2':
         sizeMultiplier = 2.0;
+        nominalScale = 2.0;
       case 'x3':
         sizeMultiplier = 4.0;
+        nominalScale = 3.0;
       case 'x4':
         sizeMultiplier = 6.0;
+        nominalScale = 4.0;
       default:
         sizeMultiplier = 1.0;
+        nominalScale = 1.0;
     }
 
     final depth = builder.sizeDepth;
@@ -109,18 +116,19 @@ class MfmFnHandler {
         : depth == 1
         ? sizeMultiplier / 2 + 0.5
         : 1.0;
-    final sizedBuilder = builder.withSizeDepth(depth + 1);
+    // 本家はネスト深さに関係なく公称倍率でscaleを更新する
+    final sizedBuilder = builder
+        .withSizeDepth(depth + 1)
+        .withScale(builder.scale * nominalScale);
     if (factor == 1.0) {
       return TextSpan(children: sizedBuilder.buildNodes(node.children));
     }
 
     final fontSize = builder.effectiveStyle.fontSize! * factor;
-    return sizedBuilder
-        .withScale(builder.scale * factor)
-        .buildStyledSpan(
-          TextStyle(fontSize: fontSize),
-          node.children,
-        );
+    return sizedBuilder.buildStyledSpan(
+      TextStyle(fontSize: fontSize),
+      node.children,
+    );
   }
 
   static InlineSpan _buildFlip(FnNode node, MfmNodeBuilder builder) {
@@ -543,7 +551,12 @@ class MfmFnHandler {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    return builder.buildStyledSpan(TextStyle(color: color), node.children);
+    // 本家のopacityは子孫の色指定では上書きできないため、
+    // 前景色にもsmallなどの累積不透明度を反映する。
+    return builder.buildStyledSpan(
+      TextStyle(color: builder.applyOpacity(color)),
+      node.children,
+    );
   }
 
   static InlineSpan _buildBg(FnNode node, MfmNodeBuilder builder) {
@@ -559,7 +572,7 @@ class MfmFnHandler {
       baseline: TextBaseline.alphabetic,
       child: ColoredBox(
         // 内側の文字は減光済みなので、背景色だけにsmallを反映する。
-        color: color.withValues(alpha: color.a * builder.opacity),
+        color: builder.applyOpacity(color),
         child: builder.buildInlineRichText(children),
       ),
     );
@@ -615,7 +628,7 @@ class MfmFnHandler {
         decoration: BoxDecoration(
           border: Border.all(
             // RichText全体を包まず、罫線だけを減光する。
-            color: color.withValues(alpha: color.a * builder.opacity),
+            color: builder.applyOpacity(color),
             width: width,
             style: style,
           ),

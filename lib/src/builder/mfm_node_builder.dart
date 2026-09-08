@@ -20,6 +20,9 @@ class MfmNodeBuilder {
     this.disableNyaize = false,
   });
 
+  /// リンク・URL・メンション・ハッシュタグに共通のリンク色
+  static const _linkColor = Color(0xFF0066CC);
+
   /// レンダリング設定
   final MfmRenderConfig config;
 
@@ -94,6 +97,14 @@ class MfmNodeBuilder {
   /// 実効スタイルの色が届かないウィジェットだけを減光する
   Widget wrapOpacity(Widget child) {
     return opacity < 1.0 ? Opacity(opacity: opacity, child: child) : child;
+  }
+
+  /// 継承色を使わず固定色を指定する描画に、累積不透明度を反映する
+  /// 本家CSSのopacityはスタッキングコンテキストを作るため、
+  /// 子孫の色指定でも減光を上書きできない
+  Color applyOpacity(Color color) {
+    if (opacity >= 1.0) return color;
+    return color.withValues(alpha: color.a * opacity);
   }
 
   /// WidgetSpan内で子ノードを描画するRichTextを、現在の実効スタイルで組む
@@ -184,10 +195,15 @@ class MfmNodeBuilder {
 
   InlineSpan _buildQuote(QuoteNode node) {
     final baseColor = config.baseTextStyle?.color;
-    // 引用は独自の色で上書きするため、smallの累積不透明度を反映し直す。
+    // 本家のQUOTE_STYLEもopacity: 0.7を要素全体に掛けるため、
+    // 累積不透明度を0.7倍して配下のウィジェットまで減光する。
+    final quoted = _withDisableNyaize()._copyWith(opacity: opacity * 0.7);
+    // 引用は独自の色で上書きするため、累積不透明度を色のalphaに反映し直す。
     // Container全体を減光すると内側の文字や絵文字が二重に薄くなる。
-    final quoteBuilder = _withDisableNyaize().withStyle(
-      TextStyle(color: baseColor?.withValues(alpha: 0.7 * opacity)),
+    final quoteBuilder = quoted.withStyle(
+      TextStyle(
+        color: baseColor?.withValues(alpha: baseColor.a * quoted.opacity),
+      ),
     );
     final children = quoteBuilder.buildNodes(node.children);
 
@@ -198,7 +214,7 @@ class MfmNodeBuilder {
         decoration: BoxDecoration(
           border: Border(
             left: BorderSide(
-              color: const Color(0xFF888888).withValues(alpha: opacity),
+              color: quoteBuilder.applyOpacity(const Color(0xFF888888)),
               width: 3,
             ),
           ),
@@ -302,8 +318,8 @@ class MfmNodeBuilder {
     final onLinkTap = config.onLinkTap;
     return TextSpan(
       text: node.url,
-      style: const TextStyle(
-        color: Color(0xFF0066CC),
+      style: TextStyle(
+        color: applyOpacity(_linkColor),
         decoration: TextDecoration.underline,
       ),
       recognizer: onLinkTap == null
@@ -315,8 +331,8 @@ class MfmNodeBuilder {
   InlineSpan _buildLink(LinkNode node) {
     final onLinkTap = config.onLinkTap;
     return _withDisableNyaize().buildStyledSpan(
-      const TextStyle(
-        color: Color(0xFF0066CC),
+      TextStyle(
+        color: applyOpacity(_linkColor),
         decoration: TextDecoration.underline,
       ),
       node.children,
@@ -331,7 +347,9 @@ class MfmNodeBuilder {
     final resolvedAcct = _resolveMentionAcct(node);
     return TextSpan(
       text: node.acct,
-      style: const TextStyle(color: Color(0xFF0066CC)),
+      style: TextStyle(
+        color: applyOpacity(_linkColor),
+      ),
       recognizer: onMentionTap == null
           ? null
           : (TapGestureRecognizer()..onTap = () => onMentionTap(resolvedAcct)),
@@ -361,7 +379,9 @@ class MfmNodeBuilder {
   InlineSpan _buildHashtag(HashtagNode node) {
     return TextSpan(
       text: '#${node.hashtag}',
-      style: const TextStyle(color: Color(0xFF0066CC)),
+      style: TextStyle(
+        color: applyOpacity(_linkColor),
+      ),
       recognizer: TapGestureRecognizer()
         ..onTap = () {
           config.onHashtagTap?.call(node.hashtag);
