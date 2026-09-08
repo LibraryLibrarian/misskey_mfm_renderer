@@ -283,7 +283,6 @@ void main() {
     });
 
     final widgetCases = [
-      (name: 'インラインコード', source: '`code`'),
       (name: 'コードブロック', source: '```\ncode\n```'),
       (name: '検索', source: 'keyword Search'),
       (name: '日時', source: r'$[unixtime 1700000000]'),
@@ -336,31 +335,77 @@ void main() {
       }
     }
 
-    testWidgets('インラインコードはsmallの実効色を継承しContainerの減光も維持する', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(
-              text: '<small>`code`</small>',
-              config: MfmRenderConfig(baseTextStyle: baseStyle),
-            ),
-          ),
-        ),
-      );
+    for (final backgroundCase in [
+      (name: '標準背景', light: null, dark: null),
+      (
+        name: '半透明のカスタム背景',
+        light: const Color(0x80667788),
+        dark: const Color(0x80443322),
+      ),
+    ]) {
+      for (final brightness in Brightness.values) {
+        for (final depth in [0, 1, 2]) {
+          testWidgets(
+            'インラインコードの${backgroundCase.name}は${brightness.name}でも'
+            'smallを$depth回分だけ文字と背景に個別適用する',
+            (tester) async {
+              tester.platformDispatcher.platformBrightnessTestValue =
+                  brightness;
+              addTearDown(
+                tester.platformDispatcher.clearPlatformBrightnessTestValue,
+              );
+              await tester.pumpWidget(
+                MaterialApp(
+                  theme: ThemeData(brightness: brightness),
+                  home: Scaffold(
+                    body: MfmText(
+                      text: '${'<small>' * depth}`code`${'</small>' * depth}',
+                      config: MfmRenderConfig(
+                        baseTextStyle: baseStyle,
+                        inlineCodeBgColorLight: backgroundCase.light,
+                        inlineCodeBgColorDark: backgroundCase.dark,
+                      ),
+                    ),
+                  ),
+                ),
+              );
 
-      final opacityFinder = find.ancestor(
-        of: find.text('code'),
-        matching: find.byType(Opacity),
-      );
-      expect(opacityFinder, findsOneWidget);
-      final opacity = tester.widget<Opacity>(opacityFinder);
-      expect(opacity.opacity, closeTo(0.7, 0.000001));
-      expect(opacity.child, isA<Container>());
-      final style = tester.widget<Text>(find.text('code')).style!;
-      expect(style.fontSize, closeTo(11.2, 0.000001));
-      expect(style.color!.withValues(alpha: 1), const Color(0xFF2196F3));
-      expect(style.color!.a, closeTo(0.7, 0.000001));
-    });
+              final alpha = [1.0, 0.7, 0.49][depth];
+              final style = tester.widget<Text>(find.text('code')).style!;
+              expect(
+                style.fontSize,
+                closeTo([14.0, 11.2, 8.96][depth], 0.000001),
+              );
+              expect(
+                style.color!.withValues(alpha: 1),
+                const Color(0xFF2196F3),
+              );
+              expect(style.color!.a, closeTo(alpha, 0.000001));
+              final container = tester.widget<Container>(
+                find.ancestor(
+                  of: find.text('code'),
+                  matching: find.byType(Container),
+                ),
+              );
+              final background =
+                  (container.decoration! as BoxDecoration).color!;
+              final originalBackground = brightness == Brightness.dark
+                  ? (backgroundCase.dark ?? const Color(0xFF121212))
+                  : (backgroundCase.light ?? const Color(0xFFF5F5F5));
+              expect(
+                background.a,
+                closeTo(originalBackground.a * alpha, 0.000001),
+              );
+              expect(
+                background.withValues(alpha: 1),
+                originalBackground.withValues(alpha: 1),
+              );
+              expect(find.byType(Opacity), findsNothing);
+            },
+          );
+        }
+      }
+    }
 
     testWidgets('引用の罫線と文字を別々に減光し絵文字を二重に減光しない', (tester) async {
       const emojiKey = Key('quoted-emoji');
@@ -963,6 +1008,10 @@ void main() {
         testWidgets('${testCase.name}は${brightness.name}でも装飾のない等幅TextSpanになる', (
           tester,
         ) async {
+          tester.platformDispatcher.platformBrightnessTestValue = brightness;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
           await tester.pumpWidget(
             MaterialApp(
               theme: ThemeData(brightness: brightness),

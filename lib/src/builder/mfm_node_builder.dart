@@ -242,24 +242,23 @@ class MfmNodeBuilder {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: wrapOpacity(
-        Container(
-          padding: EdgeInsets.all(fontSize * 0.1),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(fontSize * 0.3),
-          ),
-          child: Text(
-            node.code,
-            style: effectiveStyle.copyWith(
-              fontFamily: 'Consolas',
-              fontFamilyFallback: const [
-                'Monaco',
-                'Andale Mono',
-                'Ubuntu Mono',
-                'monospace',
-              ],
-            ),
+      child: Container(
+        padding: EdgeInsets.all(fontSize * 0.1),
+        decoration: BoxDecoration(
+          // 文字は実効色で減光済みなので、背景だけにsmallの累積不透明度を反映する。
+          color: backgroundColor.withValues(alpha: backgroundColor.a * opacity),
+          borderRadius: BorderRadius.circular(fontSize * 0.3),
+        ),
+        child: Text(
+          node.code,
+          style: effectiveStyle.copyWith(
+            fontFamily: 'Consolas',
+            fontFamilyFallback: const [
+              'Monaco',
+              'Andale Mono',
+              'Ubuntu Mono',
+              'monospace',
+            ],
           ),
         ),
       ),
