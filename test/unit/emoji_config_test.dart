@@ -34,7 +34,8 @@ void main() {
     final custom = widget as MfmCustomEmoji;
     expect(custom.name, 'test');
     expect(custom.size, 20);
-    expect(custom.baselineOffset, 3.5);
+    // vertical-align: middle相当（20 / 2 - 14 * 0.25）
+    expect(custom.baselineOffset, 6.5);
     expect(custom.maxWidth, 60);
     expect(custom.cacheScope, same(resolver));
     expect(custom.refreshListenable, same(refreshNotifier));
@@ -53,11 +54,28 @@ void main() {
                   MfmEmojiContext(fontSize: fontSize, scale: 1),
                 )
                 as MfmCustomEmoji;
-        expect(custom.size, fixedSize ?? fontSize * 2);
-        expect(custom.baselineOffset, fontSize * 0.25);
+        final size = fixedSize ?? fontSize * 2;
+        expect(custom.size, size);
+        expect(custom.baselineOffset, size / 2 - fontSize * 0.25);
       });
     }
   }
+
+  test('fromResolver keeps middle alignment for a fixed emojiSize', () {
+    final config = MfmEmojiConfig.fromResolver(
+      resolver: (_) async => null,
+      emojiSize: 24,
+    );
+    final custom =
+        config.emojiBuilder!(
+              'emoji',
+              const MfmEmojiContext(fontSize: 14, scale: 1),
+            )
+            as MfmCustomEmoji;
+    expect(custom.size, 24);
+    // 24 / 2 - 14 * 0.25 = 8.5
+    expect(custom.baselineOffset, 8.5);
+  });
 
   test('createDefault derives the store scope from client.baseUrl', () async {
     final dir = await Directory.systemTemp.createTemp('mfm_emoji_quick');
@@ -92,7 +110,7 @@ void main() {
               )
               as MfmCustomEmoji;
       expect(emoji.size, fontSize * 2);
-      expect(emoji.baselineOffset, fontSize * 0.25);
+      expect(emoji.baselineOffset, fontSize * 0.75);
     }
 
     await config.dispose();
@@ -148,7 +166,8 @@ void main() {
           builder('emoji', const MfmEmojiContext(fontSize: 28, scale: 2))
               as MfmCustomEmoji;
       expect(emoji.size, 56);
-      expect(emoji.baselineOffset, 7);
+      // 56 / 2 - 28 * 0.25 = 21
+      expect(emoji.baselineOffset, 21);
     }
 
     final preserved = copied.copyWith(enableNyaize: true);

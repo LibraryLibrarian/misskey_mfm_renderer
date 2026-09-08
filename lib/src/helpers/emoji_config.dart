@@ -171,7 +171,8 @@ class MfmEmojiConfig {
   /// [client]の所有権は呼び出し元にあり、返されたハンドルの破棄対象には含まれない。
   /// [emojiSize]は表示上の高さ。省略時（null）は現在の実効フォントサイズの
   /// 2倍（2em）、指定時はその固定値を使う。[emojiMaxWidth]は任意の最大幅。
-  /// 絵文字の下端はテキストベースラインより0.25em下に配置する。
+  /// 絵文字の縦位置は本家の`vertical-align: middle`相当（下端の下降量は
+  /// `size / 2 - フォントサイズ × 0.25`）に揃える。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
   static Future<MfmEmojiConfigHandle> createDefault({
@@ -247,7 +248,8 @@ class MfmEmojiConfig {
   ///
   /// [emojiSize]は表示上の高さ。省略時（null）は現在の実効フォントサイズの
   /// 2倍（2em）、指定時はその固定値を使う。[emojiMaxWidth]は任意の最大幅。
-  /// 絵文字の下端はテキストベースラインより0.25em下に配置する。
+  /// 絵文字の縦位置は本家の`vertical-align: middle`相当（下端の下降量は
+  /// `size / 2 - フォントサイズ × 0.25`）に揃える。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   static MfmRenderConfig fromResolver({
     required EmojiResolver resolver,
@@ -278,16 +280,24 @@ class MfmEmojiConfig {
     required Widget Function(BuildContext context, String name)?
     fallbackBuilder,
   }) {
-    return (name, context) => MfmCustomEmoji(
-      name: name,
-      resolver: resolver,
-      cacheScope: cacheScope,
-      size: emojiSize ?? context.fontSize * 2,
-      baselineOffset: context.fontSize * 0.25,
-      maxWidth: emojiMaxWidth,
-      refreshListenable: emojiRefreshListenable,
-      fallbackBuilder: fallbackBuilder,
-    );
+    return (name, context) {
+      final size = emojiSize ?? context.fontSize * 2;
+      return MfmCustomEmoji(
+        name: name,
+        resolver: resolver,
+        cacheScope: cacheScope,
+        size: size,
+        // 本家のカスタム絵文字は`vertical-align: middle`。CSSのmiddleは
+        // ボックスの上下中心を`baseline + x-height/2`へ合わせる指定なので、
+        // x-heightを0.5emと近似して下端の下降量を求める。Flutterの
+        // PlaceholderAlignment.middleはテキストのascent/descentの中点基準で
+        // CSSのmiddleとは別物のため、baseline揃えのまま位置を計算する。
+        baselineOffset: size / 2 - context.fontSize * 0.25,
+        maxWidth: emojiMaxWidth,
+        refreshListenable: emojiRefreshListenable,
+        fallbackBuilder: fallbackBuilder,
+      );
+    };
   }
 
   static Future<EmojiStore> _createDefaultStore({

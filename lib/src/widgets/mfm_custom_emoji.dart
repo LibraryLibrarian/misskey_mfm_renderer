@@ -24,7 +24,8 @@ class MfmCustomEmoji extends StatefulWidget {
   }) : assert(size > 0),
        assert(
          baselineOffset == null ||
-             (baselineOffset >= 0 && baselineOffset < double.infinity),
+             (baselineOffset > double.negativeInfinity &&
+                 baselineOffset < double.infinity),
        ),
        assert(maxWidth == null || maxWidth > 0),
        assert(
@@ -40,9 +41,15 @@ class MfmCustomEmoji extends StatefulWidget {
 
   /// Distance in logical pixels from the baseline down to the emoji box bottom.
   ///
-  /// Pass `context.fontSize * 0.25` from an emoji builder to match Misskey's
-  /// vertical alignment. When omitted, the child's natural baseline is used.
-  /// MfmEmojiConfig supplies this automatically, even with a fixed emojiSize.
+  /// Misskey aligns a custom emoji with `vertical-align: middle`, so pass
+  /// `size / 2 - context.fontSize * 0.25` from a custom emoji builder. For a
+  /// Unicode emoji image, Misskey uses a 1.25em height with
+  /// `vertical-align: -0.25em`, so pass `context.fontSize * 0.25` instead.
+  ///
+  /// Negative values are allowed and place the box bottom above the baseline,
+  /// which happens with a small fixed [size] and a large font size. When
+  /// omitted, the child's natural baseline is used. MfmEmojiConfig supplies the
+  /// custom emoji value automatically, even with a fixed emojiSize.
   final double? baselineOffset;
 
   /// The optional maximum displayed width of the emoji in logical pixels.

@@ -333,7 +333,8 @@ MfmText(
       resolver: resolver,
       cacheScope: resolver,
       size: context.fontSize * 2, // 表示上の高さ（2em）
-      baselineOffset: context.fontSize * 0.25, // 下端をベースラインから0.25em下げる
+      // vertical-align: middle相当（size / 2 - context.fontSize * 0.25）
+      baselineOffset: context.fontSize * 0.75,
       maxWidth: 70.0, // 任意
       refreshListenable: emojiRefreshNotifier,
     ),
@@ -385,7 +386,15 @@ MfmCustomEmoji(
 任意のWidgetの画像高さ・下降量はレンダラーから判断できないため、ベースラインは
 ビルダー側で指定してください。`MfmCustomEmoji.baselineOffset` は描画時の移動だけでなく、
 ボックス下端より上にベースラインを設定し、行レイアウトにも下降量を反映します。
-`MfmEmojiConfig` は自動で `context.fontSize * 0.25` を設定します。
+
+本家のカスタム絵文字は `vertical-align: middle`、つまりボックスの上下中心を
+`baseline + x-height / 2` に合わせます。x-heightを0.5emと近似すると下降量は
+`size / 2 - context.fontSize * 0.25` になり、`MfmEmojiConfig` は固定 `emojiSize`
+指定時も含めてこの値を設定します。Flutterの `PlaceholderAlignment.middle` は
+テキストのascent/descentの中点を基準にするためCSSの `middle` とは別物で、
+レンダラーはbaseline揃えを維持し位置決めをビルダーに委ねています。
+Unicode絵文字の画像は異なり、本家は高さ1.25emで `vertical-align: -0.25em`
+なので、下降量は `context.fontSize * 0.25` です。
 
 `unicodeEmojiBuilder` 未指定時はUnicode絵文字をネイティブの文字として描画します。
 Twemoji等の画像を使う場合は `unicodeEmojiBuilder` を実装してください。
@@ -403,7 +412,8 @@ MfmRenderConfig(
 )
 ```
 
-本家と同じ高さ1.25em・下端の下降量0.25emになります。Twemojiアセットや
+本家のUnicode絵文字画像と同じ、高さ1.25em・`vertical-align: -0.25em` 相当に
+なります。Twemojiアセットや
 Unicode文字列から画像へのリゾルバーはパッケージに同梱していません。
 
 ### カスタムフォントの設定
