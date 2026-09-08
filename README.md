@@ -52,7 +52,9 @@ integration work.
 **Inline code**: Inherits the surrounding text size, color, and weight, uses monospace fonts, and scales its padding (0.1em) and border radius (0.3em) with the inherited font size.
 
 **Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
-Text dimming uses the inherited color's alpha, so a child color override (such as `$[fg ...]`) can override the dimming, unlike CSS element opacity.
+Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg ...]`, link colors) and widgets such as emoji, so a child color override cannot cancel the dimming.
+
+**Quote**: `> quote` dims the whole quote block by 0.7, matching Misskey. Inside `<small>`, the factors are multiplied.
 
 **Not Yet Implemented:**
 - **Font Limitations**: Some font types in `$[font.xxx]` syntax (specifically `emoji` and `math`) fall back to default fonts due to platform limitations.
