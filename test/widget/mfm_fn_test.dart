@@ -82,18 +82,36 @@ void main() {
   });
 
   group('MfmText fn flip関数', () {
-    testWidgets('引数なしのflipをレンダリングできる', (tester) async {
-      // $[flip text] 引数なしでもレンダリングされるべき
+    testWidgets('引数なしのflipで水平反転する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: r'$[flip flipped]'),
+            body: MfmText(text: r'$[flip abc]'),
           ),
         ),
       );
 
-      // Transformウィジェットでレンダリングされる
-      expect(find.byType(Transform), findsWidgets);
+      final transform = tester.widget<Transform>(find.byType(Transform).first);
+      final matrix = transform.transform;
+
+      expect(matrix.entry(0, 0), -1.0);
+      expect(matrix.entry(1, 1), 1.0);
+    });
+
+    testWidgets('未知引数のみのflipで水平反転する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[flip.unknown abc]'),
+          ),
+        ),
+      );
+
+      final transform = tester.widget<Transform>(find.byType(Transform).first);
+      final matrix = transform.transform;
+
+      expect(matrix.entry(0, 0), -1.0);
+      expect(matrix.entry(1, 1), 1.0);
     });
 
     testWidgets('flip.hで水平反転する', (tester) async {
