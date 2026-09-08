@@ -14,6 +14,7 @@ class MfmCodeBlock extends StatelessWidget {
     this.onCodeCopied,
     this.copyTooltip,
     this.copiedMessage,
+    this.fontSize,
     super.key,
   });
 
@@ -38,6 +39,9 @@ class MfmCodeBlock extends StatelessWidget {
   /// 既定のSnackBarメッセージ。nullの場合は現在のロケールから解決する。
   final String? copiedMessage;
 
+  /// コードのフォントサイズ。nullの場合はHighlightViewの既定値を使用する。
+  final double? fontSize;
+
   @override
   Widget build(BuildContext context) {
     final isJapanese =
@@ -60,9 +64,9 @@ class MfmCodeBlock extends StatelessWidget {
               language: language ?? 'plaintext',
               theme: theme,
               padding: EdgeInsets.zero,
-              textStyle: const TextStyle(
+              textStyle: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 13,
+                fontSize: fontSize,
               ),
             ),
           ),

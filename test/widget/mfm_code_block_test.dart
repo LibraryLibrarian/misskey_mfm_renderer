@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
@@ -148,6 +149,60 @@ void main() {
     await tester.tap(find.byIcon(Icons.content_copy));
     await tester.pumpAndSettle();
     expect(find.text('Source copied'), findsOneWidget);
+  });
+
+  group('コードブロックのフォントサイズ継承', () {
+    final cases = {
+      'baseTextStyle': const MfmText(
+        text: source,
+        config: MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 24)),
+      ),
+      'Inherited config': const MfmConfig(
+        config: MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 24)),
+        child: MfmText(text: source),
+      ),
+      'DefaultTextStyle': const DefaultTextStyle(
+        style: TextStyle(fontSize: 24),
+        child: MfmText(text: source),
+      ),
+    };
+    for (final entry in cases.entries) {
+      testWidgets('${entry.key}のサイズをコード本文に反映する', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: Scaffold(body: entry.value)),
+        );
+
+        final highlight = tester.widget<HighlightView>(
+          find.byType(HighlightView),
+        );
+        expect(highlight.textStyle?.fontSize, 24);
+        expect(highlight.textStyle?.fontFamily, 'monospace');
+        final richText = tester.widget<RichText>(
+          find.descendant(
+            of: find.byType(HighlightView),
+            matching: find.byType(RichText),
+          ),
+        );
+        expect(richText.text.style?.fontSize, 24);
+        expect(richText.text.style?.fontFamily, 'monospace');
+      });
+    }
+
+    testWidgets('サイズ未指定ならHighlightViewに固定サイズを渡さない', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmCodeBlock(code: code, theme: {}),
+          ),
+        ),
+      );
+
+      final highlight = tester.widget<HighlightView>(
+        find.byType(HighlightView),
+      );
+      expect(highlight.textStyle?.fontSize, isNull);
+      expect(highlight.textStyle?.fontFamily, 'monospace');
+    });
   });
 
   testWidgets('同じコードブロックがロケール変更をコピー文言に反映する', (tester) async {

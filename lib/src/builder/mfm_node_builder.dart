@@ -176,6 +176,7 @@ class MfmNodeBuilder {
         onCodeCopied: config.onCodeCopied,
         copyTooltip: config.codeCopyTooltip,
         copiedMessage: config.codeCopiedMessage,
+        fontSize: config.baseTextStyle?.fontSize,
       ),
     );
   }
