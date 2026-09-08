@@ -378,6 +378,8 @@ widget). The publicly exported immutable `MfmEmojiContext` contains:
 - `scale`: the cumulative x2/x3/x4/scale-function multiplier. `tada` and
   `<small>` do not change it. For a 14px base, x2 gives `(28, 2)`, x4 gives
   `(84, 6)`, `scale.x=3,y=3` gives `(14, 3)`, and `tada` gives `(21, 1)`.
+  A non-uniform `scale` multiplies by `max(x, y)`, matching Misskey, so
+  `scale.x=3,y=1` also gives `(14, 3)`.
 - `useOriginalSize`: `scale >= 2.5`, matching Misskey's original-image hint.
   `misskey_emoji` 2.0.0-beta.1 exposes only one `EmojiImage.url`, with no
   original/thumbnail distinction. Automatic original-URL switching requires

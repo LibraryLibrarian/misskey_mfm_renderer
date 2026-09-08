@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `emojiBuilder` / `unicodeEmojiBuilder` を `Widget Function(String, MfmEmojiContext)` に変更し、実効フォントサイズと累積スケールを渡すようにした（#47、#57）。
 - **Breaking:** `MfmEmojiConfig.createDefault` / `fromResolver` の `emojiSize` の既定値を24px固定から実効フォントサイズの2倍（2em、引数はnull）に変更。固定サイズを維持する場合は `emojiSize: 24` を明示する（#47）。
 - 絵文字の `WidgetSpan` をalphabeticベースライン揃えに変更。`MfmEmojiConfig` は `MfmCustomEmoji.baselineOffset` に本家のカスタム絵文字と同じ `vertical-align: middle` 相当の下降量（`size / 2 - フォントサイズ × 0.25`）を設定し、行の下降量にも反映する。Unicode絵文字を画像で描画する場合は高さ1.25em・下降量 `フォントサイズ × 0.25`（`vertical-align: -0.25em` 相当）を指定する（#57）。
+- `scale` fnの累積倍率を `(|x| + |y|) / 2` から本家と同じ `max(|x|, |y|)` に修正。`$[scale.x=3,y=1]` の `MfmEmojiContext.scale` が2.0から3.0になり、`useOriginalSize` の判定も本家と一致する（#47）。
 - `MfmEmojiContext.useOriginalSize` に原寸画像利用の判定（scale >= 2.5）を追加。`misskey_emoji` が原寸・縮小URLを区別しないため、自動切替は行わず独自ビルダー向けのヒントとして提供する（#47）。
 - インラインコードの文字サイズ・色・太字などを親から継承し、余白と角丸をem相対に変更（#54）。
 - 数式のカード表示・余白・中央寄せ・全幅化を廃止し、本家Misskeyと同じ装飾のない等幅テキストに変更（#51、見た目の変更）。
