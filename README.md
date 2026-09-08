@@ -50,7 +50,9 @@ integration work.
 ### Additional Notes
 
 **Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
-Text dimming uses the inherited color's alpha, so a child color override (such as `$[fg ...]`) can override the dimming, unlike CSS element opacity.
+Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg ...]`, link colors) and widgets such as emoji, so a child color override cannot cancel the dimming.
+
+**Quote**: `> quote` dims the whole quote block by 0.7, matching Misskey. Inside `<small>`, the factors are multiplied.
 
 **Not Yet Implemented:**
 - **Math Rendering**: LaTeX formulas are displayed as plain text. Full math rendering with KaTeX or similar library is planned for future releases.

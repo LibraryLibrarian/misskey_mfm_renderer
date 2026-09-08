@@ -511,7 +511,12 @@ class MfmFnHandler {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    return builder.buildStyledSpan(TextStyle(color: color), node.children);
+    // 本家のopacityは子孫の色指定では上書きできないため、
+    // 前景色にもsmallなどの累積不透明度を反映する。
+    return builder.buildStyledSpan(
+      TextStyle(color: builder.applyOpacity(color)),
+      node.children,
+    );
   }
 
   static InlineSpan _buildBg(FnNode node, MfmNodeBuilder builder) {
@@ -525,7 +530,7 @@ class MfmFnHandler {
     return WidgetSpan(
       child: ColoredBox(
         // 内側の文字は減光済みなので、背景色だけにsmallを反映する。
-        color: color.withValues(alpha: color.a * builder.opacity),
+        color: builder.applyOpacity(color),
         child: builder.buildInlineRichText(children),
       ),
     );
@@ -579,7 +584,7 @@ class MfmFnHandler {
         decoration: BoxDecoration(
           border: Border.all(
             // RichText全体を包まず、罫線だけを減光する。
-            color: color.withValues(alpha: color.a * builder.opacity),
+            color: builder.applyOpacity(color),
             width: width,
             style: style,
           ),
