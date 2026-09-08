@@ -221,10 +221,69 @@ void main() {
       }
     }
 
+    for (final testCase in [
+      (name: 'インライン数式', source: r'\(x\)'),
+      (name: 'ブロック数式', source: r'\[x\]'),
+    ]) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('${testCase.name}はsmallを$depth回分だけ文字色のalphaで減光する', (
+          tester,
+        ) async {
+          // ブロック数式の構文制約と分離して、両ノードの継承を検証する。
+          var nodes = MfmParser().build().parse(testCase.source).value;
+          for (var i = 0; i < depth; i++) {
+            nodes = [SmallNode(nodes)];
+          }
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  parsedNodes: nodes,
+                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                ),
+              ),
+            ),
+          );
+
+          final root =
+              tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+          final formula = _findSpanWithStyle(
+            root,
+            (style) => style?.fontFamily == 'monospace',
+          );
+          expect(formula?.text, 'x');
+          final style = _effectiveStyleForText(root, 'x')!;
+          expect(style.fontSize, closeTo([14.0, 11.2, 8.96][depth], 0.000001));
+          expect(style.color!.a, closeTo([1.0, 0.7, 0.49][depth], 0.000001));
+          expect(_firstWidgetSpan(root), isNull);
+          expect(find.byType(Container), findsNothing);
+          expect(find.byType(Opacity), findsNothing);
+        });
+      }
+    }
+
+    testWidgets('small内のインライン数式構文は文字色のalphaが0.7になる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'<small>\(x\)</small>',
+              config: MfmRenderConfig(baseTextStyle: baseStyle),
+            ),
+          ),
+        ),
+      );
+
+      final root =
+          tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+      final style = _effectiveStyleForText(root, 'x')!;
+      expect(style.fontFamily, 'monospace');
+      expect(style.color!.a, closeTo(0.7, 0.000001));
+      expect(find.byType(Opacity), findsNothing);
+    });
+
     final widgetCases = [
       (name: 'インラインコード', source: '`code`'),
-      (name: 'インライン数式', source: r'\( x + y \)'),
-      (name: 'ブロック数式', source: r'\[ x + y \]'),
       (name: 'コードブロック', source: '```\ncode\n```'),
       (name: '検索', source: 'keyword Search'),
       (name: '日時', source: r'$[unixtime 1700000000]'),
@@ -896,29 +955,118 @@ void main() {
       );
     });
 
-    testWidgets('数式ブロックを数式付きでレンダリングできる', (tester) async {
+    for (final testCase in [
+      (name: 'ブロック数式', source: r'\[x^2\]'),
+      (name: 'インライン数式', source: r'\(x^2\)'),
+    ]) {
+      for (final brightness in Brightness.values) {
+        testWidgets('${testCase.name}は${brightness.name}でも装飾のない等幅TextSpanになる', (
+          tester,
+        ) async {
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: ThemeData(brightness: brightness),
+              home: Scaffold(
+                body: MfmText(
+                  text: testCase.source,
+                  config: const MfmRenderConfig(
+                    baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+                    inlineCodeBgColorLight: Colors.red,
+                    inlineCodeBgColorDark: Colors.green,
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          final richText = tester.widget<RichText>(find.byType(RichText));
+          final root = richText.text as TextSpan;
+          final formula = _findSpanWithStyle(
+            root,
+            (style) => style?.fontFamily == 'monospace',
+          );
+          expect(formula?.text, 'x^2');
+          expect(formula!.style!.fontSize, isNull);
+          expect(formula.style!.color, isNull);
+          final style = _effectiveStyleForText(root, 'x^2')!;
+          expect(style.fontSize, 14);
+          expect(style.color, Colors.blue);
+          expect(style.backgroundColor, isNull);
+          expect(_firstWidgetSpan(root), isNull);
+          expect(richText.textAlign, TextAlign.start);
+          expect(find.byType(Container), findsNothing);
+          expect(find.byType(Opacity), findsNothing);
+          expect(
+            find.descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(SizedBox),
+            ),
+            findsNothing,
+          );
+        });
+      }
+    }
+
+    testWidgets('サイズ関数内の数式は親の28pxを継承する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: r'\[x = y\]'),
+            body: MfmText(
+              text: r'$[x2 \(x^2\)]',
+              config: MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 14)),
+            ),
           ),
         ),
       );
 
-      expect(find.text('x = y'), findsOneWidget);
-    });
-
-    testWidgets('インライン数式を数式付きでレンダリングできる', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: r'\(a + b\)'),
-          ),
-        ),
+      final root =
+          tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+      final formula = _findSpanWithStyle(
+        root,
+        (style) => style?.fontFamily == 'monospace',
       );
-
-      expect(find.text('a + b'), findsOneWidget);
+      expect(formula?.text, 'x^2');
+      expect(formula!.style!.fontSize, isNull);
+      expect(_effectiveStyleForText(root, formula.text!)!.fontSize, 28);
+      expect(_firstWidgetSpan(root), isNull);
     });
+
+    for (final testCase in [
+      (name: '改行あり', separator: '\n'),
+      (name: '改行なし', separator: ''),
+    ]) {
+      testWidgets('数式ブロックは${testCase.name}のTextNodeを保持し改行を追加しない', (
+        tester,
+      ) async {
+        final nodes = [
+          TextNode('before${testCase.separator}'),
+          ...MfmParser().build().parse(r'\[x^2\]').value,
+          TextNode('${testCase.separator}after'),
+        ];
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                parsedNodes: nodes,
+                config: const MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final root =
+            tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        expect(_findSpanWithText(root, 'x^2')!.style!.fontFamily, 'monospace');
+        expect(
+          root.toPlainText(),
+          'before${testCase.separator}x^2${testCase.separator}after',
+        );
+        expect(_firstWidgetSpan(root), isNull);
+        expect(find.byType(Container), findsNothing);
+      });
+    }
 
     testWidgets('検索ブロックをボタン付きでレンダリングできる', (tester) async {
       await tester.pumpWidget(

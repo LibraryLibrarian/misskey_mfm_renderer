@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - インラインコードの文字サイズ・色・太字などを親から継承し、余白と角丸をem相対に変更（#54）。
+- 数式のカード表示・余白・中央寄せ・全幅化を廃止し、本家Misskeyと同じ装飾のない等幅テキストに変更（#51、見た目の変更）。
 
 ## [0.6.0-beta.1] - 2026-08-15
 

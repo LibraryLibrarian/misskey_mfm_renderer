@@ -267,57 +267,34 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildMathBlock(MathBlockNode node) {
-    // 親のテキスト色を取得
-    final textColor = config.baseTextStyle?.color;
-
-    // 背景色を取得（Misskey本家に準拠した色をデフォルトとして使用）
-    final backgroundColor = config.brightness == Brightness.dark
-        ? (config.inlineCodeBgColorDark ?? const Color(0xFF121212))
-        : (config.inlineCodeBgColorLight ?? const Color(0xFFF5F5F5));
-
-    return WidgetSpan(
-      child: wrapOpacity(
-        Container(
-          width: double.infinity,
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            node.formula,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 14,
-              color: textColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
+    // 本家と同じ素のcode表示。ブロック化せず、前後のTextNodeの改行に任せる。
+    return TextSpan(
+      text: node.formula,
+      style: const TextStyle(
+        fontFamily: 'monospace',
+        fontFamilyFallback: [
+          'Consolas',
+          'Monaco',
+          'Andale Mono',
+          'Ubuntu Mono',
+          'monospace',
+        ],
       ),
     );
   }
 
   InlineSpan _buildMathInline(MathInlineNode node) {
-    // 親のテキスト色を取得
-    final textColor = config.baseTextStyle?.color;
-
-    return WidgetSpan(
-      alignment: PlaceholderAlignment.baseline,
-      baseline: TextBaseline.alphabetic,
-      child: wrapOpacity(
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            node.formula,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 14,
-              color: textColor,
-            ),
-          ),
-        ),
+    return TextSpan(
+      text: node.formula,
+      style: const TextStyle(
+        fontFamily: 'monospace',
+        fontFamilyFallback: [
+          'Consolas',
+          'Monaco',
+          'Andale Mono',
+          'Ubuntu Mono',
+          'monospace',
+        ],
       ),
     );
   }
