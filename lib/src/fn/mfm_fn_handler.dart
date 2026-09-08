@@ -748,14 +748,17 @@ class MfmFnHandler {
     final String rubyText;
     final lastChild = node.children.last;
     if (node.children.length == 1 && lastChild is TextNode) {
-      // テキストのみの場合、本家と同じく空白分割した2番目だけをルビにする。
-      final parts = lastChild.text.split(' ');
+      // テキストのみの場合、本家と同じく全文をnyaizeしてから空白分割し、
+      // 2番目だけをルビにする。分割前に変換しないとnyaizeの
+      // 空白依存パターンが分割位置に影響されてしまう。
+      final raw = builder.shouldNyaize
+          ? nyaize(lastChild.text)
+          : lastChild.text;
+      final parts = raw.split(' ');
       if (parts.length < 2 || parts[1].isEmpty) {
         return TextSpan(children: builder.buildNodes(node.children));
       }
-      baseSpan = TextSpan(
-        text: builder.shouldNyaize ? nyaize(parts[0]) : parts[0],
-      );
+      baseSpan = TextSpan(text: parts[0]);
       rubyText = parts[1];
     } else {
       // 最後の子をルビ、それ以外を装飾を保持したベースとして描画する。
@@ -768,7 +771,11 @@ class MfmFnHandler {
           node.children.sublist(0, node.children.length - 1),
         ),
       );
-      rubyText = lastChild.text.trim();
+      // 本家と同じくnyaizeしてからトリムする。
+      // ベース側はbuildNodes経由でnyaizeされる。
+      rubyText =
+          (builder.shouldNyaize ? nyaize(lastChild.text) : lastChild.text)
+              .trim();
 
       // TextPainter単体ではWidgetSpanを描けない。ネストしたものも検出する。
       if (!baseSpan.visitChildren((span) => span is! WidgetSpan)) {
@@ -789,7 +796,7 @@ class MfmFnHandler {
       baseline: TextBaseline.alphabetic,
       child: _RubyTextWidget(
         baseSpan: baseSpan,
-        rubyText: builder.shouldNyaize ? nyaize(rubyText) : rubyText,
+        rubyText: rubyText,
         baseStyle: baseStyle,
         rubyStyle: rubyStyle,
         rubyFontSize: rubyFontSize,

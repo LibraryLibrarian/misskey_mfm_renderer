@@ -734,6 +734,52 @@ void main() {
       expect((renderObject as dynamic).rubyText, 'にゃにか');
     });
 
+    testWidgets('テキストのみのルビは分割前にnyaizeしてベースとルビの両方を変換する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'$[ruby なにか よみな]',
+              config: MfmRenderConfig(enableNyaize: true),
+            ),
+          ),
+        ),
+      );
+
+      expect(rubyFinder, findsOneWidget);
+      final renderObject = tester.renderObject(rubyFinder);
+      final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+      expect(baseSpan.toPlainText(), 'にゃにか');
+      expect((renderObject as dynamic).rubyText, 'よみにゃ');
+    });
+
+    // ko-KRの「다/야」パターンは半角スペースまたは行末が直後にある場合のみ
+    // マッチするため、トリムの前後どちらでnyaizeするかで結果が変わる。
+    // 本家はnyaize後にトリムするので、タブや全角スペースが末尾にある場合は
+    // 変換されない。
+    for (final example in [
+      (name: 'タブ', ruby: '야\t'),
+      (name: '全角スペース', ruby: '야　'),
+      (name: 'タブ・다', ruby: '하다\t'),
+    ]) {
+      testWidgets('装飾付きのルビはトリムの前にnyaizeする：${example.name}', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '\$[ruby **base** ${example.ruby}]',
+                config: const MfmRenderConfig(enableNyaize: true),
+              ),
+            ),
+          ),
+        );
+
+        expect(rubyFinder, findsOneWidget);
+        final renderObject = tester.renderObject(rubyFinder);
+        expect((renderObject as dynamic).rubyText, example.ruby.trim());
+      });
+    }
+
     for (final example in [
       (name: 'テキストのみ', text: r'$[ruby なにか なにか]'),
       (name: '装飾付き', text: r'$[ruby **なにか** なにか]'),
