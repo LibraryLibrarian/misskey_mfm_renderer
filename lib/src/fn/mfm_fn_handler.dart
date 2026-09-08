@@ -773,8 +773,11 @@ class MfmFnHandler {
     final borderColor = (baseStyle?.color ?? const Color(0xFF000000))
         .withValues(alpha: 0.2);
 
+    // 本家はdisplay: inline-blockでvertical-align未指定のため、
+    // ピル内テキストのベースラインで周囲と揃う。
     return WidgetSpan(
-      alignment: PlaceholderAlignment.middle,
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: builder.wrapOpacity(
         Container(
           padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),

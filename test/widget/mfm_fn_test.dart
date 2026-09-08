@@ -62,6 +62,29 @@ void main() {
       });
     }
 
+    testWidgets('unixtimeのWidgetSpanをalphabeticベースラインに揃える', (tester) async {
+      // 本家はdisplay: inline-blockでvertical-align未指定のため、
+      // ピル内テキストのベースラインで周囲と揃う。
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: MfmText(text: r'abc$[unixtime 1700000000]ghi')),
+        ),
+      );
+
+      final root = tester.widget<RichText>(
+        find
+            .descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(RichText),
+            )
+            .first,
+      );
+      final spans = _collectWidgetSpans(root.text).toList();
+      expect(spans, hasLength(1));
+      expect(spans.single.alignment, PlaceholderAlignment.baseline);
+      expect(spans.single.baseline, TextBaseline.alphabetic);
+    });
+
     testWidgets('通常テキストとspinの描画ベースラインが混在行で一致する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
