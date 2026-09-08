@@ -141,6 +141,10 @@ MfmRenderConfig _mergeConfigs(
     brightness: explicit.brightness ?? inherited.brightness,
     showCodeBlockCopyButton:
         explicit.showCodeBlockCopyButton ?? inherited.showCodeBlockCopyButton,
+    onCodeCopied: explicit.onCodeCopied ?? inherited.onCodeCopied,
+    codeCopyTooltip: explicit.codeCopyTooltip ?? inherited.codeCopyTooltip,
+    codeCopiedMessage:
+        explicit.codeCopiedMessage ?? inherited.codeCopiedMessage,
     inlineCodeBgColorLight:
         explicit.inlineCodeBgColorLight ?? inherited.inlineCodeBgColorLight,
     inlineCodeBgColorDark:
@@ -171,6 +175,9 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.codeDarkTheme == defaults.codeDarkTheme &&
       config.brightness == defaults.brightness &&
       config.showCodeBlockCopyButton == defaults.showCodeBlockCopyButton &&
+      config.onCodeCopied == defaults.onCodeCopied &&
+      config.codeCopyTooltip == defaults.codeCopyTooltip &&
+      config.codeCopiedMessage == defaults.codeCopiedMessage &&
       config.inlineCodeBgColorLight == defaults.inlineCodeBgColorLight &&
       config.inlineCodeBgColorDark == defaults.inlineCodeBgColorDark;
 }

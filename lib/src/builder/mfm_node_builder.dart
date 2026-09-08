@@ -173,6 +173,9 @@ class MfmNodeBuilder {
         language: node.language,
         theme: _getCodeTheme(),
         showCopyButton: config.showCodeBlockCopyButton ?? true,
+        onCodeCopied: config.onCodeCopied,
+        copyTooltip: config.codeCopyTooltip,
+        copiedMessage: config.codeCopiedMessage,
       ),
     );
   }

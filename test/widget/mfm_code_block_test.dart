@@ -1,0 +1,180 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
+
+void main() {
+  const code = 'void main() {}';
+  const source = '```dart\n$code\n```';
+  final clipboardCalls = <MethodCall>[];
+  Future<void>? clipboardCompletion;
+
+  setUp(() {
+    clipboardCalls.clear();
+    clipboardCompletion = null;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            clipboardCalls.add(call);
+            await clipboardCompletion;
+          }
+          return null;
+        });
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
+  });
+
+  testWidgets('ScaffoldMessengerなしでもコードをコピーできる', (tester) async {
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: MediaQueryData(),
+          child: MfmText(text: source),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ScaffoldMessenger), findsNothing);
+    expect(find.byType(Scaffold), findsNothing);
+    expect(find.byType(Overlay), findsNothing);
+    expect(find.bySemanticsLabel('Copy'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.content_copy));
+    await tester.pumpAndSettle();
+
+    expect(clipboardCalls.single.arguments, {'text': code});
+    expect(find.byType(SnackBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('コピー完了後にコードを通知し既定のSnackBarを表示しない', (tester) async {
+    final completion = Completer<void>();
+    clipboardCompletion = completion.future;
+    final copiedCodes = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MfmText(
+            text: source,
+            config: MfmRenderConfig(onCodeCopied: copiedCodes.add),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.content_copy));
+    await tester.pump();
+    expect(clipboardCalls.single.arguments, {'text': code});
+    expect(copiedCodes, isEmpty);
+
+    completion.complete();
+    await tester.pumpAndSettle();
+    expect(copiedCodes, [code]);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('コピー待機中に破棄されてもSnackBarを表示しない', (tester) async {
+    final completion = Completer<void>();
+    clipboardCompletion = completion.future;
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: MfmText(text: source)),
+      ),
+    );
+    await tester.tap(find.byIcon(Icons.content_copy));
+    await tester.pumpWidget(const SizedBox.shrink());
+    completion.complete();
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final locale in ['ja', 'en', 'fr']) {
+    testWidgets('$localeロケールでコピー文言を解決する', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Localizations.override(
+                context: context,
+                locale: Locale(locale),
+                child: const MfmText(text: source),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        tester.widget<IconButton>(find.byType(IconButton)).tooltip,
+        locale == 'ja' ? 'コピー' : 'Copy',
+      );
+      await tester.tap(find.byIcon(Icons.content_copy));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(locale == 'ja' ? 'コードをコピーしました' : 'Copied to clipboard'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('指定したツールチップとコピー完了メッセージを使用する', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MfmText(
+            text: source,
+            config: MfmRenderConfig(
+              codeCopyTooltip: 'Copy source',
+              codeCopiedMessage: 'Source copied',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<IconButton>(find.byType(IconButton)).tooltip,
+      'Copy source',
+    );
+    await tester.tap(find.byIcon(Icons.content_copy));
+    await tester.pumpAndSettle();
+    expect(find.text('Source copied'), findsOneWidget);
+  });
+
+  testWidgets('同じコードブロックがロケール変更をコピー文言に反映する', (tester) async {
+    final locale = ValueNotifier(const Locale('en'));
+    addTearDown(locale.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ValueListenableBuilder<Locale>(
+            valueListenable: locale,
+            child: const MfmCodeBlock(code: code, theme: {}),
+            builder: (context, currentLocale, child) => Localizations.override(
+              context: context,
+              locale: currentLocale,
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.widget<IconButton>(find.byType(IconButton)).tooltip, 'Copy');
+    locale.value = const Locale('ja');
+    await tester.pumpAndSettle();
+    expect(tester.widget<IconButton>(find.byType(IconButton)).tooltip, 'コピー');
+    await tester.tap(find.byIcon(Icons.content_copy));
+    await tester.pumpAndSettle();
+    expect(find.text('コードをコピーしました'), findsOneWidget);
+  });
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
 
 void main() {
   testWidgets('MfmConfig.of returns inherited config', (tester) async {
@@ -101,6 +102,61 @@ void main() {
     );
 
     expect(find.text('explicit'), findsOneWidget);
+  });
+
+  group('コードコピー設定の継承', () {
+    void inheritedCallback(String _) {}
+    void explicitCallback(String _) {}
+    final inherited = MfmRenderConfig(
+      onCodeCopied: inheritedCallback,
+      codeCopyTooltip: 'Inherited tooltip',
+      codeCopiedMessage: 'Inherited message',
+    );
+
+    final cases = {
+      '既定設定': const MfmRenderConfig(),
+      '既存フィールドのみの明示設定': const MfmRenderConfig(enableAnimation: false),
+      'コールバックのみの明示設定': MfmRenderConfig(onCodeCopied: explicitCallback),
+      'ツールチップのみの明示設定': const MfmRenderConfig(
+        codeCopyTooltip: 'Explicit tooltip',
+      ),
+      '完了メッセージのみの明示設定': const MfmRenderConfig(
+        codeCopiedMessage: 'Explicit message',
+      ),
+    };
+    for (final entry in cases.entries) {
+      testWidgets('${entry.key}と継承したコピー設定を結合する', (tester) async {
+        final explicit = entry.value;
+        await tester.pumpWidget(
+          MfmConfig(
+            config: inherited,
+            child: MaterialApp(
+              home: Scaffold(
+                body: MfmText(text: '```\ncode\n```', config: explicit),
+              ),
+            ),
+          ),
+        );
+
+        final block = tester.widget<MfmCodeBlock>(find.byType(MfmCodeBlock));
+        expect(
+          block.onCodeCopied,
+          same(explicit.onCodeCopied ?? inheritedCallback),
+        );
+        expect(
+          block.copyTooltip,
+          explicit.codeCopyTooltip ?? 'Inherited tooltip',
+        );
+        expect(
+          block.copiedMessage,
+          explicit.codeCopiedMessage ?? 'Inherited message',
+        );
+        expect(
+          tester.widget<IconButton>(find.byType(IconButton)).tooltip,
+          explicit.codeCopyTooltip ?? 'Inherited tooltip',
+        );
+      });
+    }
   });
 
   testWidgets('MfmText inherits searchButtonLabel', (tester) async {
