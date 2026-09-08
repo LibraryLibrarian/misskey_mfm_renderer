@@ -169,13 +169,15 @@ class MfmEmojiConfig {
   ///
   /// 接続先は[client]から導出され、サーバーごとに永続ストアが分離される。
   /// [client]の所有権は呼び出し元にあり、返されたハンドルの破棄対象には含まれない。
-  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
+  /// [emojiSize]は表示上の高さ。省略時（null）は現在の実効フォントサイズの
+  /// 2倍（2em）、指定時はその固定値を使う。[emojiMaxWidth]は任意の最大幅。
+  /// 絵文字の下端はテキストベースラインより0.25em下に配置する。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
   static Future<MfmEmojiConfigHandle> createDefault({
     required MisskeyClient client,
     String? storagePath,
-    double emojiSize = 24.0,
+    double? emojiSize,
     double? emojiMaxWidth,
     Listenable? emojiRefreshListenable,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
@@ -243,11 +245,13 @@ class MfmEmojiConfig {
 
   /// 作成済みのResolverからConfigを構築
   ///
-  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
+  /// [emojiSize]は表示上の高さ。省略時（null）は現在の実効フォントサイズの
+  /// 2倍（2em）、指定時はその固定値を使う。[emojiMaxWidth]は任意の最大幅。
+  /// 絵文字の下端はテキストベースラインより0.25em下に配置する。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   static MfmRenderConfig fromResolver({
     required EmojiResolver resolver,
-    double emojiSize = 24.0,
+    double? emojiSize,
     double? emojiMaxWidth,
     Listenable? emojiRefreshListenable,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
@@ -268,7 +272,7 @@ class MfmEmojiConfig {
   _createEmojiBuilder({
     required EmojiResolver resolver,
     required Object cacheScope,
-    required double emojiSize,
+    required double? emojiSize,
     required double? emojiMaxWidth,
     required Listenable? emojiRefreshListenable,
     required Widget Function(BuildContext context, String name)?
@@ -278,7 +282,8 @@ class MfmEmojiConfig {
       name: name,
       resolver: resolver,
       cacheScope: cacheScope,
-      size: emojiSize,
+      size: emojiSize ?? context.fontSize * 2,
+      baselineOffset: context.fontSize * 0.25,
       maxWidth: emojiMaxWidth,
       refreshListenable: emojiRefreshListenable,
       fallbackBuilder: fallbackBuilder,

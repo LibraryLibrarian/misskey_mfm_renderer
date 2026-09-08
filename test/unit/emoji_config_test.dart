@@ -34,10 +34,30 @@ void main() {
     final custom = widget as MfmCustomEmoji;
     expect(custom.name, 'test');
     expect(custom.size, 20);
+    expect(custom.baselineOffset, 3.5);
     expect(custom.maxWidth, 60);
     expect(custom.cacheScope, same(resolver));
     expect(custom.refreshListenable, same(refreshNotifier));
   });
+
+  for (final fontSize in [14.0, 28.0, 84.0, 21.0, 11.2]) {
+    for (final fixedSize in [null, 24.0]) {
+      test('fromResolver uses 2em or fixed size: $fontSize / $fixedSize', () {
+        final config = MfmEmojiConfig.fromResolver(
+          resolver: (_) async => null,
+          emojiSize: fixedSize,
+        );
+        final custom =
+            config.emojiBuilder!(
+                  'emoji',
+                  MfmEmojiContext(fontSize: fontSize, scale: 1),
+                )
+                as MfmCustomEmoji;
+        expect(custom.size, fixedSize ?? fontSize * 2);
+        expect(custom.baselineOffset, fontSize * 0.25);
+      });
+    }
+  }
 
   test('createDefault derives the store scope from client.baseUrl', () async {
     final dir = await Directory.systemTemp.createTemp('mfm_emoji_quick');
@@ -64,6 +84,16 @@ void main() {
     expect(config.emojiBuilder, isNotNull);
     expect(factoryServerUrl, Uri.parse('https://example.com'));
     expect(factoryDirectory, dir.path);
+    for (final fontSize in [14.0, 28.0, 84.0]) {
+      final emoji =
+          config.emojiBuilder!(
+                'emoji',
+                MfmEmojiContext(fontSize: fontSize, scale: 1),
+              )
+              as MfmCustomEmoji;
+      expect(emoji.size, fontSize * 2);
+      expect(emoji.baselineOffset, fontSize * 0.25);
+    }
 
     await config.dispose();
     await config.dispose();
@@ -98,11 +128,28 @@ void main() {
 
     expect(copied, isA<MfmEmojiConfigHandle>());
     expect(copied.enableAnimation, isFalse);
+    expect(copied.emojiBuilder, same(config.emojiBuilder));
     expect(identical(copied.author, author), isTrue);
     expect(copied.localHost, 'local.example');
     expect(copied.searchButtonLabel, 'Find');
     expect(config.enableAnimation, isTrue);
     expect(config.searchButtonLabel, isNull);
+
+    final replaced = copied.copyWith(
+      emojiBuilder: (name, context) => copied.emojiBuilder!(name, context),
+      unicodeEmojiBuilder: (emoji, context) =>
+          copied.emojiBuilder!(emoji, context),
+    );
+    for (final builder in [
+      replaced.emojiBuilder!,
+      replaced.unicodeEmojiBuilder!,
+    ]) {
+      final emoji =
+          builder('emoji', const MfmEmojiContext(fontSize: 28, scale: 2))
+              as MfmCustomEmoji;
+      expect(emoji.size, 56);
+      expect(emoji.baselineOffset, 7);
+    }
 
     final preserved = copied.copyWith(enableNyaize: true);
     expect(identical(preserved.author, author), isTrue);
