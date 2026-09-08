@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- インラインコードの文字サイズ・色・太字などを親から継承し、余白と角丸をem相対に変更（#54）。
+
 ## [0.6.0-beta.1] - 2026-08-15
 
 ### Changed

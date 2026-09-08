@@ -232,8 +232,7 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildInlineCode(InlineCodeNode node) {
-    // 親のテキスト色を取得
-    final textColor = config.baseTextStyle?.color;
+    final fontSize = effectiveStyle.fontSize!;
 
     // 背景色を取得（Misskey本家に準拠した色をデフォルトとして使用）
     final backgroundColor = config.brightness == Brightness.dark
@@ -245,17 +244,21 @@ class MfmNodeBuilder {
       baseline: TextBaseline.alphabetic,
       child: wrapOpacity(
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          padding: EdgeInsets.all(fontSize * 0.1),
           decoration: BoxDecoration(
             color: backgroundColor,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(fontSize * 0.3),
           ),
           child: Text(
             node.code,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13,
-              color: textColor,
+            style: effectiveStyle.copyWith(
+              fontFamily: 'Consolas',
+              fontFamilyFallback: const [
+                'Monaco',
+                'Andale Mono',
+                'Ubuntu Mono',
+                'monospace',
+              ],
             ),
           ),
         ),

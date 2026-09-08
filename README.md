@@ -49,6 +49,8 @@ integration work.
 
 ### Additional Notes
 
+**Inline code**: Inherits the surrounding text size, color, and weight, uses monospace fonts, and scales its padding (0.1em) and border radius (0.3em) with the inherited font size.
+
 **Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
 Text dimming uses the inherited color's alpha, so a child color override (such as `$[fg ...]`) can override the dimming, unlike CSS element opacity.
 

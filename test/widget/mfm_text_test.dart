@@ -277,7 +277,7 @@ void main() {
       }
     }
 
-    testWidgets('インラインコードの構文でもContainer全体を一度だけ減光する', (tester) async {
+    testWidgets('インラインコードはsmallの実効色を継承しContainerの減光も維持する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -297,7 +297,10 @@ void main() {
       final opacity = tester.widget<Opacity>(opacityFinder);
       expect(opacity.opacity, closeTo(0.7, 0.000001));
       expect(opacity.child, isA<Container>());
-      expect(tester.widget<Text>(find.text('code')).style!.color, Colors.blue);
+      final style = tester.widget<Text>(find.text('code')).style!;
+      expect(style.fontSize, closeTo(11.2, 0.000001));
+      expect(style.color!.withValues(alpha: 1), const Color(0xFF2196F3));
+      expect(style.color!.a, closeTo(0.7, 0.000001));
     });
 
     testWidgets('引用の罫線と文字を別々に減光し絵文字を二重に減光しない', (tester) async {
@@ -510,16 +513,94 @@ void main() {
       expect(smallSpan, isNotNull);
     });
 
-    testWidgets('インラインコードを等幅フォントでレンダリングできる', (tester) async {
+    for (final testCase in [
+      (name: '単独', source: '`code`', size: 14.0, padding: 1.4, radius: 4.2),
+      (
+        name: 'サイズ関数の内側',
+        source: r'$[x2 `code`]',
+        size: 28.0,
+        padding: 2.8,
+        radius: 8.4,
+      ),
+    ]) {
+      testWidgets('${testCase.name}のインラインコードは継承サイズとem相対の装飾を使う', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: testCase.source,
+                config: const MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final text = tester.widget<Text>(find.text('code'));
+        expect(text.style!.fontSize, testCase.size);
+        expect(text.style!.color, Colors.blue);
+        expect(text.style!.fontFamily, 'Consolas');
+        expect(text.style!.fontFamilyFallback, [
+          'Monaco',
+          'Andale Mono',
+          'Ubuntu Mono',
+          'monospace',
+        ]);
+        final container = tester.widget<Container>(
+          find.ancestor(
+            of: find.text('code'),
+            matching: find.byType(Container),
+          ),
+        );
+        final padding = container.padding! as EdgeInsets;
+        for (final inset in [
+          padding.left,
+          padding.top,
+          padding.right,
+          padding.bottom,
+        ]) {
+          expect(inset, closeTo(testCase.padding, 0.000001));
+        }
+        final decoration = container.decoration! as BoxDecoration;
+        final radius = decoration.borderRadius! as BorderRadius;
+        for (final corner in [
+          radius.topLeft,
+          radius.topRight,
+          radius.bottomLeft,
+          radius.bottomRight,
+        ]) {
+          expect(corner.x, closeTo(testCase.radius, 0.000001));
+          expect(corner.y, closeTo(testCase.radius, 0.000001));
+        }
+        expect(decoration.color, const Color(0xFFF5F5F5));
+        final root = tester.widget<RichText>(find.byType(RichText).first);
+        final span = _firstWidgetSpan(root.text as TextSpan)!;
+        expect(span.alignment, PlaceholderAlignment.baseline);
+        expect(span.baseline, TextBaseline.alphabetic);
+      });
+    }
+
+    testWidgets('インラインコードは親の太字と前景色を継承する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: '`code`'),
+            body: MfmText(
+              text: r'**`code`** **$[fg.color=f00 `colored`]**',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+              ),
+            ),
           ),
         ),
       );
 
-      expect(find.text('code'), findsOneWidget);
+      final codeStyle = tester.widget<Text>(find.text('code')).style!;
+      expect(codeStyle.fontWeight, FontWeight.bold);
+      expect(codeStyle.fontSize, 14);
+      final coloredStyle = tester.widget<Text>(find.text('colored')).style!;
+      expect(coloredStyle.fontWeight, FontWeight.bold);
+      expect(coloredStyle.color, const Color(0xFFFF0000));
     });
 
     testWidgets('URLをリンク色でレンダリングできる', (tester) async {
