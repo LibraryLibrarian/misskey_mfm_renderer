@@ -107,13 +107,11 @@ class MfmFnHandler {
     final newScale = builder.scale * effectiveMultiplier;
 
     final scaledBuilder = builder.withScale(newScale);
-    final children = scaledBuilder.buildNodes(node.children);
-
     final baseSize = builder.config.baseTextStyle?.fontSize ?? 14.0;
 
-    return TextSpan(
-      style: TextStyle(fontSize: baseSize * effectiveMultiplier),
-      children: children,
+    return scaledBuilder.buildStyledSpan(
+      TextStyle(fontSize: baseSize * effectiveMultiplier),
+      node.children,
     );
   }
 
@@ -131,12 +129,7 @@ class MfmFnHandler {
       child: Transform(
         alignment: Alignment.center,
         transform: Matrix4.diagonal3Values(scaleX, scaleY, 1),
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -161,12 +154,7 @@ class MfmFnHandler {
     return WidgetSpan(
       child: Transform.rotate(
         angle: radians,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -208,12 +196,7 @@ class MfmFnHandler {
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -240,12 +223,7 @@ class MfmFnHandler {
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -272,12 +250,7 @@ class MfmFnHandler {
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -301,12 +274,7 @@ class MfmFnHandler {
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -317,12 +285,7 @@ class MfmFnHandler {
     return WidgetSpan(
       child: MfmSparkleWidget(
         enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -349,12 +312,7 @@ class MfmFnHandler {
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -381,12 +339,7 @@ class MfmFnHandler {
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -405,12 +358,7 @@ class MfmFnHandler {
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation && duration > Duration.zero,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -437,12 +385,7 @@ class MfmFnHandler {
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -481,12 +424,7 @@ class MfmFnHandler {
       child: Transform.scale(
         scaleX: scaleX,
         scaleY: scaleY,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: scaledBuilder.buildInlineRichText(children),
       ),
     );
   }
@@ -531,12 +469,7 @@ class MfmFnHandler {
     return WidgetSpan(
       child: Transform.translate(
         offset: Offset(offsetX, offsetY),
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -565,16 +498,12 @@ class MfmFnHandler {
 
   static InlineSpan _buildFg(FnNode node, MfmNodeBuilder builder) {
     final color = _parseColorArg(node.args);
-    final children = builder.buildNodes(node.children);
 
     if (color == null) {
-      return TextSpan(children: children);
+      return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    return TextSpan(
-      style: TextStyle(color: color),
-      children: children,
-    );
+    return builder.buildStyledSpan(TextStyle(color: color), node.children);
   }
 
   static InlineSpan _buildBg(FnNode node, MfmNodeBuilder builder) {
@@ -588,12 +517,7 @@ class MfmFnHandler {
     return WidgetSpan(
       child: ColoredBox(
         color: color,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -652,19 +576,13 @@ class MfmFnHandler {
           borderRadius: radius > 0 ? BorderRadius.circular(radius) : null,
         ),
         clipBehavior: noclip ? Clip.none : Clip.antiAlias,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildFont(FnNode node, MfmNodeBuilder builder) {
     final args = node.args;
-    final children = builder.buildNodes(node.children);
 
     // フォントタイプを特定
     String? fontType;
@@ -683,15 +601,15 @@ class MfmFnHandler {
     }
 
     if (fontType == null) {
-      return TextSpan(children: children);
+      return TextSpan(children: builder.buildNodes(node.children));
     }
 
     // カスタムリゾルバーがあればそれを使用
     final customFont = builder.config.fontFamilyResolver?.call(fontType);
     if (customFont != null) {
-      return TextSpan(
-        style: TextStyle(fontFamily: customFont),
-        children: children,
+      return builder.buildStyledSpan(
+        TextStyle(fontFamily: customFont),
+        node.children,
       );
     }
 
@@ -718,10 +636,10 @@ class MfmFnHandler {
         );
       default:
         // emoji, mathはデフォルトフォント
-        return TextSpan(children: children);
+        return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    return TextSpan(style: style, children: children);
+    return builder.buildStyledSpan(style, node.children);
   }
 
   static InlineSpan _buildBlur(FnNode node, MfmNodeBuilder builder) {
@@ -731,8 +649,7 @@ class MfmFnHandler {
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: _MfmBlurWidget(
-        children: children,
-        baseTextStyle: builder.config.baseTextStyle,
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -858,12 +775,7 @@ class MfmFnHandler {
           onClickableEvent(eventId);
         },
         behavior: HitTestBehavior.opaque,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -1061,13 +973,9 @@ class _RenderRubyText extends RenderBox {
 }
 
 class _MfmBlurWidget extends StatefulWidget {
-  const _MfmBlurWidget({
-    required this.children,
-    this.baseTextStyle,
-  });
+  const _MfmBlurWidget({required this.child});
 
-  final List<InlineSpan> children;
-  final TextStyle? baseTextStyle;
+  final Widget child;
 
   @override
   State<_MfmBlurWidget> createState() => _MfmBlurWidgetState();
@@ -1126,12 +1034,7 @@ class _MfmBlurWidgetState extends State<_MfmBlurWidget> {
             imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
             child: child,
           ),
-          child: RichText(
-            text: TextSpan(
-              style: widget.baseTextStyle,
-              children: widget.children,
-            ),
-          ),
+          child: widget.child,
         ),
       ),
     );
