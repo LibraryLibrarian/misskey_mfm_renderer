@@ -359,14 +359,18 @@ class MfmFnHandler {
         const Duration(milliseconds: 1000);
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
-    final children = builder.buildNodes(node.children);
+    // 150%は描画時のTransformではなく実フォントサイズとしてレイアウトに反映する。
+    final sized = builder.withStyle(
+      TextStyle(fontSize: builder.effectiveStyle.fontSize! * 1.5),
+    );
+    final children = sized.buildNodes(node.children);
 
     return WidgetSpan(
       child: MfmTadaWidget(
         duration: duration,
         delay: delay,
         enabled: builder.config.enableAnimation && duration > Duration.zero,
-        child: builder.buildInlineRichText(children),
+        child: sized.buildInlineRichText(children),
       ),
     );
   }

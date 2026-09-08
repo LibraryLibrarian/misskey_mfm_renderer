@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_animated_wrapper.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_tada_widget.dart';
 
 void main() {
   group('MfmAnimatedWrapper.parseTime', () {
@@ -69,14 +70,26 @@ void main() {
     testWidgets('tadaは静止時も150%の基本スタイルを維持する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(body: MfmText(text: r'$[tada.speed=0s test]')),
+          home: Scaffold(
+            body: MfmText(
+              text: r'$[tada.speed=0s test]',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
         ),
       );
 
-      final hasOnePointFiveScale = tester
-          .widgetList<Transform>(find.byType(Transform))
-          .any((widget) => widget.transform.storage[0] == 1.5);
-      expect(hasOnePointFiveScale, isTrue);
+      final tada = find.byType(MfmTadaWidget);
+      final richText = tester.widget<RichText>(
+        find.descendant(of: tada, matching: find.byType(RichText)),
+      );
+      expect(richText.text.style?.fontSize, 21);
+      expect(
+        find.descendant(of: tada, matching: find.byType(Transform)),
+        findsNothing,
+      );
     });
 
     testWidgets('rainbowはspeed=0sでは静的グラデーションを適用しない', (

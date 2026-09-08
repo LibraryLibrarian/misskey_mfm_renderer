@@ -124,6 +124,9 @@ for setup instructions.
 || | rainbow | `$[rainbow text]` | ✅ |
 || | sparkle | `$[sparkle text]` | ✅ |
 
+`tada` applies 150% of the parent's actual font size, including when animations
+are disabled. This enlarges the text's layout size, not just its painted size.
+
 ## Getting started
 
 Add the dependency to your `pubspec.yaml`:
