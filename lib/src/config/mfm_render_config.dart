@@ -150,8 +150,10 @@ class MfmRenderConfig {
   /// nullの場合はScaffoldMessengerが存在するときだけSnackBarを表示する。
   final void Function(String code)? onCodeCopied;
 
-  /// コードブロックのコピーボタンのツールチップ。
+  /// コードブロックのコピーボタンのアクセシビリティラベル。
   ///
+  /// コピーボタンはMaterial依存を避けるためツールチップを表示せず、
+  /// この文言はSemanticsのラベルとして機能する。
   /// nullの場合は現在のロケールが日本語なら「コピー」、それ以外は"Copy"を使用。
   final String? codeCopyTooltip;
 

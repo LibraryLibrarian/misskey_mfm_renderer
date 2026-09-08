@@ -152,8 +152,10 @@ void main() {
           explicit.codeCopiedMessage ?? 'Inherited message',
         );
         expect(
-          tester.widget<IconButton>(find.byType(IconButton)).tooltip,
-          explicit.codeCopyTooltip ?? 'Inherited tooltip',
+          find.bySemanticsLabel(
+            explicit.codeCopyTooltip ?? 'Inherited tooltip',
+          ),
+          findsOneWidget,
         );
       });
     }

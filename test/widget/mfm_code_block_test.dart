@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
@@ -53,6 +55,113 @@ void main() {
     expect(clipboardCalls.single.arguments, {'text': code});
     expect(find.byType(SnackBar), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Materialのないツリーでもコピーボタンがタップできる', (tester) async {
+    await tester.pumpWidget(
+      Theme(
+        // Material 2のIconButtonは祖先のMaterialを要求するため、
+        // Material非依存であることを確認する。
+        data: ThemeData(useMaterial3: false),
+        child: const Directionality(
+          textDirection: TextDirection.ltr,
+          child: MediaQuery(
+            data: MediaQueryData(),
+            child: MfmText(text: source),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Material), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byIcon(Icons.content_copy));
+    await tester.pumpAndSettle();
+
+    expect(clipboardCalls.single.arguments, {'text': code});
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('WidgetsApp配下でもコピーボタンがタップできる', (tester) async {
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        builder: (context, child) => const MfmText(text: source),
+      ),
+    );
+
+    expect(find.byType(Material), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byIcon(Icons.content_copy));
+    await tester.pumpAndSettle();
+
+    expect(clipboardCalls.single.arguments, {'text': code});
+    expect(find.byType(SnackBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('CupertinoApp配下でもコピーボタンがタップできる', (tester) async {
+    await tester.pumpWidget(
+      const CupertinoApp(home: MfmText(text: source)),
+    );
+
+    expect(find.byType(Material), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byIcon(Icons.content_copy));
+    await tester.pumpAndSettle();
+
+    expect(clipboardCalls.single.arguments, {'text': code});
+    expect(find.byType(SnackBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('コピーボタンはMaterial依存のIconButton/Tooltipを使わない', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: MfmText(text: source)),
+      ),
+    );
+
+    expect(
+      find.descendant(
+        of: find.byType(MfmCodeBlock),
+        matching: find.byType(IconButton),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(MfmCodeBlock),
+        matching: find.byType(Tooltip),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('ホバーでコピーボタンの不透明度が変わる', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: MfmText(text: source)),
+      ),
+    );
+
+    final opacity = find.descendant(
+      of: find.byType(MfmCodeBlock),
+      matching: find.byType(Opacity),
+    );
+    expect(tester.widget<Opacity>(opacity).opacity, 0.5);
+
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    final center = tester.getCenter(find.byIcon(Icons.content_copy));
+    await tester.sendEventToBinding(pointer.hover(Offset.zero));
+    await tester.pump();
+    await tester.sendEventToBinding(pointer.hover(center));
+    await tester.pump();
+    expect(tester.widget<Opacity>(opacity).opacity, 0.8);
+
+    await tester.sendEventToBinding(pointer.hover(Offset.zero));
+    await tester.pump();
+    expect(tester.widget<Opacity>(opacity).opacity, 0.5);
   });
 
   testWidgets('コピー完了後にコードを通知し既定のSnackBarを表示しない', (tester) async {
@@ -114,8 +223,8 @@ void main() {
       );
 
       expect(
-        tester.widget<IconButton>(find.byType(IconButton)).tooltip,
-        locale == 'ja' ? 'コピー' : 'Copy',
+        find.bySemanticsLabel(locale == 'ja' ? 'コピー' : 'Copy'),
+        findsOneWidget,
       );
       await tester.tap(find.byIcon(Icons.content_copy));
       await tester.pumpAndSettle();
@@ -127,7 +236,7 @@ void main() {
     });
   }
 
-  testWidgets('指定したツールチップとコピー完了メッセージを使用する', (tester) async {
+  testWidgets('指定したアクセシビリティラベルとコピー完了メッセージを使用する', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -142,10 +251,7 @@ void main() {
       ),
     );
 
-    expect(
-      tester.widget<IconButton>(find.byType(IconButton)).tooltip,
-      'Copy source',
-    );
+    expect(find.bySemanticsLabel('Copy source'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.content_copy));
     await tester.pumpAndSettle();
     expect(find.text('Source copied'), findsOneWidget);
@@ -224,10 +330,10 @@ void main() {
       ),
     );
 
-    expect(tester.widget<IconButton>(find.byType(IconButton)).tooltip, 'Copy');
+    expect(find.bySemanticsLabel('Copy'), findsOneWidget);
     locale.value = const Locale('ja');
     await tester.pumpAndSettle();
-    expect(tester.widget<IconButton>(find.byType(IconButton)).tooltip, 'コピー');
+    expect(find.bySemanticsLabel('コピー'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.content_copy));
     await tester.pumpAndSettle();
     expect(find.text('コードをコピーしました'), findsOneWidget);

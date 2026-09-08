@@ -458,7 +458,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(MfmCodeBlock),
-          matching: find.byType(IconButton),
+          matching: find.byIcon(Icons.content_copy),
         ),
         findsNothing,
       );

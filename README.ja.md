@@ -238,6 +238,7 @@ MfmText(
       showCopyConfirmation(code);
     },
     // 任意: ローカライズされたコードコピー文言を上書き
+    // （codeCopyTooltip はコピーボタンのアクセシビリティラベル）
     codeCopyTooltip: 'ソースをコピー',
     codeCopiedMessage: 'ソースをコピーしました',
   ),
@@ -250,8 +251,10 @@ SnackBarを表示し、ない場合は通知せずにコピーを完了します
 `codeCopiedMessage` はこの既定のSnackBarでのみ使用します。文言を上書きしない場合、
 `codeCopyTooltip` / `codeCopiedMessage` は日本語ロケールで「コピー」/
 「コードをコピーしました」、その他・ロケール未設定時は `Copy` /
-`Copied to clipboard` になります。`Overlay` がない場合はツールチップを省略し、
-アクセシビリティ用のラベルは維持します。
+`Copied to clipboard` になります。コピーボタンはMaterialウィジェットを使わずに
+構成しているため `CupertinoApp` / `WidgetsApp` 配下でも動作します。
+ツールチップは表示せず、`codeCopyTooltip` はコピーボタンの
+アクセシビリティ（Semantics）ラベルとして機能します。
 
 コードブロックは `baseTextStyle.fontSize`（ベーススタイル未設定時は周囲の
 `DefaultTextStyle`）を継承し、フォントファミリーは `monospace` を維持します。
@@ -476,7 +479,7 @@ void main() {
 | `onHashtagTap` | `void Function(String)?` | null | ハッシュタグタップコールバック |
 | `onSearchTap` | `void Function(String)?` | null | 検索タップコールバック |
 | `onCodeCopied` | `void Function(String)?` | null | コードコピー完了コールバック。指定時は既定のSnackBarを置換し、未指定時はScaffoldMessengerの祖先がある場合のみ通知 |
-| `codeCopyTooltip` | `String?` | 現在のロケール | コードコピーツールチップの上書き（日本語は`コピー`、その他は`Copy`） |
+| `codeCopyTooltip` | `String?` | 現在のロケール | コードコピーボタンのアクセシビリティラベルの上書き（日本語は`コピー`、その他は`Copy`） |
 | `codeCopiedMessage` | `String?` | 現在のロケール | コピー完了時の既定のSnackBar文言上書き（日本語は`コードをコピーしました`、その他は`Copied to clipboard`） |
 | `author` | `MfmAuthorContext?` | null | ホスト依存の描画に使用する投稿者情報 |
 | `localHost` | `String?` | null | ホスト解決のフォールバックに使用するローカルMisskeyホスト |

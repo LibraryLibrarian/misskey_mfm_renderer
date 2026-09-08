@@ -33,7 +33,10 @@ class MfmCodeBlock extends StatelessWidget {
   /// コピー完了時のコールバック。指定時は既定のSnackBarを表示しない。
   final void Function(String code)? onCodeCopied;
 
-  /// コピーボタンのツールチップ。nullの場合は現在のロケールから解決する。
+  /// コピーボタンのアクセシビリティラベル。
+  ///
+  /// Material依存を避けるためツールチップは表示せず、Semanticsのラベルとして扱う。
+  /// nullの場合は現在のロケールから解決する。
   final String? copyTooltip;
 
   /// 既定のSnackBarメッセージ。nullの場合は現在のロケールから解決する。
@@ -112,6 +115,8 @@ class _CopyButton extends StatefulWidget {
 
   final String code;
   final void Function(String code)? onCodeCopied;
+
+  /// アクセシビリティラベルとして使用する文言。
   final String tooltip;
   final String copiedMessage;
 
@@ -124,23 +129,26 @@ class _CopyButtonState extends State<_CopyButton> {
 
   @override
   Widget build(BuildContext context) {
-    // widgets.dartのみのツリーではTooltipが必要とするOverlayがない場合がある。
-    final canShowTooltip = Overlay.maybeOf(context) != null;
+    // IconButtonとTooltipはMaterial（およびOverlay）を必要とするため、
+    // CupertinoApp/WidgetsApp直下でも動作するようにwidgets.dartのみで構成する。
+    // ツールチップの文言はSemanticsのラベルとして提供する。
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: Opacity(
-        opacity: _isHovered ? 0.8 : 0.5,
-        child: Semantics(
-          label: canShowTooltip ? null : widget.tooltip,
-          child: IconButton(
-            icon: const Icon(Icons.content_copy, size: 18),
-            onPressed: _copyToClipboard,
-            tooltip: canShowTooltip ? widget.tooltip : null,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(
-              minWidth: 32,
-              minHeight: 32,
+      child: Semantics(
+        button: true,
+        label: widget.tooltip,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _copyToClipboard,
+          child: Opacity(
+            opacity: _isHovered ? 0.8 : 0.5,
+            child: const SizedBox(
+              width: 32,
+              height: 32,
+              child: Center(
+                child: Icon(Icons.content_copy, size: 18),
+              ),
             ),
           ),
         ),
