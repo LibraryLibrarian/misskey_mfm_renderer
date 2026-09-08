@@ -68,10 +68,19 @@ Misskeyの猫モードと同等の挙動で、テキストノードの文字列�
 **特徴**:
 - 絵文字メタデータの自動解決
 - `cached_network_image` による画像キャッシュ
-- 高さを固定し、元画像のアスペクト比を維持した表示
+- 実効フォントサイズに追随する高さ（既定2em）で、元画像のアスペクト比を維持した表示
 - 読み込み済みアスペクト比の再利用によるプレースホルダのレイアウト安定化
 - 未取得時のフォールバック表示
 - アニメーション絵文字（GIF/APNG/WebP）に対応
+
+`MfmEmojiConfig.createDefault` / `fromResolver` の既定の高さは **2em**
+（`context.fontSize * 2`）です。フォント14pxでは28px、`$[x4 :emoji:]` では
+168pxとなり、従来の24px固定から変更されています。`emojiSize` の既定値は
+`null` になりました。固定の高さを維持する場合は `emojiSize: 24` を指定してください。
+直接生成した場合の低レベルAPI `MfmCustomEmoji.size` の既定値は24pxのままです。
+サイズ関数・`tada`・`<small>` は実効フォントサイズを変更します。`scale` は
+フォントサイズを変更せず描画時の変形として適用されるため、高さに
+`context.scale` を重ねて掛けないでください。
 
 カスタム絵文字の幅は既定で元画像の比率に従います。極端に横長な絵文字の幅を
 制限する場合は、`MfmEmojiConfig` の `emojiMaxWidth` または
@@ -319,11 +328,12 @@ MfmText(
   text: ':custom_emoji: こんにちは！',
   config: MfmRenderConfig(
     // nameはコロン無しで渡される
-    emojiBuilder: (name) => MfmCustomEmoji(
+    emojiBuilder: (name, context) => MfmCustomEmoji(
       name: name,
       resolver: resolver,
       cacheScope: resolver,
-      size: 24.0, // 表示上の高さ
+      size: context.fontSize * 2, // 表示上の高さ（2em）
+      baselineOffset: context.fontSize * 0.25, // 下端をベースラインから0.25em下げる
       maxWidth: 70.0, // 任意
       refreshListenable: emojiRefreshNotifier,
     ),
@@ -353,6 +363,48 @@ MfmCustomEmoji(
       const Icon(Icons.hourglass_empty, size: 16),
 )
 ```
+
+### 絵文字ビルダーの描画文脈とUnicode画像
+
+`emojiBuilder` / `unicodeEmojiBuilder` はともに引数が2つになりました。
+`(name) => ...` を `(name, context) => ...`（固定Widgetなら `(name, _) => ...`）
+へ移行してください。公開された不変の `MfmEmojiContext` は次の情報を持ちます。
+
+- `fontSize`: サイズ関数・`tada`（150%）・`<small>`（80%）を反映した
+  現在の実効フォントサイズ（論理px）。
+- `scale`: x2/x3/x4/scale関数の累積倍率。`tada` と `<small>` では変わりません。
+  基準14pxなら、x2は `(28, 2)`、x4は `(84, 6)`、`scale.x=3,y=3` は
+  `(14, 3)`、`tada` は `(21, 1)` です。
+- `useOriginalSize`: 本家と同じ `scale >= 2.5` による原寸画像利用のヒント。
+  `misskey_emoji` 2.0.0-beta.1 は `EmojiImage.url` を1つだけ公開し、原寸／縮小版を
+  区別しません。自動切替には依存パッケージ側の対応が必要なため、現時点では
+  `MfmCustomEmoji.useOriginalSize` は追加していません。両URLを取得できる
+  独自ビルダーでこのヒントを利用できます。
+
+両ビルダーの結果は `WidgetSpan` のalphabeticベースラインに揃えます。
+任意のWidgetの画像高さ・下降量はレンダラーから判断できないため、ベースラインは
+ビルダー側で指定してください。`MfmCustomEmoji.baselineOffset` は描画時の移動だけでなく、
+ボックス下端より上にベースラインを設定し、行レイアウトにも下降量を反映します。
+`MfmEmojiConfig` は自動で `context.fontSize * 0.25` を設定します。
+
+`unicodeEmojiBuilder` 未指定時はUnicode絵文字をネイティブの文字として描画します。
+Twemoji等の画像を使う場合は `unicodeEmojiBuilder` を実装してください。
+例えばUnicode文字列から画像URLを持つ `EmojiImage` を返す
+`unicodeImageResolver` をアプリ側で用意すれば、次のように画像Widgetを再利用できます。
+
+```dart
+MfmRenderConfig(
+  unicodeEmojiBuilder: (emoji, context) => MfmCustomEmoji(
+    name: emoji,
+    resolver: unicodeImageResolver, // アプリ側で用意したEmojiResolver
+    size: context.fontSize * 1.25,
+    baselineOffset: context.fontSize * 0.25,
+  ),
+)
+```
+
+本家と同じ高さ1.25em・下端の下降量0.25emになります。Twemojiアセットや
+Unicode文字列から画像へのリゾルバーはパッケージに同梱していません。
 
 ### カスタムフォントの設定
 
@@ -456,8 +508,8 @@ void main() {
 | `enableAdvancedMfm` | `bool` | true | position等の高度な機能を有効化 |
 | `enableAnimation` | `bool` | true | アニメーションを有効化（今後実装） |
 | `enableNyaize` | `bool` | false | nyaize（猫語）変換をテキストノードに対して有効化 |
-| `emojiBuilder` | `Widget Function(String)?` | null | カスタム絵文字ビルダー |
-| `unicodeEmojiBuilder` | `Widget Function(String)?` | null | Unicode絵文字ビルダー |
+| `emojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | カスタム絵文字ビルダー |
+| `unicodeEmojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Unicode絵文字ビルダー |
 | `onLinkTap` | `void Function(String)?` | null | リンクタップコールバック |
 | `onMentionTap` | `void Function(String)?` | null | メンションタップコールバック |
 | `onHashtagTap` | `void Function(String)?` | null | ハッシュタグタップコールバック |

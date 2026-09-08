@@ -71,10 +71,19 @@ Custom emoji rendering is supported through integration with the `misskey_emoji`
 **Features**:
 - Automatic emoji metadata resolution
 - Image caching with `cached_network_image`
-- Aspect-ratio-preserving rendering with a fixed display height
+- Aspect-ratio-preserving rendering with a context-relative display height (2em by default)
 - Reuse of decoded aspect ratios to stabilize loading placeholders
 - Fallback display for unavailable emojis
 - Animated emoji support (GIF, APNG, WebP)
+
+`MfmEmojiConfig.createDefault` and `fromResolver` use a height of **2em**
+(`context.fontSize * 2`) by default: a 14px font produces a 28px emoji, and
+`$[x4 :emoji:]` produces a 168px emoji. This replaces the previous 24px default.
+The `emojiSize` parameter now defaults to `null`; pass `emojiSize: 24` to keep
+an explicit fixed height. The low-level `MfmCustomEmoji.size` default remains
+24px when constructed directly. Size functions, `tada`, and `<small>` adjust
+the effective font size; `scale` applies its existing paint transform without
+changing that font size (do not multiply the height by `context.scale` again).
 
 Custom emojis use their natural width by default. To cap very wide emojis,
 pass `emojiMaxWidth` to `MfmEmojiConfig` or `maxWidth` to `MfmCustomEmoji`.
@@ -321,11 +330,12 @@ MfmText(
   text: ':custom_emoji: Hello, world!',
   config: MfmRenderConfig(
     // name is passed without colons
-    emojiBuilder: (name) => MfmCustomEmoji(
+    emojiBuilder: (name, context) => MfmCustomEmoji(
       name: name,
       resolver: resolver,
       cacheScope: resolver,
-      size: 24.0, // Display height
+      size: context.fontSize * 2, // 2em display height
+      baselineOffset: context.fontSize * 0.25, // Bottom sits 0.25em below baseline
       maxWidth: 70.0, // Optional
       refreshListenable: emojiRefreshNotifier,
     ),
@@ -355,6 +365,48 @@ MfmCustomEmoji(
       const Icon(Icons.hourglass_empty, size: 16),
 )
 ```
+
+### Emoji Builder Context and Unicode Images
+
+Both `emojiBuilder` and `unicodeEmojiBuilder` now take two arguments. Migrate
+`(name) => ...` to `(name, context) => ...` (or `(name, _) => ...` for a fixed
+widget). The publicly exported immutable `MfmEmojiContext` contains:
+
+- `fontSize`: the current effective font size in logical pixels, including
+  size functions, `tada` (150%), and `<small>` (80%).
+- `scale`: the cumulative x2/x3/x4/scale-function multiplier. `tada` and
+  `<small>` do not change it. For a 14px base, x2 gives `(28, 2)`, x4 gives
+  `(84, 6)`, `scale.x=3,y=3` gives `(14, 3)`, and `tada` gives `(21, 1)`.
+- `useOriginalSize`: `scale >= 2.5`, matching Misskey's original-image hint.
+  `misskey_emoji` 2.0.0-beta.1 exposes only one `EmojiImage.url`, with no
+  original/thumbnail distinction. Automatic original-URL switching requires
+  support in that dependency; no `MfmCustomEmoji.useOriginalSize` option is
+  provided yet. A custom builder with access to both URLs can use the hint.
+
+Both builder results use an alphabetic-baseline `WidgetSpan`. The renderer
+cannot infer an arbitrary widget's image height or descent; the builder must
+provide its baseline. `MfmCustomEmoji.baselineOffset` reports a baseline above
+its box bottom without a paint-only translation, so line layout also accounts
+for the descent. `MfmEmojiConfig` sets this to `context.fontSize * 0.25`.
+
+Without `unicodeEmojiBuilder`, Unicode emoji remain native text. To render
+Twemoji or another image set, implement `unicodeEmojiBuilder` yourself. For
+example, if your `unicodeImageResolver` maps a Unicode string to an
+`EmojiImage` with the appropriate image URL, reuse the image widget as follows:
+
+```dart
+MfmRenderConfig(
+  unicodeEmojiBuilder: (emoji, context) => MfmCustomEmoji(
+    name: emoji,
+    resolver: unicodeImageResolver, // App-provided EmojiResolver
+    size: context.fontSize * 1.25,
+    baselineOffset: context.fontSize * 0.25,
+  ),
+)
+```
+
+This matches Misskey's image height of 1.25em and bottom descent of 0.25em.
+The package does not bundle Twemoji assets or a Unicode-to-image resolver.
 
 ### Custom Font Configuration
 
@@ -457,8 +509,8 @@ void main() {
 | `enableAdvancedMfm` | `bool` | true | Enable advanced features like position |
 | `enableAnimation` | `bool` | true | Enable animations (for future use) |
 | `enableNyaize` | `bool` | false | Enable nyaize (cat-speak) transformation on text nodes |
-| `emojiBuilder` | `Widget Function(String)?` | null | Custom emoji builder |
-| `unicodeEmojiBuilder` | `Widget Function(String)?` | null | Unicode emoji builder |
+| `emojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Custom emoji builder |
+| `unicodeEmojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Unicode emoji builder |
 | `onLinkTap` | `void Function(String)?` | null | Link tap callback |
 | `onMentionTap` | `void Function(String)?` | null | Mention tap callback |
 | `onHashtagTap` | `void Function(String)?` | null | Hashtag tap callback |
