@@ -541,35 +541,34 @@ class MfmFnHandler {
     );
   }
 
-  static Color? _parseColorArg(Map<String, dynamic> args) {
-    final colorValue = args['color'];
-    if (colorValue is String) {
-      final parsed = ColorParser.parse(colorValue);
-      if (parsed != null) {
-        return parsed;
-      }
+  static Color _resolveFgBgColor(Map<String, dynamic> args) {
+    const fallback = Color(0xFFFF0000);
+    final value = args['color'];
+    // 本家と同じく、#や名前色を含まない3〜6桁の16進文字列だけを受理する。
+    if (value is! String ||
+        !RegExp(r'^[0-9a-f]{3,6}$', caseSensitive: false).hasMatch(value)) {
+      return fallback;
     }
 
-    for (final entry in args.entries) {
-      final value = entry.value;
-      if (value == true || value == null) {
-        final parsed = ColorParser.parse(entry.key);
-        if (parsed != null) {
-          return parsed;
-        }
-      }
+    if (value.length == 4) {
+      // CSSの#RGBAをFlutterのARGBに変換し、各桁を2桁に展開する。
+      final rgba = int.parse(value, radix: 16);
+      return Color.fromARGB(
+        (rgba & 0xF) * 0x11,
+        ((rgba >> 12) & 0xF) * 0x11,
+        ((rgba >> 8) & 0xF) * 0x11,
+        ((rgba >> 4) & 0xF) * 0x11,
+      );
     }
 
-    return null;
+    // 5桁は本家の正規表現には一致するがCSSでは無効。
+    // Flutterでは色に変換できない値として赤にフォールバックする。
+    return ColorParser.parse(value) ?? fallback;
   }
 
   static InlineSpan _buildFg(FnNode node, MfmNodeBuilder builder) {
-    final color = _parseColorArg(node.args);
+    final color = _resolveFgBgColor(node.args);
     final children = builder.buildNodes(node.children);
-
-    if (color == null) {
-      return TextSpan(children: children);
-    }
 
     return TextSpan(
       style: TextStyle(color: color),
@@ -578,12 +577,8 @@ class MfmFnHandler {
   }
 
   static InlineSpan _buildBg(FnNode node, MfmNodeBuilder builder) {
-    final color = _parseColorArg(node.args);
+    final color = _resolveFgBgColor(node.args);
     final children = builder.buildNodes(node.children);
-
-    if (color == null) {
-      return TextSpan(children: children);
-    }
 
     return WidgetSpan(
       child: ColoredBox(

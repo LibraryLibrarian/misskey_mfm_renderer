@@ -254,84 +254,119 @@ void main() {
     });
   });
 
+  // fg/bg共通の色解決を、パーサーを通した描画結果で検証する。
+  const colorCases = <String, Color>{
+    '': Color(0xFFFF0000), // color未指定
+    '.color': Color(0xFFFF0000), // 値なし（文字列ではない引数）
+    '.color=red': Color(0xFFFF0000), // 名前色は受理しない
+    '.color=xyz': Color(0xFFFF0000),
+    '.color=ab': Color(0xFFFF0000), // 2桁
+    '.color=abcde': Color(0xFFFF0000), // 5桁は変換不能のため赤
+    '.color=abcdef0': Color(0xFFFF0000), // 7桁
+    '.color=0000ffff': Color(0xFFFF0000), // 8桁
+    '.00ff00': Color(0xFFFF0000), // 引数キーは色として扱わない
+    '.color=xyz,00ff00': Color(0xFFFF0000),
+    '.color=f00': Color(0xFFFF0000),
+    '.color=ff0000': Color(0xFFFF0000),
+    '.color=00f': Color(0xFF0000FF), // 3桁
+    '.color=0000ff': Color(0xFF0000FF), // 6桁
+    '.color=aBcDeF': Color(0xFFABCDEF), // 大文字小文字混在
+    '.color=abcd': Color(0xDDAABBCC), // CSS #RGBA
+    '.color=AbCd': Color(0xDDAABBCC),
+    '.color=00f0': Color(0x000000FF), // 透明な青
+    '.color=00ff': Color(0xFF0000FF), // 不透明な青
+    '.color=00f,00ff00': Color(0xFF0000FF), // color引数だけを参照
+  };
+
   group('MfmText fn fg（前景色）関数', () {
-    testWidgets('fg.colorで6桁16進カラーを適用できる', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: r'$[fg.color=ff0000 red text]'),
+    for (final entry in colorCases.entries) {
+      testWidgets('fg${entry.key}で期待する前景色を適用する', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: MfmText(text: '\$[fg${entry.key} abc]')),
           ),
-        ),
-      );
+        );
 
-      final richText = tester.widget<RichText>(find.byType(RichText).first);
-      final textSpan = richText.text as TextSpan;
-
-      final colorSpan = _findSpanWithStyle(
-        textSpan,
-        (style) => style?.color == const Color(0xFFFF0000),
-      );
-      expect(colorSpan, isNotNull);
-    });
-
-    testWidgets('fg.colorで3桁16進カラーを適用できる', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: r'$[fg.color=f00 red text]'),
-          ),
-        ),
-      );
-
-      final richText = tester.widget<RichText>(find.byType(RichText).first);
-      final textSpan = richText.text as TextSpan;
-
-      final colorSpan = _findSpanWithStyle(
-        textSpan,
-        (style) => style?.color == const Color(0xFFFF0000),
-      );
-      expect(colorSpan, isNotNull);
-    });
-
-    testWidgets('fg.カラー値で位置引数としてカラーを適用できる', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: r'$[fg.00ff00 green text]'),
-          ),
-        ),
-      );
-
-      final richText = tester.widget<RichText>(find.byType(RichText).first);
-      final textSpan = richText.text as TextSpan;
-
-      final colorSpan = _findSpanWithStyle(
-        textSpan,
-        (style) => style?.color == const Color(0xFF00FF00),
-      );
-      expect(colorSpan, isNotNull);
-    });
+        final richText = tester.widget<RichText>(find.byType(RichText).first);
+        final textSpan = richText.text as TextSpan;
+        final colorSpan = _findSpanWithStyle(
+          textSpan,
+          (style) => style?.color == entry.value,
+        );
+        expect(colorSpan, isNotNull);
+        expect(colorSpan!.toPlainText(), 'abc');
+      });
+    }
   });
 
   group('MfmText fn bg（背景色）関数', () {
-    testWidgets('bg.colorで背景色を適用できる', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: r'$[bg.color=0000ff text with bg]'),
+    for (final entry in colorCases.entries) {
+      testWidgets('bg${entry.key}で期待する背景色を適用する', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: MfmText(text: '\$[bg${entry.key} abc]')),
           ),
-        ),
-      );
+        );
 
-      // すべてのColoredBoxウィジェットを検索し、期待する色があるか確認
-      final coloredBoxes = tester.widgetList<ColoredBox>(
-        find.byType(ColoredBox),
-      );
-      final hasBlueBackground = coloredBoxes.any(
-        (box) => box.color == const Color(0xFF0000FF),
-      );
-      expect(hasBlueBackground, isTrue);
-    });
+        final coloredBoxes = tester.widgetList<ColoredBox>(
+          find.byType(ColoredBox),
+        );
+        final backgrounds = coloredBoxes.where(
+          (box) => box.color == entry.value && box.child is RichText,
+        );
+        expect(backgrounds, hasLength(1));
+        final richText = backgrounds.single.child! as RichText;
+        expect(richText.text.toPlainText(), 'abc');
+      });
+    }
+  });
+
+  group('MfmText fn fg/bgの不正なcolor引数', () {
+    // 依存パーサーは#などを含む値をFnNodeにしないため、直接ノードを渡す。
+    for (final name in ['fg', 'bg']) {
+      for (final value in [null, true, 123, '', '#00f', '00ff00#', ' 00f']) {
+        testWidgets('$nameのcolor=$valueは赤にフォールバックする', (tester) async {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  parsedNodes: [
+                    FnNode(
+                      name: name,
+                      args: {'color': value},
+                      children: const [TextNode('abc')],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+
+          if (name == 'fg') {
+            final richText = tester.widget<RichText>(
+              find.byType(RichText).first,
+            );
+            final colorSpan = _findSpanWithStyle(
+              richText.text as TextSpan,
+              (style) => style?.color == const Color(0xFFFF0000),
+            );
+            expect(colorSpan, isNotNull);
+            expect(colorSpan!.toPlainText(), 'abc');
+          } else {
+            final coloredBoxes = tester.widgetList<ColoredBox>(
+              find.byType(ColoredBox),
+            );
+            final backgrounds = coloredBoxes.where(
+              (box) =>
+                  box.color == const Color(0xFFFF0000) && box.child is RichText,
+            );
+            expect(backgrounds, hasLength(1));
+            final richText = backgrounds.single.child! as RichText;
+            expect(richText.text.toPlainText(), 'abc');
+          }
+        });
+      }
+    }
   });
 
   group('MfmText fn border関数', () {
