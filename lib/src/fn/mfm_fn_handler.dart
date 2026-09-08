@@ -524,7 +524,8 @@ class MfmFnHandler {
 
     return WidgetSpan(
       child: ColoredBox(
-        color: color,
+        // 内側の文字は減光済みなので、背景色だけにsmallを反映する。
+        color: color.withValues(alpha: color.a * builder.opacity),
         child: builder.buildInlineRichText(children),
       ),
     );
@@ -577,7 +578,8 @@ class MfmFnHandler {
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(
-            color: color,
+            // RichText全体を包まず、罫線だけを減光する。
+            color: color.withValues(alpha: color.a * builder.opacity),
             width: width,
             style: style,
           ),
@@ -699,12 +701,14 @@ class MfmFnHandler {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: _RubyTextWidget(
-        baseText: baseText,
-        rubyText: rubyText,
-        baseStyle: baseStyle,
-        rubyStyle: rubyStyle,
-        rubyFontSize: rubyFontSize,
+      child: builder.wrapOpacity(
+        _RubyTextWidget(
+          baseText: baseText,
+          rubyText: rubyText,
+          baseStyle: baseStyle,
+          rubyStyle: rubyStyle,
+          rubyFontSize: rubyFontSize,
+        ),
       ),
     );
   }
@@ -737,23 +741,25 @@ class MfmFnHandler {
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.middle,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
-        decoration: BoxDecoration(
-          border: Border.all(color: borderColor),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              const IconData(0xe8b5, fontFamily: 'MaterialIcons'),
-              size: fontSize,
-              color: textStyle.color,
-            ),
-            const SizedBox(width: 4),
-            Text(formattedTime, style: textStyle),
-          ],
+      child: builder.wrapOpacity(
+        Container(
+          padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+          decoration: BoxDecoration(
+            border: Border.all(color: borderColor),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                const IconData(0xe8b5, fontFamily: 'MaterialIcons'),
+                size: fontSize,
+                color: textStyle.color,
+              ),
+              const SizedBox(width: 4),
+              Text(formattedTime, style: textStyle),
+            ],
+          ),
         ),
       ),
     );

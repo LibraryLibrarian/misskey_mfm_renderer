@@ -29,7 +29,7 @@ integration work.
 | **Text Formatting** | Bold | `**bold**` | ✅ |
 | | Italic | `*italic*` / `<i>italic</i>` | ✅ |
 | | Strike | `~~strike~~` | ✅ |
-| | Small | `<small>small</small>` | ✅ |
+| | Small (0.8× inherited font size, 0.7× opacity) | `<small>small</small>` | ✅ |
 | | Plain | `<plain>text</plain>` | ✅ |
 | **Block Elements** | Quote | `> quote` | ✅ |
 | | Center | `<center>text</center>` | ✅ |
@@ -48,6 +48,9 @@ integration work.
 *Math formulas are currently displayed as plain text. Math rendering support is planned for future releases.
 
 ### Additional Notes
+
+**Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
+Text dimming uses the inherited color's alpha, so a child color override (such as `$[fg ...]`) can override the dimming, unlike CSS element opacity.
 
 **Not Yet Implemented:**
 - **Math Rendering**: LaTeX formulas are displayed as plain text. Full math rendering with KaTeX or similar library is planned for future releases.
