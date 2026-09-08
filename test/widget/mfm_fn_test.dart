@@ -649,6 +649,219 @@ void main() {
   });
 
   group('MfmText fn ruby関数', () {
+    final rubyFinder = find.byWidgetPredicate(
+      (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+    );
+
+    for (final example in [
+      (text: r'$[ruby 漢字 かんじ]', base: '漢字', ruby: 'かんじ'),
+      (text: r'$[ruby 漢字 かんじ ふりがな]', base: '漢字', ruby: 'かんじ'),
+    ]) {
+      testWidgets('テキストのみのルビは空白分割した2番目を使う：${example.text}', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: MfmText(text: example.text)),
+          ),
+        );
+
+        expect(rubyFinder, findsOneWidget);
+        final renderObject = tester.renderObject(rubyFinder);
+        final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+        expect(baseSpan.toPlainText(), example.base);
+        expect((renderObject as dynamic).rubyText, example.ruby);
+      });
+    }
+
+    testWidgets('装飾付きベースを太字のまま描画し最後の子をルビにする', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: MfmText(text: r'$[ruby **kanji** よみ]')),
+        ),
+      );
+
+      expect(rubyFinder, findsOneWidget);
+      final renderObject = tester.renderObject(rubyFinder);
+      final baseSpan = (renderObject as dynamic).baseSpan as TextSpan;
+      expect(baseSpan.toPlainText(), 'kanji');
+      final boldSpan = _findSpanWithStyle(
+        baseSpan,
+        (style) => style?.fontWeight == FontWeight.bold,
+      );
+      expect(boldSpan?.toPlainText(), 'kanji');
+      expect((renderObject as dynamic).rubyText, 'よみ');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('最後の子以外のベースをすべて保持しルビの前後だけをトリムする', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[ruby 前**kanji**後 よみ ふりがな ]'),
+          ),
+        ),
+      );
+
+      expect(rubyFinder, findsOneWidget);
+      final renderObject = tester.renderObject(rubyFinder);
+      final baseSpan = (renderObject as dynamic).baseSpan as TextSpan;
+      expect(baseSpan.toPlainText(), '前kanji');
+      expect((renderObject as dynamic).rubyText, '後 よみ ふりがな');
+      expect(
+        _findSpanWithStyle(
+          baseSpan,
+          (style) => style?.fontWeight == FontWeight.bold,
+        )?.toPlainText(),
+        'kanji',
+      );
+    });
+
+    testWidgets('nyaize有効時は漢字のルビを猫語に変換する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'$[ruby 漢字 なにか]',
+              config: MfmRenderConfig(enableNyaize: true),
+            ),
+          ),
+        ),
+      );
+
+      expect(rubyFinder, findsOneWidget);
+      final renderObject = tester.renderObject(rubyFinder);
+      final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+      expect(baseSpan.toPlainText(), '漢字');
+      expect((renderObject as dynamic).rubyText, 'にゃにか');
+    });
+
+    for (final example in [
+      (name: 'テキストのみ', text: r'$[ruby なにか なにか]'),
+      (name: '装飾付き', text: r'$[ruby **なにか** なにか]'),
+    ]) {
+      for (final enabled in [false, true]) {
+        testWidgets('${example.name}のベースとルビがnyaize設定に従う：$enabled', (
+          tester,
+        ) async {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: example.text,
+                  config: MfmRenderConfig(enableNyaize: enabled),
+                ),
+              ),
+            ),
+          );
+
+          expect(rubyFinder, findsOneWidget);
+          final renderObject = tester.renderObject(rubyFinder);
+          final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+          final expected = enabled ? 'にゃにか' : 'なにか';
+          expect(baseSpan.toPlainText(), expected);
+          expect((renderObject as dynamic).rubyText, expected);
+        });
+      }
+
+      testWidgets('引用内では${example.name}のベースとルビをnyaizeしない', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '> ${example.text}',
+                config: const MfmRenderConfig(enableNyaize: true),
+              ),
+            ),
+          ),
+        );
+
+        expect(rubyFinder, findsOneWidget);
+        final renderObject = tester.renderObject(rubyFinder);
+        final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+        expect(baseSpan.toPlainText(), 'なにか');
+        expect((renderObject as dynamic).rubyText, 'なにか');
+      });
+    }
+
+    for (final text in [
+      r'$[ruby $[spin abc] よみ]',
+      r'$[ruby **$[spin abc]** よみ]',
+    ]) {
+      testWidgets('ベースにWidgetSpanが含まれる場合は子要素をそのまま表示する：$text', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: MfmText(text: text)),
+          ),
+        );
+
+        expect(rubyFinder, findsNothing);
+        final richTexts = tester.widgetList<RichText>(find.byType(RichText));
+        expect(
+          richTexts.any((widget) => widget.text.toPlainText().contains('abc')),
+          isTrue,
+        );
+        expect(
+          richTexts.any((widget) => widget.text.toPlainText().contains(' よみ')),
+          isTrue,
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    for (final example in [
+      (text: r'$[ruby 漢字]', expected: '漢字'),
+      (text: r'$[ruby 漢字 ]', expected: '漢字 '),
+      (text: r'$[ruby 漢字 **よみ**]', expected: '漢字 よみ'),
+      (text: r'$[ruby **漢字**]', expected: '漢字'),
+    ]) {
+      testWidgets('ルビがないか最後の子が装飾ノードならそのまま表示する：${example.text}', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: MfmText(text: example.text)),
+          ),
+        );
+
+        expect(rubyFinder, findsNothing);
+        final richTexts = tester.widgetList<RichText>(find.byType(RichText));
+        expect(
+          richTexts.any(
+            (widget) => widget.text.toPlainText() == example.expected,
+          ),
+          isTrue,
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('再ビルドでベースのテキストと装飾とルビを更新できる', (tester) async {
+      Future<void> pumpRuby(String text) => tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: MfmText(text: text)),
+        ),
+      );
+
+      await pumpRuby(r'$[ruby 漢字 かんじ]');
+      final originalRenderObject = tester.renderObject(rubyFinder);
+      await pumpRuby(r'$[ruby **kanji** よみ]');
+
+      final renderObject = tester.renderObject(rubyFinder);
+      expect(renderObject, same(originalRenderObject));
+      final baseSpan = (renderObject as dynamic).baseSpan as TextSpan;
+      expect(baseSpan.toPlainText(), 'kanji');
+      expect(
+        _findSpanWithStyle(
+          baseSpan,
+          (style) => style?.fontWeight == FontWeight.bold,
+        )?.toPlainText(),
+        'kanji',
+      );
+      expect((renderObject as dynamic).rubyText, 'よみ');
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('rubyでルビテキストを上に表示できる', (tester) async {
       // 正しいruby構文: $[ruby ベーステキスト ルビテキスト]
       final nodes = [
@@ -667,13 +880,11 @@ void main() {
         ),
       );
 
-      final rubyFinder = find.byWidgetPredicate(
-        (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
-      );
       expect(rubyFinder, findsOneWidget);
 
       final rubyRenderObject = tester.renderObject(rubyFinder);
-      expect((rubyRenderObject as dynamic).baseText, '振り仮名');
+      final baseSpan = (rubyRenderObject as dynamic).baseSpan as InlineSpan;
+      expect(baseSpan.toPlainText(), '振り仮名');
       expect((rubyRenderObject as dynamic).rubyText, 'ふりがな');
     });
   });
