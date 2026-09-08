@@ -15,6 +15,39 @@ class MfmAuthorContext {
   final String? host;
 }
 
+/// 絵文字ビルダーに渡す描画文脈。
+@immutable
+class MfmEmojiContext {
+  const MfmEmojiContext({required this.fontSize, required this.scale});
+
+  /// 現在の実効フォントサイズ（px）。本家のem計算の基準。
+  final double fontSize;
+
+  /// x2/x3/x4/scale fnの累積倍率。tadaやsmallのサイズ変更は含まない。
+  ///
+  /// scale fnは描画時の変形なので、[fontSize]には反映されない。
+  final double scale;
+
+  /// 本家と同じく2.5倍以上で原寸画像を使うべきか。
+  ///
+  /// 原寸URLを取得できる独自ビルダーで利用するためのヒント。
+  /// 現在のmisskey_emojiの解決結果は原寸・縮小URLを区別しないため、
+  /// MfmEmojiConfigによる自動切替は行わない。
+  bool get useOriginalSize => scale >= 2.5;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MfmEmojiContext &&
+      other.fontSize == fontSize &&
+      other.scale == scale;
+
+  @override
+  int get hashCode => Object.hash(fontSize, scale);
+
+  @override
+  String toString() => 'MfmEmojiContext(fontSize: $fontSize, scale: $scale)';
+}
+
 /// MFMレンダリングの設定クラス
 class MfmRenderConfig {
   const MfmRenderConfig({
@@ -57,12 +90,20 @@ class MfmRenderConfig {
   final bool enableNyaize;
 
   /// カスタム絵文字ビルダー
-  /// nameにはコロンを除いた絵文字名が渡される（例: "wave"）
-  final Widget Function(String name)? emojiBuilder;
+  /// nameにはコロンを除いた絵文字名が渡される（例: "wave"）。
+  /// context.fontSizeを基準に高さを決める（本家の既定は2em）。
+  /// ビルダーの結果はalphabeticベースラインに揃える。画像の下降量は
+  /// ビルダー側で設定する（MfmCustomEmoji.baselineOffsetなど）。
+  final Widget Function(String name, MfmEmojiContext context)? emojiBuilder;
 
   /// Unicode絵文字ビルダー
-  /// emojiには絵文字文字列が渡される（例: "😀"）
-  final Widget Function(String emoji)? unicodeEmojiBuilder;
+  /// emojiには絵文字文字列が渡される（例: "😀"）。
+  /// 未指定時はネイティブの文字として描画する。Twemoji等の画像表示は
+  /// このビルダーで実装し、context.fontSizeを高さの基準に使う
+  /// （本家の既定は1.25em、ベースラインから下へ0.25em）。
+  /// ビルダーの結果はalphabeticベースラインに揃える。
+  final Widget Function(String emoji, MfmEmojiContext context)?
+  unicodeEmojiBuilder;
 
   /// リンクタップ時のコールバック
   final void Function(String url)? onLinkTap;
@@ -161,8 +202,8 @@ class MfmRenderConfig {
     bool? enableAdvancedMfm,
     bool? enableAnimation,
     bool? enableNyaize,
-    Widget Function(String name)? emojiBuilder,
-    Widget Function(String emoji)? unicodeEmojiBuilder,
+    Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
+    Widget Function(String emoji, MfmEmojiContext context)? unicodeEmojiBuilder,
     void Function(String url)? onLinkTap,
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,

@@ -26,7 +26,10 @@ void main() {
     );
 
     expect(config.emojiBuilder, isNotNull);
-    final widget = config.emojiBuilder!.call('test');
+    final widget = config.emojiBuilder!.call(
+      'test',
+      const MfmEmojiContext(fontSize: 14, scale: 1),
+    );
     expect(widget, isA<MfmCustomEmoji>());
     final custom = widget as MfmCustomEmoji;
     expect(custom.name, 'test');
@@ -119,17 +122,12 @@ void main() {
       throwsArgumentError,
     );
     expect(
-      () => preserved.copyWith(
-        localHost: 'other.example',
-        clearLocalHost: true,
-      ),
+      () =>
+          preserved.copyWith(localHost: 'other.example', clearLocalHost: true),
       throwsArgumentError,
     );
 
-    final cleared = preserved.copyWith(
-      clearAuthor: true,
-      clearLocalHost: true,
-    );
+    final cleared = preserved.copyWith(clearAuthor: true, clearLocalHost: true);
     expect(cleared, isA<MfmEmojiConfigHandle>());
     expect(cleared.author, isNull);
     expect(cleared.localHost, isNull);

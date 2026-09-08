@@ -75,8 +75,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     bool? enableAdvancedMfm,
     bool? enableAnimation,
     bool? enableNyaize,
-    Widget Function(String name)? emojiBuilder,
-    Widget Function(String emoji)? unicodeEmojiBuilder,
+    Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
+    Widget Function(String emoji, MfmEmojiContext context)? unicodeEmojiBuilder,
     void Function(String url)? onLinkTap,
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
@@ -264,7 +264,8 @@ class MfmEmojiConfig {
     );
   }
 
-  static Widget Function(String name) _createEmojiBuilder({
+  static Widget Function(String name, MfmEmojiContext context)
+  _createEmojiBuilder({
     required EmojiResolver resolver,
     required Object cacheScope,
     required double emojiSize,
@@ -273,7 +274,7 @@ class MfmEmojiConfig {
     required Widget Function(BuildContext context, String name)?
     fallbackBuilder,
   }) {
-    return (name) => MfmCustomEmoji(
+    return (name, context) => MfmCustomEmoji(
       name: name,
       resolver: resolver,
       cacheScope: cacheScope,
@@ -288,10 +289,7 @@ class MfmEmojiConfig {
     required Uri serverUrl,
     required String directory,
   }) async {
-    final isar = await openEmojiIsarForServer(
-      serverUrl,
-      directory: directory,
-    );
+    final isar = await openEmojiIsarForServer(serverUrl, directory: directory);
     return IsarEmojiStore(isar, ownsIsar: true);
   }
 }

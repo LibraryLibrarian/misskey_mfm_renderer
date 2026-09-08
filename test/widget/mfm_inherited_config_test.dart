@@ -28,79 +28,56 @@ void main() {
   testWidgets('MfmText uses inherited config when explicit is default', (
     tester,
   ) async {
-    const inherited = MfmRenderConfig(
-      emojiBuilder: _emojiTextBuilder,
-    );
+    const inherited = MfmRenderConfig(emojiBuilder: _emojiTextBuilder);
 
     await tester.pumpWidget(
       const MfmConfig(
         config: inherited,
         child: MaterialApp(
-          home: Scaffold(
-            body: MfmText(
-              text: ':emoji:',
-              simple: true,
-            ),
-          ),
+          home: Scaffold(body: MfmText(text: ':emoji:', simple: true)),
         ),
       ),
     );
 
-    expect(find.text('inherited'), findsOneWidget);
+    expect(find.text('inherited:14.0:1.0'), findsOneWidget);
   });
 
   testWidgets('MfmText merges inherited and explicit config', (tester) async {
-    const inherited = MfmRenderConfig(
-      emojiBuilder: _emojiTextBuilder,
-    );
+    const inherited = MfmRenderConfig(emojiBuilder: _emojiTextBuilder);
 
-    final explicit = MfmRenderConfig(
-      onLinkTap: (_) {},
-    );
+    final explicit = MfmRenderConfig(onLinkTap: (_) {});
 
     await tester.pumpWidget(
       MfmConfig(
         config: inherited,
         child: MaterialApp(
           home: Scaffold(
-            body: MfmText(
-              text: ':emoji:',
-              simple: true,
-              config: explicit,
-            ),
+            body: MfmText(text: ':emoji:', simple: true, config: explicit),
           ),
         ),
       ),
     );
 
-    expect(find.text('inherited'), findsOneWidget);
+    expect(find.text('inherited:14.0:1.0'), findsOneWidget);
   });
 
   testWidgets('explicit emojiBuilder overrides inherited', (tester) async {
-    const inherited = MfmRenderConfig(
-      emojiBuilder: _emojiTextBuilder,
-    );
+    const inherited = MfmRenderConfig(emojiBuilder: _emojiTextBuilder);
 
-    const explicit = MfmRenderConfig(
-      emojiBuilder: _emojiTextBuilderExplicit,
-    );
+    const explicit = MfmRenderConfig(emojiBuilder: _emojiTextBuilderExplicit);
 
     await tester.pumpWidget(
       const MfmConfig(
         config: inherited,
         child: MaterialApp(
           home: Scaffold(
-            body: MfmText(
-              text: ':emoji:',
-              simple: true,
-              config: explicit,
-            ),
+            body: MfmText(text: ':emoji:', simple: true, config: explicit),
           ),
         ),
       ),
     );
 
-    expect(find.text('explicit'), findsOneWidget);
+    expect(find.text('explicit:14.0:1.0'), findsOneWidget);
   });
 
   testWidgets('MfmText inherits searchButtonLabel', (tester) async {
@@ -140,9 +117,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MfmConfig(
-        config: const MfmRenderConfig(
-          searchButtonLabel: 'Inherited search',
-        ),
+        config: const MfmRenderConfig(searchButtonLabel: 'Inherited search'),
         child: MaterialApp(
           home: Scaffold(
             body: Builder(
@@ -151,9 +126,7 @@ void main() {
                 locale: const Locale('ja'),
                 child: const MfmText(
                   text: 'flutter Search',
-                  config: MfmRenderConfig(
-                    useLocaleSearchButtonLabel: true,
-                  ),
+                  config: MfmRenderConfig(useLocaleSearchButtonLabel: true),
                 ),
               ),
             ),
@@ -167,6 +140,8 @@ void main() {
   });
 }
 
-Widget _emojiTextBuilder(String _) => const Text('inherited');
+Widget _emojiTextBuilder(String _, MfmEmojiContext context) =>
+    Text('inherited:${context.fontSize}:${context.scale}');
 
-Widget _emojiTextBuilderExplicit(String _) => const Text('explicit');
+Widget _emojiTextBuilderExplicit(String _, MfmEmojiContext context) =>
+    Text('explicit:${context.fontSize}:${context.scale}');
