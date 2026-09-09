@@ -51,6 +51,8 @@ MFMを完全に描画できるようにするため、`misskey_emoji` を依存�
 
 **引用**: `> quote` は本家と同様に引用ブロック全体を0.7減光します。`<small>` の内側ではそれぞれの倍率が乗算されます。
 
+**fnのリテラル表示**: 未知のfn、有効なフォント指定のない `font`、`enableAdvancedMfm: false` 時の `position` は、本家Misskeyと同じく子要素の装飾を維持した `$[name 中身]`（引数は省略）として表示されます。
+
 **未実装の機能:**
 - **数式レンダリング**: LaTeX数式はプレーンテキストで表示されます。KaTeXなどのライブラリを使った完全な数式レンダリングは将来のリリースで対応予定です。
 - **フォントの制限**: `$[font.xxx]` 構文の一部のフォントタイプ（特に `emoji` と `math`）は、プラットフォームの制限によりデフォルトフォントにフォールバックします。代替策を検討中です。
@@ -122,6 +124,8 @@ scopeはレイアウトヒントのキャッシュだけを制御し、resolver�
 || | bounce | `$[bounce text]` | ✅ |
 || | rainbow | `$[rainbow text]` | ✅ |
 || | sparkle | `$[sparkle text]` | ✅ |
+
+`fg` / `bg` の `color` には、`#` なしの3・6桁のRGB、または4桁のRGBAの16進数を指定します。未指定・無効値は本家準拠で赤（`f00`）にフォールバックします。5桁は本家の正規表現には一致しますがCSSでは無効な色として宣言が破棄されるため、本実装でも色を付けません。
 
 ## インストール
 
@@ -238,9 +242,32 @@ MfmText(
     },
     // 任意: ローカライズされた検索ボタンラベルを上書き
     searchButtonLabel: '検索する',
+    // コードブロックのコピー完了時（既定のSnackBarを置き換える）
+    onCodeCopied: (code) {
+      showCopyConfirmation(code);
+    },
+    // 任意: ローカライズされたコードコピー文言を上書き
+    // （codeCopyTooltip はコピーボタンのアクセシビリティラベル）
+    codeCopyTooltip: 'ソースをコピー',
+    codeCopiedMessage: 'ソースをコピーしました',
   ),
 )
 ```
+
+`onCodeCopied` にはクリップボードへの書き込み完了後にコード全文が渡され、
+既定の通知を置き換えます。省略時は `ScaffoldMessenger` の祖先がある場合だけ
+SnackBarを表示し、ない場合は通知せずにコピーを完了します。
+`codeCopiedMessage` はこの既定のSnackBarでのみ使用します。文言を上書きしない場合、
+`codeCopyTooltip` / `codeCopiedMessage` は日本語ロケールで「コピー」/
+「コードをコピーしました」、その他・ロケール未設定時は `Copy` /
+`Copied to clipboard` になります。コピーボタンはMaterialウィジェットを使わずに
+構成しているため `CupertinoApp` / `WidgetsApp` 配下でも動作します。
+ツールチップは表示せず、`codeCopyTooltip` はコピーボタンの
+アクセシビリティ（Semantics）ラベルとして機能します。
+
+コードブロックは `baseTextStyle.fontSize`（ベーススタイル未設定時は周囲の
+`DefaultTextStyle`）を継承し、フォントファミリーは `monospace` を維持します。
+サイズ未指定時はシンタックスハイライターの既定値を使用します。
 
 リモート投稿内のホスト省略メンションを解決するには、投稿者とローカル
 インスタンスのホストを指定します。`onMentionTap`には解決後の完全なacctが
@@ -460,6 +487,9 @@ void main() {
 | `onMentionTap` | `void Function(String)?` | null | メンションタップコールバック |
 | `onHashtagTap` | `void Function(String)?` | null | ハッシュタグタップコールバック |
 | `onSearchTap` | `void Function(String)?` | null | 検索タップコールバック |
+| `onCodeCopied` | `void Function(String)?` | null | コードコピー完了コールバック。指定時は既定のSnackBarを置換し、未指定時はScaffoldMessengerの祖先がある場合のみ通知 |
+| `codeCopyTooltip` | `String?` | 現在のロケール | コードコピーボタンのアクセシビリティラベルの上書き（日本語は`コピー`、その他は`Copy`） |
+| `codeCopiedMessage` | `String?` | 現在のロケール | コピー完了時の既定のSnackBar文言上書き（日本語は`コードをコピーしました`、その他は`Copied to clipboard`） |
 | `author` | `MfmAuthorContext?` | null | ホスト依存の描画に使用する投稿者情報 |
 | `localHost` | `String?` | null | ホスト解決のフォールバックに使用するローカルMisskeyホスト |
 | `searchButtonLabel` | `String?` | 現在のロケール | 検索ボタンのラベル上書き（日本語は`検索`、その他は`Search`） |

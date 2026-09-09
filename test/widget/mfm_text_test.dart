@@ -888,7 +888,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(MfmCodeBlock),
-          matching: find.byType(IconButton),
+          matching: find.byIcon(Icons.content_copy),
         ),
         findsNothing,
       );
@@ -1138,7 +1138,23 @@ void main() {
       expect(tappedMention, '@alice');
     });
 
-    testWidgets('ハッシュタグタップ時にonHashtagTapが呼ばれる', (tester) async {
+    testWidgets('onHashtagTap未設定時はハッシュタグのrecognizerがnullになる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: '#flutter'),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(find.byType(RichText));
+      final textSpan = richText.text as TextSpan;
+      final hashtagSpan = _findSpanWithText(textSpan, '#flutter');
+      expect(hashtagSpan, isNotNull);
+      expect(hashtagSpan!.recognizer, isNull);
+    });
+
+    testWidgets('onHashtagTap設定時はrecognizerがありタップで#なしのタグ名を渡す', (tester) async {
       String? tappedTag;
 
       await tester.pumpWidget(
@@ -1160,10 +1176,10 @@ void main() {
       final hashtagSpan = _findSpanWithText(textSpan, '#flutter');
       expect(hashtagSpan, isNotNull);
 
-      final hashtagRecognizer = hashtagSpan?.recognizer;
-      if (hashtagRecognizer is TapGestureRecognizer) {
-        hashtagRecognizer.onTap?.call();
-      }
+      expect(hashtagSpan!.recognizer, isA<TapGestureRecognizer>());
+      expect(tappedTag, isNull);
+
+      await tester.tap(find.byType(RichText));
 
       expect(tappedTag, 'flutter');
     });
