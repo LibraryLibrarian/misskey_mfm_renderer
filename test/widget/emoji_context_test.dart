@@ -4,7 +4,7 @@ import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 void main() {
   group('MfmEmojiContext', () {
-    test('value equality, hashCode and toString include both fields', () {
+    test('value equality, hashCode and toString include all fields', () {
       const context = MfmEmojiContext(fontSize: 14, scale: 1);
       expect(context, const MfmEmojiContext(fontSize: 14, scale: 1));
       expect(
@@ -20,7 +20,63 @@ void main() {
       expect(context, isNot('context'));
       expect(
         context.toString(),
-        'MfmEmojiContext(fontSize: 14.0, scale: 1.0, normal: false)',
+        'MfmEmojiContext(fontSize: 14.0, scale: 1.0, normal: false, '
+        'host: null, url: null)',
+      );
+    });
+
+    test('remote host and URL participate in value semantics', () {
+      final url = Uri.parse('https://cdn.example/wave.png');
+      final context = MfmEmojiContext(
+        fontSize: 14,
+        scale: 1,
+        host: 'remote.example',
+        url: url,
+      );
+      final sameValue = MfmEmojiContext(
+        fontSize: 14,
+        scale: 1,
+        host: 'remote.example',
+        url: Uri.parse(url.toString()),
+      );
+      expect(context, sameValue);
+      expect(context.hashCode, sameValue.hashCode);
+      expect(
+        context,
+        isNot(
+          MfmEmojiContext(
+            fontSize: 14,
+            scale: 1,
+            host: 'other.example',
+            url: url,
+          ),
+        ),
+      );
+      expect(
+        context,
+        isNot(
+          const MfmEmojiContext(
+            fontSize: 14,
+            scale: 1,
+            host: 'remote.example',
+          ),
+        ),
+      );
+      expect(
+        context,
+        isNot(
+          MfmEmojiContext(
+            fontSize: 14,
+            scale: 1,
+            host: 'remote.example',
+            url: Uri.parse('https://cdn.example/other.png'),
+          ),
+        ),
+      );
+      expect(
+        context.toString(),
+        'MfmEmojiContext(fontSize: 14.0, scale: 1.0, normal: false, '
+        'host: remote.example, url: https://cdn.example/wave.png)',
       );
     });
 

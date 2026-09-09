@@ -153,6 +153,7 @@ MfmRenderConfig _mergeConfigs(
         explicit.onHashtagTapDetails ?? inherited.onHashtagTapDetails,
     onSearchTap: explicit.onSearchTap ?? inherited.onSearchTap,
     author: explicit.author ?? inherited.author,
+    emojiUrls: explicit.emojiUrls ?? inherited.emojiUrls,
     localHost: explicit.localHost ?? inherited.localHost,
     searchButtonLabel: explicit.useLocaleSearchButtonLabel
         ? null
@@ -193,6 +194,7 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.onHashtagTapDetails == defaults.onHashtagTapDetails &&
       config.onSearchTap == defaults.onSearchTap &&
       config.author == defaults.author &&
+      config.emojiUrls == defaults.emojiUrls &&
       config.localHost == defaults.localHost &&
       config.searchButtonLabel == defaults.searchButtonLabel &&
       config.useLocaleSearchButtonLabel ==

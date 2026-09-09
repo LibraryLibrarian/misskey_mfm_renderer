@@ -345,6 +345,34 @@ MfmText(
 )
 ```
 
+### リモート投稿のカスタム絵文字
+
+リモート投稿ごとに、投稿者ホストと絵文字URLマップを渡します。ローカルサーバー用の共有設定を
+もとに、投稿単位でコピーしてください。
+
+```dart
+MfmText(
+  text: note.text,
+  config: config.copyWith(
+    author: const MfmAuthorContext(host: 'remote.example'),
+    emojiUrls: note.emojis,
+  ),
+)
+```
+
+ローカル投稿では、カスタム絵文字は設定済みのローカルresolverで解決します。リモート投稿では、
+まず`emojiUrls`のshortcode完全一致キーを使い、空でないURLがあれば直接使用します。
+`emojiUrls`が存在していて該当shortcodeのキーがない場合は、フォールバックせず`:name:`を
+リテラル表示します。`emojiUrls`自体がない場合（または一致したURLが空の場合）は、
+`MfmEmojiConfig`がローカルMisskeyサーバーの`/emoji/name@host.webp`エンドポイントへ
+フォールバックします。`MfmEmojiConfig.createDefault`はclientからこのサーバーURLを取得します。
+`MfmEmojiConfig.fromResolver`では、リモートエンドポイントのフォールバックを有効にするため
+`serverBaseUrl`を指定してください。指定しない場合、直接URLのないリモート絵文字は
+リテラル表示となり、ローカルresolverでは解決しません。
+
+`emojiUrls`は不変として扱ってください。`MfmRenderConfig`へ渡した後でMapを変更しても、
+Inherited設定のリスナーには通知されません。投稿データが変わった場合は、新しいMapに置き換えてください。
+
 ### 高度なカスタム絵文字の設定
 
 Misskeyサーバーのカスタム絵文字を表示するには、`misskey_emoji` ライブラリと連携します：

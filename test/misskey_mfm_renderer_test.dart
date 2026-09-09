@@ -15,6 +15,7 @@ void main() {
       expect(config.onHashtagTapDetails, isNull);
       expect(config.baseTextStyle, null);
       expect(config.author, null);
+      expect(config.emojiUrls, isNull);
       expect(config.localHost, null);
       expect(config.searchButtonLabel, null);
       expect(config.useLocaleSearchButtonLabel, false);
@@ -162,6 +163,40 @@ void main() {
       );
       expect(cleared.author, isNull);
       expect(cleared.localHost, isNull);
+    });
+
+    test('emojiUrls can be preserved, replaced, emptied and cleared', () {
+      const urls = {'Wave': 'https://remote.example/wave.png'};
+      const config = MfmRenderConfig(emojiUrls: urls);
+      expect(config.copyWith().emojiUrls, same(urls));
+      expect(config.copyWith(enableAnimation: false).emojiUrls, same(urls));
+      expect(
+        // ignore: avoid_redundant_argument_values
+        config.copyWith(emojiUrls: null).emojiUrls,
+        same(urls),
+      );
+      const replacement = {'Other': 'https://other.example/emoji.png'};
+      expect(
+        config.copyWith(emojiUrls: replacement).emojiUrls,
+        same(replacement),
+      );
+      expect(config.copyWith(emojiUrls: {}).emojiUrls, isEmpty);
+      expect(config.copyWith(clearEmojiUrls: true).emojiUrls, isNull);
+      expect(config.emojiUrls, same(urls));
+      expect(
+        const MfmRenderConfig().copyWith(clearEmojiUrls: true).emojiUrls,
+        isNull,
+      );
+    });
+
+    test('copyWith rejects conflicting emojiUrls operations', () {
+      expect(
+        () => const MfmRenderConfig().copyWith(
+          emojiUrls: {},
+          clearEmojiUrls: true,
+        ),
+        throwsArgumentError,
+      );
     });
 
     test('copyWith rejects conflicting mention context operations', () {

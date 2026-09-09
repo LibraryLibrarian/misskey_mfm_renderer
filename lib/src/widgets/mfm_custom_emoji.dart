@@ -11,7 +11,8 @@ class MfmCustomEmoji extends StatefulWidget {
   const MfmCustomEmoji({
     super.key,
     required this.name,
-    required this.resolver,
+    this.resolver,
+    this.url,
     this.size = 24.0,
     this.baselineOffset,
     this.maxWidth,
@@ -21,7 +22,8 @@ class MfmCustomEmoji extends StatefulWidget {
     this.fallbackBuilder,
     this.errorBuilder,
     this.loadingBuilder,
-  }) : assert(size > 0),
+  }) : assert(resolver != null || url != null),
+       assert(size > 0),
        assert(
          baselineOffset == null ||
              (baselineOffset > double.negativeInfinity &&
@@ -34,7 +36,15 @@ class MfmCustomEmoji extends StatefulWidget {
        );
 
   final String name;
-  final EmojiResolver resolver;
+
+  /// Resolves the emoji when [url] is omitted.
+  final EmojiResolver? resolver;
+
+  /// A direct image URL, taking precedence over [resolver].
+  ///
+  /// Image errors use [errorBuilder] or the shortcode fallback; they never
+  /// retry through [resolver]. At least one of [url] or [resolver] is required.
+  final Uri? url;
 
   /// The displayed height of the emoji in logical pixels.
   final double size;
@@ -72,8 +82,10 @@ class MfmCustomEmoji extends StatefulWidget {
   /// affect the result, such as a host or account. A Dart record such as
   /// `(resolverOwner, preferredHost)` can combine multiple inputs.
   ///
-  /// When omitted, [resolver] itself is used. This value only controls cache
-  /// reuse; changing [resolver] still causes the emoji to be resolved again.
+  /// When omitted, [resolver] itself (or [url] for URL-only images) is used.
+  /// Direct [url] values also separate cache entries within the same scope.
+  /// This value only controls cache reuse; changing [resolver] or [url] still
+  /// causes the emoji to be resolved again.
   final Object? cacheScope;
 
   /// An optional signal that causes the emoji metadata to be resolved again.
@@ -103,7 +115,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   static final Set<String> _observingUrls = {};
   static int _cacheGeneration = 0;
 
-  late Future<EmojiImage?> _emojiFuture;
+  late Future<Uri?> _emojiFuture;
   bool _retryOnUpdate = false;
 
   static void _debugClearCaches() {
@@ -129,6 +141,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     }
     if (oldWidget.name != widget.name ||
         oldWidget.resolver != widget.resolver ||
+        oldWidget.url != widget.url ||
         _cacheScopeOf(oldWidget) != _cacheScopeOf(widget) ||
         _retryOnUpdate) {
       _resolveEmoji();
@@ -149,7 +162,10 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   }
 
   void _resolveEmoji() {
-    final future = widget.resolver(widget.name);
+    final url = widget.url;
+    final future = url != null
+        ? Future<Uri?>.value(url)
+        : widget.resolver!(widget.name).then((emoji) => emoji?.url);
     _emojiFuture = future;
     _retryOnUpdate = false;
     unawaited(
@@ -170,7 +186,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 
   @override
   Widget build(BuildContext context) {
-    final child = FutureBuilder<EmojiImage?>(
+    final child = FutureBuilder<Uri?>(
       future: _emojiFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
@@ -178,12 +194,12 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
             return _errorWidget(context, snapshot.error!);
           }
 
-          final emoji = snapshot.data;
-          if (emoji == null) {
+          final resolvedUrl = snapshot.data;
+          if (resolvedUrl == null) {
             return _fallbackWidget(context);
           }
 
-          final url = emoji.url.toString();
+          final url = resolvedUrl.toString();
           _resolvedUrls[_cacheKey] = url;
           final suppliedAspectRatio = widget.aspectRatio;
           if (suppliedAspectRatio != null) {
@@ -226,17 +242,18 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   _EmojiCacheKey get _cacheKey => _EmojiCacheKey(
     scope: _cacheScopeOf(widget),
     name: widget.name,
+    url: widget.url,
   );
 
   Object _cacheScopeOf(MfmCustomEmoji target) =>
-      target.cacheScope ?? target.resolver;
+      target.cacheScope ?? target.resolver ?? target.url!;
 
   double? get _knownAspectRatio {
     final suppliedAspectRatio = widget.aspectRatio;
     if (suppliedAspectRatio != null) {
       return suppliedAspectRatio;
     }
-    final url = _resolvedUrls[_cacheKey];
+    final url = widget.url?.toString() ?? _resolvedUrls[_cacheKey];
     return url == null ? null : _aspectRatios[url];
   }
 
@@ -387,17 +404,22 @@ class _EmojiCacheKey {
   const _EmojiCacheKey({
     required this.scope,
     required this.name,
+    required this.url,
   });
 
   final Object scope;
   final String name;
+  final Uri? url;
 
   @override
   bool operator ==(Object other) =>
-      other is _EmojiCacheKey && other.scope == scope && other.name == name;
+      other is _EmojiCacheKey &&
+      other.scope == scope &&
+      other.name == name &&
+      other.url == url;
 
   @override
-  int get hashCode => Object.hash(scope, name);
+  int get hashCode => Object.hash(scope, name, url);
 }
 
 class _LruCache<K, V> {

@@ -864,5 +864,154 @@ void main() {
       expect(find.byKey(const Key('custom-error')), findsOneWidget);
       expect(find.text('ERROR:error'), findsOneWidget);
     });
+
+    testWidgets('URL直指定時はresolverを呼ばない', (tester) async {
+      var resolveCount = 0;
+      Future<EmojiImage?> resolver(String _) async {
+        resolveCount++;
+        return null;
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'direct',
+            url: Uri.parse('https://cdn.example/direct.webp'),
+            resolver: resolver,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(resolveCount, 0);
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://cdn.example/direct.webp',
+      );
+    });
+
+    testWidgets('URLとresolverの両指定時はURLを優先する', (tester) async {
+      var resolveCount = 0;
+      Future<EmojiImage?> resolver(String _) async {
+        resolveCount++;
+        return EmojiImage(
+          url: Uri.parse('https://resolver.example/emoji.webp'),
+          animated: false,
+          isSensitive: false,
+        );
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'preferred',
+            url: Uri.parse('https://cdn.example/preferred.webp'),
+            resolver: resolver,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(resolveCount, 0);
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://cdn.example/preferred.webp',
+      );
+    });
+
+    testWidgets('URLの更新時に再解決する', (tester) async {
+      Widget buildApp(Uri url) => MaterialApp(
+        home: MfmCustomEmoji(name: 'updated', url: url),
+      );
+
+      await tester.pumpWidget(
+        buildApp(Uri.parse('https://cdn.example/first.webp')),
+      );
+      await tester.pump();
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://cdn.example/first.webp',
+      );
+
+      await tester.pumpWidget(
+        buildApp(Uri.parse('https://cdn.example/second.webp')),
+      );
+      await tester.pump();
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://cdn.example/second.webp',
+      );
+    });
+
+    testWidgets('直指定URLの画像エラーはshortcodeへフォールバックする', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'broken',
+            url: Uri.parse('https://cdn.example/broken.webp'),
+          ),
+        ),
+      );
+      await tester.pump();
+      final image = tester.widget<CachedNetworkImage>(
+        find.byType(CachedNetworkImage),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: image.errorWidget!(
+            tester.element(find.byType(CachedNetworkImage)),
+            image.imageUrl,
+            Exception('image failed'),
+          ),
+        ),
+      );
+
+      expect(find.text(':broken:'), findsOneWidget);
+    });
+
+    testWidgets('同名でもURLが異なればアスペクト比キャッシュを分離する', (
+      tester,
+    ) async {
+      final scope = Object();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'same-name',
+            url: Uri.parse('https://first.remote.example/emoji.webp'),
+            cacheScope: scope,
+            aspectRatio: 4,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'same-name',
+            url: Uri.parse('https://second.remote.example/emoji.webp'),
+            cacheScope: scope,
+          ),
+        ),
+      );
+
+      final placeholder = find.byWidgetPredicate(
+        (widget) =>
+            widget is SizedBox && widget.width == 0 && widget.height == 24,
+      );
+      expect(placeholder, findsOneWidget);
+    });
   });
 }
