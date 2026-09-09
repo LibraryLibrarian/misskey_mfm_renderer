@@ -51,6 +51,9 @@ MFMを完全に描画できるようにするため、`misskey_emoji` を依存�
 **小文字**: `<small>` はネストするたびに継承サイズを0.8倍にし、0.7減光します。
 減光は継承色のalphaだけでなく、`$[fg ...]` やリンク色などの固定色、絵文字などのウィジェットにも適用されるため、子の色指定で減光が打ち消されることはありません。
 
+**URL表示**: 自動リンクされたHTTP(S) URLをscheme、host、port、path、query、fragmentに分解し、本家Misskeyの`MkUrl`と同じ強調で表示します。Punycode hostとpercent encodeされたhost・path・query・fragmentは表示用にだけdecodeし、`onLinkTap`には常に元のURLを渡します。外部URLの末尾には外部リンクiconを表示するため、アプリで`MaterialIcons`フォントをbundleする必要があります。
+自インスタンス宛てURLを短縮するには`MfmRenderConfig.localHost`を設定します。root以外はschemeとhostを省略し、root URLは太字のhostを表示します。現APIは完全なoriginではなくhostだけを受け取るため、この判定はhostベースの近似です。大文字小文字を区別せず末尾dotを無視し、`localHost`にportがある場合だけURLのeffective portも比較します。HTTPとHTTPSは区別できず、portを省略した場合はhostだけを比較します。
+
 **引用**: `> quote` は本家の `QUOTE_STYLE` に合わせ、行全幅を使い、四辺8pxのmargin、上下6px・左12px・右0pxのpadding、幅3pxの左罫線で表示します。文字と罫線には選択中の `MfmColorScheme.fg` を使い、引用と `<small>` の各階層で元のalphaに0.7を乗算します。引用色は `baseTextStyle` / `DefaultTextStyle` とは独立しています。
 ブロック表示は有限幅の親（例: `SizedBox(width: 300)` や `Row` 内の `Expanded`）を前提とします。`Row` 内の非 `Expanded` 子など幅が無制約の場合は自然幅となり、独立した行になる保証はありません。境界の改行は追加しません。隣接引用のCSS margin collapseやブロック前後の余分な改行の扱いまでは完全再現していません。
 
@@ -630,7 +633,7 @@ void main() {
 | `codeCopyTooltip` | `String?` | 現在のロケール | コードコピーボタンのアクセシビリティラベルの上書き（日本語は`コピー`、その他は`Copy`） |
 | `codeCopiedMessage` | `String?` | 現在のロケール | コピー完了時の既定のSnackBar文言上書き（日本語は`コードをコピーしました`、その他は`Copied to clipboard`） |
 | `author` | `MfmAuthorContext?` | null | ホスト依存の描画に使用する投稿者情報 |
-| `localHost` | `String?` | null | ホスト解決のフォールバックに使用するローカルMisskeyホスト |
+| `localHost` | `String?` | null | ホスト解決とself URL短縮に使用するローカルMisskeyホスト |
 | `searchButtonLabel` | `String?` | 現在のロケール | 検索ボタンのラベル上書き（日本語は`検索`、その他は`Search`） |
 | `useLocaleSearchButtonLabel` | `bool` | false | 設定済みまたは継承した検索ラベルを解除し、現在のロケールから解決 |
 | `fontFamilyResolver` | `String? Function(String)?` | null | フォントファミリー解決関数 |
