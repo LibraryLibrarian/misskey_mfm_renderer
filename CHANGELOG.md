@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Mi Light / Mi Dark準拠の `MfmColorScheme` と `MfmRenderConfig.lightColorScheme` / `darkColorScheme` を追加し、リンク、メンション、ハッシュタグ、引用、検索、border fn、unixtime、インラインコードの色をlight/dark別に設定可能にした（#50）。
+
 ### Fixed
 - 引用を有限幅の親では行全幅のブロックとして表示し、前後のテキストと分離。幅が無制約の場合は自然幅にフォールバックする（#32）。
-- 引用の余白を本家の `QUOTE_STYLE`（四辺margin 8px、padding 上下6px・左12px・右0px）に合わせ、幅3pxの左罫線と文字にルートの未減光文字色から累積opacityを適用するよう修正。色未指定時も文字と罫線に同じ既定色を使用する（#52）。
+- 引用の余白を本家の `QUOTE_STYLE`（四辺margin 8px、padding 上下6px・左12px・右0px）に合わせ、幅3pxの左罫線と文字に `MfmColorScheme.fg` から累積opacityを適用するよう修正（#52）。
+- 検索欄とボタンを `MfmColorScheme.divider` の枠線で隙間なく連結し、固定の青背景・白文字を削除して本家の外観に合わせた（#53）。
 
 ### Changed
 - **Breaking:** `emojiBuilder` / `unicodeEmojiBuilder` を `Widget Function(String, MfmEmojiContext)` に変更し、実効フォントサイズと累積スケールを渡すようにした（#47、#57）。
@@ -18,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scale` fnの累積倍率を `(|x| + |y|) / 2` から本家と同じ `max(|x|, |y|)` に修正。`$[scale.x=3,y=1]` の `MfmEmojiContext.scale` が2.0から3.0になり、`useOriginalSize` の判定も本家と一致する（#47）。
 - `MfmEmojiContext.useOriginalSize` に原寸画像利用の判定（scale >= 2.5）を追加。`misskey_emoji` が原寸・縮小URLを区別しないため、自動切替は行わず独自ビルダー向けのヒントとして提供する（#47）。
 - インラインコードの文字サイズ・色・太字などを親から継承し、余白と角丸をem相対に変更（#54）。
+- **Breaking:** URL / link の既定の下線を削除して本家Misskeyと同じ下線なし表示へ変更し、リンク色を固定 `#0066CC` から選択中の `MfmColorScheme.link` へ変更（#50）。
+- **Breaking:** `inlineCodeBgColorLight` / `inlineCodeBgColorDark` を削除し、インラインコード背景を `MfmColorScheme.bg` に統合。既定値はMi Light `#f9f9f9` / Mi Dark `#232323` となる。旧設定は `lightColorScheme: MfmColorScheme.light(bg: color)` / `darkColorScheme: MfmColorScheme.dark(bg: color)` へ移行する（#50）。
 - 数式のカード表示・余白・中央寄せ・全幅化を廃止し、本家Misskeyと同じ装飾のない等幅テキストに変更（#51、見た目の変更）。
 
 ## [0.6.0-beta.1] - 2026-08-15
