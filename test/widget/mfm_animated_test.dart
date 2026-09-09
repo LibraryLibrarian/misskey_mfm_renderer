@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
@@ -264,6 +266,109 @@ void main() {
       await tester.pump();
       expect(find.byType(Transform), findsWidgets);
     });
+  });
+
+  group('twitch / shake のキーフレーム区間イージング', () {
+    const ease = Cubic(.25, .1, .25, 1);
+
+    for (final isShake in [false, true]) {
+      final name = isShake ? 'shake' : 'twitch';
+
+      testWidgets('$nameは最初の区間の中点にeaseを適用する', (tester) async {
+        await _pumpTwitchOrShake(tester, isShake: isShake);
+        await tester.pump(const Duration(microseconds: 12500));
+
+        final q = ease.transform(.5);
+        _expectTwitchOrShakeTransform(
+          tester,
+          isShake: isShake,
+          x: isShake ? -3 + 3 * q : 7 - 10 * q,
+          y: isShake ? -1 : -2 + 3 * q,
+          rotateDeg: isShake ? -8 - 2 * q : null,
+        );
+      });
+
+      testWidgets('$nameは5%境界でキーフレーム値になる', (tester) async {
+        await _pumpTwitchOrShake(tester, isShake: isShake);
+        await tester.pump(const Duration(milliseconds: 25));
+
+        _expectTwitchOrShakeTransform(
+          tester,
+          isShake: isShake,
+          x: isShake ? 0 : -3,
+          y: isShake ? -1 : 1,
+          rotateDeg: isShake ? -10 : null,
+        );
+      });
+
+      testWidgets('$nameは後半の区間にもeaseを適用する', (tester) async {
+        await _pumpTwitchOrShake(tester, isShake: isShake);
+        await tester.pump(const Duration(microseconds: 112500));
+
+        final q = ease.transform(.5);
+        _expectTwitchOrShakeTransform(
+          tester,
+          isShake: isShake,
+          x: isShake ? -2 + q : -8 + 4 * q,
+          y: isShake ? 1 - 3 * q : 6 - 9 * q,
+          rotateDeg: isShake ? 1 - 3 * q : null,
+        );
+      });
+
+      testWidgets('$nameはspeed変更後も区間の中点にeaseを適用する', (tester) async {
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          duration: const Duration(seconds: 1),
+        );
+        await tester.pump(const Duration(milliseconds: 25));
+
+        final q = ease.transform(.5);
+        _expectTwitchOrShakeTransform(
+          tester,
+          isShake: isShake,
+          x: isShake ? -3 + 3 * q : 7 - 10 * q,
+          y: isShake ? -1 : -2 + 3 * q,
+          rotateDeg: isShake ? -8 - 2 * q : null,
+        );
+      });
+
+      testWidgets('$nameは負のdelayの位相にも区間のeaseを適用する', (tester) async {
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: const Duration(microseconds: -12500),
+        );
+
+        final q = ease.transform(.5);
+        _expectTwitchOrShakeTransform(
+          tester,
+          isShake: isShake,
+          x: isShake ? -3 + 3 * q : 7 - 10 * q,
+          y: isShake ? -1 : -2 + 3 * q,
+          rotateDeg: isShake ? -8 - 2 * q : null,
+        );
+      });
+
+      testWidgets('$nameは正のdelay後に区間のeaseで進行する', (tester) async {
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: const Duration(milliseconds: 10),
+        );
+        await tester.pump(const Duration(milliseconds: 10));
+        await tester.pump(const Duration(microseconds: 12500));
+
+        final q = ease.transform(.5);
+        _expectTwitchOrShakeTransform(
+          tester,
+          isShake: isShake,
+          x: isShake ? -3 + 3 * q : 7 - 10 * q,
+          y: isShake ? -1 : -2 + 3 * q,
+          rotateDeg: isShake ? -8 - 2 * q : null,
+        );
+      });
+    }
   });
 
   group('MfmText shake アニメーション', () {
@@ -1392,4 +1497,52 @@ bool _spanContainsText(InlineSpan span, String text) {
     }
   }
   return false;
+}
+
+Future<void> _pumpTwitchOrShake(
+  WidgetTester tester, {
+  required bool isShake,
+  Duration duration = const Duration(milliseconds: 500),
+  Duration delay = Duration.zero,
+}) async {
+  const child = Text('test');
+  await tester.pumpWidget(
+    Directionality(
+      textDirection: TextDirection.ltr,
+      child: Center(
+        child: isShake
+            ? MfmShakeWidget(
+                duration: duration,
+                delay: delay,
+                child: child,
+              )
+            : MfmTwitchWidget(
+                duration: duration,
+                delay: delay,
+                child: child,
+              ),
+      ),
+    ),
+  );
+  await tester.pump();
+}
+
+void _expectTwitchOrShakeTransform(
+  WidgetTester tester, {
+  required bool isShake,
+  required double x,
+  required double y,
+  double? rotateDeg,
+}) {
+  final matrix = tester.widget<Transform>(find.byType(Transform)).transform;
+  expect(matrix.storage[12], closeTo(x, 1e-9));
+  expect(matrix.storage[13], closeTo(y, 1e-9));
+
+  if (isShake) {
+    final radians = rotateDeg! * math.pi / 180;
+    expect(matrix.storage[0], closeTo(math.cos(radians), 1e-9));
+    expect(matrix.storage[1], closeTo(math.sin(radians), 1e-9));
+    expect(matrix.storage[4], closeTo(-math.sin(radians), 1e-9));
+    expect(matrix.storage[5], closeTo(math.cos(radians), 1e-9));
+  }
 }

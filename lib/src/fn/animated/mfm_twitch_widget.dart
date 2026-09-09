@@ -58,7 +58,9 @@ class MfmTwitchWidget extends StatelessWidget {
       final end = _keyframes[i + 1];
 
       if (t >= start.t && t <= end.t) {
-        final localT = (t - start.t) / (end.t - start.t);
+        final localT = _twitchCurve.transform(
+          (t - start.t) / (end.t - start.t),
+        );
         return Offset(
           start.x + (end.x - start.x) * localT,
           start.y + (end.y - start.y) * localT,
@@ -76,7 +78,6 @@ class MfmTwitchWidget extends StatelessWidget {
       duration: duration,
       delay: delay,
       enabled: enabled,
-      curve: _twitchCurve,
       child: child,
       builder: (context, child, controller, progress) {
         final offset = _resolveOffset(progress.value);

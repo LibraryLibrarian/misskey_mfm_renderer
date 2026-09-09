@@ -150,6 +150,9 @@ For `fg` / `bg`, use 3- or 6-digit RGB or 4-digit RGBA hexadecimal `color` value
 `tada` applies 150% of the parent's actual font size, including when animations
 are disabled. This enlarges the text's layout size, not just its painted size.
 
+Like Misskey, `twitch` and `shake` apply `ease` to each adjacent keyframe
+interval.
+
 ## Getting started
 
 This package requires Flutter 3.38.1 or later (Dart 3.10.0 or later). The

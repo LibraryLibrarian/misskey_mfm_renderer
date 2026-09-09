@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MfmHashtagTapDetails` と `onHashtagTapDetails` を追加。詳細コールバックはタグ、isNote、エンコード済みの `/tags/...` または `/user-tags/...` を受け取り、指定時は既存の `onHashtagTap` より優先する（#39）。
 
 ### Fixed
+- `twitch` と `shake` の `ease` をアニメーション全体ではなく、本家Misskeyと同じく隣接する各キーフレーム区間へ適用するよう修正（#42）。
 - 引用を有限幅の親では行全幅のブロックとして表示し、前後のテキストと分離。幅が無制約の場合は自然幅にフォールバックする（#32）。
 - 引用の余白を本家の `QUOTE_STYLE`（四辺margin 8px、padding 上下6px・左12px・右0px）に合わせ、幅3pxの左罫線と文字にルートの未減光文字色から累積opacityを適用するよう修正。色未指定時も文字と罫線に同じ既定色を使用する（#52）。
 
