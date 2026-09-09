@@ -239,36 +239,27 @@ void main() {
       expect(find.byType(Transform), findsWidgets);
     });
 
-    testWidgets('advancedMfm無効時はpositionが無視される', (tester) async {
-      // 正しい構造を確保するためにパース済みノードを直接使用
-      final nodes = [
-        const FnNode(
-          name: 'position',
-          args: {'x': '1', 'y': '1'},
-          children: [TextNode('positioned')],
-        ),
-      ];
-
+    testWidgets('advancedMfm無効時はpositionを引数なしのリテラルで表示する', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: MfmText(
-              parsedNodes: nodes,
-              config: const MfmRenderConfig(enableAdvancedMfm: false),
+              text: r'$[position.x=1 abc]',
+              config: MfmRenderConfig(enableAdvancedMfm: false),
             ),
           ),
         ),
       );
 
-      // advancedMfmが無効の場合、positionはTransform.translateを
-      // 適用しない。テキストは引き続きレンダリングされる
-      expect(find.byType(MfmText), findsOneWidget);
-
-      // ウィジェットツリー構造を確認してTransform.translateが
-      // 適用されていないことを検証。重要な動作は位置オフセットなしで
-      // テキストがレンダリングされること
       final richText = tester.widget<RichText>(find.byType(RichText));
-      expect(richText, isNotNull);
+      expect(richText.text.toPlainText(), r'$[position abc]');
+      expect(
+        find.descendant(
+          of: find.byType(MfmText),
+          matching: find.byType(Transform),
+        ),
+        findsNothing,
+      );
     });
   });
 
@@ -504,6 +495,34 @@ void main() {
   });
 
   group('MfmText fn font関数', () {
+    testWidgets('有効なフォント指定がない場合はリテラルで表示する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[font abc]'),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(find.byType(RichText));
+      expect(richText.text.toPlainText(), r'$[font abc]');
+    });
+
+    for (final fontType in ['emoji', 'math']) {
+      testWidgets('font.$fontTypeはリテラル化せず子要素を表示する', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(text: '\$[font.$fontType abc]'),
+            ),
+          ),
+        );
+
+        final richText = tester.widget<RichText>(find.byType(RichText));
+        expect(richText.text.toPlainText(), 'abc');
+      });
+    }
+
     testWidgets('font.serifでセリフフォントを適用できる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -855,17 +874,38 @@ void main() {
   });
 
   group('MfmText 未知のfn関数', () {
-    testWidgets('未知のfn関数は子要素をそのまま表示する', (tester) async {
+    testWidgets('未知のfn関数はリテラルで表示する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: r'$[unknown content]'),
+            body: MfmText(text: r'$[foobar abc]'),
           ),
         ),
       );
 
-      // エラーなくコンテンツがレンダリングされる
-      expect(find.byType(MfmText), findsOneWidget);
+      final richText = tester.widget<RichText>(find.byType(RichText));
+      expect(richText.text.toPlainText(), r'$[foobar abc]');
+    });
+
+    testWidgets('未知のfn関数をリテラルで囲んでも子要素の太字装飾を維持する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[foobar **abc**]'),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(find.byType(RichText));
+      final textSpan = richText.text as TextSpan;
+      expect(textSpan.toPlainText(), r'$[foobar abc]');
+
+      final boldSpan = _findSpanWithStyle(
+        textSpan,
+        (style) => style?.fontWeight == FontWeight.bold,
+      );
+      expect(boldSpan, isNotNull);
+      expect(boldSpan!.toPlainText(), 'abc');
     });
   });
 }

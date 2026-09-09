@@ -82,9 +82,19 @@ class MfmFnHandler {
         return _buildSparkle(node, builder);
 
       default:
-        // 未知のfn関数は子要素をそのまま表示
-        return TextSpan(children: builder.buildNodes(node.children));
+        return _buildLiteral(node, builder);
     }
+  }
+
+  /// 効果が決まらなかったfnを本家と同じく `$[name 中身]` のリテラルで表示する
+  static InlineSpan _buildLiteral(FnNode node, MfmNodeBuilder builder) {
+    return TextSpan(
+      children: [
+        TextSpan(text: '\$[${node.name} '),
+        ...builder.buildNodes(node.children),
+        const TextSpan(text: ']'),
+      ],
+    );
   }
 
   // 各fn関数の実装（初期はプレースホルダー、後続タスクで実装）
@@ -502,9 +512,9 @@ class MfmFnHandler {
   }
 
   static InlineSpan _buildPosition(FnNode node, MfmNodeBuilder builder) {
-    // advancedMfmが無効な場合は子要素をそのまま表示
+    // advancedMfmが無効な場合はリテラルで表示
     if (!builder.config.enableAdvancedMfm) {
-      return TextSpan(children: builder.buildNodes(node.children));
+      return _buildLiteral(node, builder);
     }
 
     final args = node.args;
@@ -682,7 +692,6 @@ class MfmFnHandler {
 
   static InlineSpan _buildFont(FnNode node, MfmNodeBuilder builder) {
     final args = node.args;
-    final children = builder.buildNodes(node.children);
 
     // フォントタイプを特定
     String? fontType;
@@ -701,8 +710,10 @@ class MfmFnHandler {
     }
 
     if (fontType == null) {
-      return TextSpan(children: children);
+      return _buildLiteral(node, builder);
     }
+
+    final children = builder.buildNodes(node.children);
 
     // カスタムリゾルバーがあればそれを使用
     final customFont = builder.config.fontFamilyResolver?.call(fontType);
