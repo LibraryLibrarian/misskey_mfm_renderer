@@ -774,7 +774,8 @@ void main() {
       );
 
       await tester.pump();
-      expect(find.byType(ShaderMask), findsWidgets);
+      expect(find.byType(ColorFiltered), findsNWidgets(3));
+      expect(find.byType(ShaderMask), findsNothing);
     });
 
     testWidgets('アニメーション無効時はフォールバックグラデーションが適用される', (tester) async {
@@ -812,7 +813,8 @@ void main() {
       );
 
       await tester.pump();
-      expect(find.byType(ShaderMask), findsWidgets);
+      expect(find.byType(ColorFiltered), findsNWidgets(3));
+      expect(find.byType(ShaderMask), findsNothing);
     });
 
     testWidgets('rainbow.delay=0.5sで開始遅延を設定できる', (tester) async {
@@ -827,7 +829,23 @@ void main() {
       );
 
       await tester.pump();
-      expect(find.byType(ShaderMask), findsWidgets);
+      expect(find.byType(ColorFiltered), findsNothing);
+      expect(find.byType(ShaderMask), findsNothing);
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      expect(find.byType(ColorFiltered), findsNWidgets(3));
+      final initialHue = tester
+          .widgetList<ColorFiltered>(find.byType(ColorFiltered))
+          .last
+          .colorFilter;
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(
+        tester
+            .widgetList<ColorFiltered>(find.byType(ColorFiltered))
+            .last
+            .colorFilter,
+        isNot(initialHue),
+      );
     });
   });
 
@@ -1031,7 +1049,8 @@ void main() {
       await tester.pump();
       // 各アニメーションのウィジェットが生成される
       expect(find.byType(Transform), findsWidgets);
-      expect(find.byType(ShaderMask), findsWidgets);
+      expect(find.byType(ColorFiltered), findsNWidgets(3));
+      expect(find.byType(ShaderMask), findsNothing);
     });
 
     testWidgets('アニメーションをネストできる', (tester) async {
@@ -1063,7 +1082,8 @@ void main() {
       await tester.pump();
       // 両方のアニメーションが適用される
       expect(find.byType(Transform), findsWidgets);
-      expect(find.byType(ShaderMask), findsWidgets);
+      expect(find.byType(ColorFiltered), findsNWidgets(3));
+      expect(find.byType(ShaderMask), findsNothing);
       // テキストが含まれることを確認
       final richTexts = tester.widgetList<RichText>(find.byType(RichText));
       final hasText = richTexts.any((widget) {
