@@ -13,7 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MfmHashtagTapDetails` と `onHashtagTapDetails` を追加。詳細コールバックはタグ、isNote、エンコード済みの `/tags/...` または `/user-tags/...` を受け取り、指定時は既存の `onHashtagTap` より優先する（#39）。
 - `MfmRenderConfig.emojiUrls`、`MfmCustomEmoji.url`、`MfmEmojiContext.host` / `url`、`MfmEmojiConfig.fromResolver(serverBaseUrl:)` を追加し、リモート投稿のカスタム絵文字の直接URLとローカルサーバー経由のフォールバックをサポート（#56）。
 
+### Fixed
+- `twitch` と `shake` の `ease` をアニメーション全体ではなく、本家Misskeyと同じく隣接する各キーフレーム区間へ適用するよう修正（#42）。
+- 引用を有限幅の親では行全幅のブロックとして表示し、前後のテキストと分離。幅が無制約の場合は自然幅にフォールバックする（#32）。
+- 引用の余白を本家の `QUOTE_STYLE`（四辺margin 8px、padding 上下6px・左12px・右0px）に合わせ、幅3pxの左罫線と文字にルートの未減光文字色から累積opacityを適用するよう修正。色未指定時も文字と罫線に同じ既定色を使用する（#52）。
+
 ### Changed
+- `enableAdvancedMfm` の効果範囲をx2/x3/x4の視覚的拡大、scale/position、全9種類のMFMアニメーションへ拡大。`MfmRenderConfig.useAnimation`（`enableAdvancedMfm && enableAnimation`）を追加し、advanced無効時はアニメーションも停止する。既定値は両フラグともtrueを維持する（#37）。
+- advanced無効時もx2/x3/x4の公称倍率2/3/4は絵文字の描画文脈へ伝播するが、scale fnの変形・倍率伝播は停止する。アニメーション無効時は専用アニメーションwidgetを生成せず、tadaの150%フォントサイズ、rainbowの静的グラデーション、sparkleの素の子要素を維持する（#37）。
 - `MfmEmojiContext` に `normal` を追加し、値比較、hashCode、toStringの対象を拡張。`MfmEmojiConfig` はnormal時に既定1.25em、`vertical-align: -0.25em`相当の0.25em下降量を使う。明示した `emojiSize` は高さを優先し、normalのベースライン方針は維持する（#39）。
 - `MfmCustomEmoji.resolver` を任意にし、`url`の直指定を優先するよう変更。`MfmEmojiContext`の`==`と`toString`はhost / URLを含む（#56）。
 - **Breaking:** `emojiBuilder` / `unicodeEmojiBuilder` を `Widget Function(String, MfmEmojiContext)` に変更し、実効フォントサイズと累積スケールを渡すようにした（#47、#57）。

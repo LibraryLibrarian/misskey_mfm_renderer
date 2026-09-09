@@ -62,7 +62,7 @@ class MfmFnHandler {
       case 'clickable':
         return _buildClickable(node, builder);
 
-      // アニメーション系（将来実装）
+      // アニメーション系
       case 'tada':
         return _buildTada(node, builder);
       case 'jelly':
@@ -127,11 +127,11 @@ class MfmFnHandler {
         : depth == 1
         ? sizeMultiplier / 2 + 0.5
         : 1.0;
-    // 本家はネスト深さに関係なく公称倍率でscaleを更新する
+    // 本家はadvanced MFMの有効状態やネスト深さに関係なく公称倍率でscaleを更新する
     final sizedBuilder = builder
         .withSizeDepth(depth + 1)
         .withScale(builder.scale * nominalScale);
-    if (factor == 1.0) {
+    if (!builder.config.enableAdvancedMfm || factor == 1.0) {
       return TextSpan(children: sizedBuilder.buildNodes(node.children));
     }
 
@@ -201,7 +201,7 @@ class MfmFnHandler {
   }
 
   static InlineSpan _buildSpin(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -238,14 +238,14 @@ class MfmFnHandler {
         direction: direction,
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
+        enabled: builder.config.useAnimation,
         child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildJump(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -267,14 +267,14 @@ class MfmFnHandler {
       child: MfmJumpWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
+        enabled: builder.config.useAnimation,
         child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildBounce(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -296,7 +296,7 @@ class MfmFnHandler {
       child: MfmBounceWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
+        enabled: builder.config.useAnimation,
         child: builder.buildInlineRichText(children),
       ),
     );
@@ -312,37 +312,44 @@ class MfmFnHandler {
 
     // 本家 Misskey ではアニメーション有効時の duration=0 は
     // rainbow の静的フォールバックを適用せず、通常の文字表示になる。
-    if (builder.config.enableAnimation && duration <= Duration.zero) {
+    if (builder.config.useAnimation && duration <= Duration.zero) {
       return TextSpan(children: children);
     }
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: MfmRainbowWidget(
-        duration: duration,
-        delay: delay,
-        enabled: builder.config.enableAnimation,
-        child: builder.buildInlineRichText(children),
-      ),
+      child: builder.config.useAnimation
+          ? MfmRainbowWidget(
+              duration: duration,
+              delay: delay,
+              enabled: builder.config.useAnimation,
+              child: builder.buildInlineRichText(children),
+            )
+          : MfmStaticRainbowWidget(
+              child: builder.buildInlineRichText(children),
+            ),
     );
   }
 
   static InlineSpan _buildSparkle(FnNode node, MfmNodeBuilder builder) {
     final children = builder.buildNodes(node.children);
+    if (!builder.config.useAnimation) {
+      return TextSpan(children: children);
+    }
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: MfmSparkleWidget(
-        enabled: builder.config.enableAnimation,
+        enabled: builder.config.useAnimation,
         child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildShake(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -364,14 +371,14 @@ class MfmFnHandler {
       child: MfmShakeWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
+        enabled: builder.config.useAnimation,
         child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildTwitch(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -393,7 +400,7 @@ class MfmFnHandler {
       child: MfmTwitchWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
+        enabled: builder.config.useAnimation,
         child: builder.buildInlineRichText(children),
       ),
     );
@@ -407,9 +414,13 @@ class MfmFnHandler {
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     // 150%は描画時のTransformではなく実フォントサイズとしてレイアウトに反映する。
-    final sized = builder.withStyle(
-      TextStyle(fontSize: builder.effectiveStyle.fontSize! * 1.5),
+    final sizeStyle = TextStyle(
+      fontSize: builder.effectiveStyle.fontSize! * 1.5,
     );
+    if (!builder.config.useAnimation) {
+      return builder.buildStyledSpan(sizeStyle, node.children);
+    }
+    final sized = builder.withStyle(sizeStyle);
     final children = sized.buildNodes(node.children);
 
     return WidgetSpan(
@@ -418,14 +429,14 @@ class MfmFnHandler {
       child: MfmTadaWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation && duration > Duration.zero,
+        enabled: builder.config.useAnimation && duration > Duration.zero,
         child: sized.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildJelly(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -447,13 +458,17 @@ class MfmFnHandler {
       child: MfmJellyWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
+        enabled: builder.config.useAnimation,
         child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildScale(FnNode node, MfmNodeBuilder builder) {
+    if (!builder.config.enableAdvancedMfm) {
+      return TextSpan(children: builder.buildNodes(node.children));
+    }
+
     final args = node.args;
 
     // x, y引数を取得（デフォルト: 1.0）

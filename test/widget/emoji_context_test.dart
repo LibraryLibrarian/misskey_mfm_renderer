@@ -165,6 +165,57 @@ void main() {
         });
       }
 
+      final advancedDisabledCases = [
+        (text: r'$[x2 EMOJI]', fontSize: 14.0, scale: 2.0),
+        (text: r'$[x3 EMOJI]', fontSize: 14.0, scale: 3.0),
+        (text: r'$[x4 EMOJI]', fontSize: 14.0, scale: 4.0),
+        (text: r'$[x2 $[x3 $[x4 EMOJI]]]', fontSize: 14.0, scale: 24.0),
+        (text: r'$[scale.x=3,y=2 EMOJI]', fontSize: 14.0, scale: 1.0),
+        (text: r'$[x2 $[scale.x=3,y=2 EMOJI]]', fontSize: 14.0, scale: 2.0),
+        (text: r'$[scale.x=3,y=2 $[x4 EMOJI]]', fontSize: 14.0, scale: 4.0),
+        (text: r'$[tada EMOJI]', fontSize: 21.0, scale: 1.0),
+        (text: r'$[x4 $[tada EMOJI]]', fontSize: 21.0, scale: 4.0),
+      ];
+      for (final testCase in advancedDisabledCases) {
+        testWidgets('advanced無効時の描画文脈: ${testCase.text}', (tester) async {
+          final contexts = <MfmEmojiContext>[];
+          Widget buildEmoji(String name, MfmEmojiContext context) {
+            contexts.add(context);
+            return const SizedBox.square(dimension: 20);
+          }
+
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: '${testCase.text.replaceAll('EMOJI', emoji)} $emoji',
+                  config: MfmRenderConfig(
+                    baseTextStyle: const TextStyle(fontSize: 14),
+                    enableAdvancedMfm: false,
+                    emojiBuilder: buildEmoji,
+                    unicodeEmojiBuilder: buildEmoji,
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          expect(contexts, [
+            MfmEmojiContext(fontSize: testCase.fontSize, scale: testCase.scale),
+            const MfmEmojiContext(fontSize: 14, scale: 1),
+          ]);
+          expect(contexts.first.useOriginalSize, testCase.scale >= 2.5);
+          expect(
+            find.descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(Transform),
+            ),
+            findsNothing,
+          );
+          expect(tester.takeException(), isNull);
+        });
+      }
+
       testWidgets('aligns the widget span to the alphabetic baseline', (
         tester,
       ) async {
