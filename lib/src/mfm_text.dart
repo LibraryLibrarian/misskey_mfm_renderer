@@ -16,7 +16,11 @@ class MfmText extends StatelessWidget {
     this.parsedNodes,
     this.config = const MfmRenderConfig(),
     this.simple = false,
-  }) : assert(
+    this.plain = false,
+    this.rootScale = 1.0,
+    this.isNote = true,
+  }) : assert(rootScale > 0 && rootScale < double.infinity),
+       assert(
          text != null || parsedNodes != null,
          'Either text or parsedNodes must be provided',
        );
@@ -35,6 +39,15 @@ class MfmText extends StatelessWidget {
   /// シンプルパーサーを使用するか
   /// trueの場合、テキスト・Unicode絵文字・カスタム絵文字のみパース
   final bool simple;
+
+  /// 本家MkMfmのplain表示を使うか。
+  final bool plain;
+
+  /// ルートでの累積スケール。
+  final double rootScale;
+
+  /// ハッシュタグをノート用の遷移先へ向けるか。
+  final bool isNote;
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +82,9 @@ class MfmText extends StatelessWidget {
       config: effectiveConfig,
       colorScheme: colorScheme,
       effectiveStyle: rootStyle,
+      scale: rootScale,
+      plain: plain,
+      isNote: isNote,
     );
 
     // ノードをスパンに変換
@@ -90,7 +106,9 @@ class MfmText extends StatelessWidget {
       return [];
     }
 
-    final parser = simple ? MfmParser().buildSimple() : MfmParser().build();
+    final parser = (simple || plain)
+        ? MfmParser().buildSimple()
+        : MfmParser().build();
     final result = parser.parse(source);
     try {
       return result.value;
@@ -124,12 +142,15 @@ MfmRenderConfig _mergeConfigs(
     enableNyaize: explicit.enableNyaize != defaults.enableNyaize
         ? explicit.enableNyaize
         : inherited.enableNyaize,
+    nyaizeMode: explicit.nyaizeMode ?? inherited.nyaizeMode,
     emojiBuilder: explicit.emojiBuilder ?? inherited.emojiBuilder,
     unicodeEmojiBuilder:
         explicit.unicodeEmojiBuilder ?? inherited.unicodeEmojiBuilder,
     onLinkTap: explicit.onLinkTap ?? inherited.onLinkTap,
     onMentionTap: explicit.onMentionTap ?? inherited.onMentionTap,
     onHashtagTap: explicit.onHashtagTap ?? inherited.onHashtagTap,
+    onHashtagTapDetails:
+        explicit.onHashtagTapDetails ?? inherited.onHashtagTapDetails,
     onSearchTap: explicit.onSearchTap ?? inherited.onSearchTap,
     author: explicit.author ?? inherited.author,
     localHost: explicit.localHost ?? inherited.localHost,
@@ -163,11 +184,13 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.enableAdvancedMfm == defaults.enableAdvancedMfm &&
       config.enableAnimation == defaults.enableAnimation &&
       config.enableNyaize == defaults.enableNyaize &&
+      config.nyaizeMode == defaults.nyaizeMode &&
       config.emojiBuilder == defaults.emojiBuilder &&
       config.unicodeEmojiBuilder == defaults.unicodeEmojiBuilder &&
       config.onLinkTap == defaults.onLinkTap &&
       config.onMentionTap == defaults.onMentionTap &&
       config.onHashtagTap == defaults.onHashtagTap &&
+      config.onHashtagTapDetails == defaults.onHashtagTapDetails &&
       config.onSearchTap == defaults.onSearchTap &&
       config.author == defaults.author &&
       config.localHost == defaults.localHost &&

@@ -34,11 +34,13 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          enableAdvancedMfm: config.enableAdvancedMfm,
          enableAnimation: config.enableAnimation,
          enableNyaize: config.enableNyaize,
+         nyaizeMode: config.nyaizeMode,
          emojiBuilder: config.emojiBuilder,
          unicodeEmojiBuilder: config.unicodeEmojiBuilder,
          onLinkTap: config.onLinkTap,
          onMentionTap: config.onMentionTap,
          onHashtagTap: config.onHashtagTap,
+         onHashtagTapDetails: config.onHashtagTapDetails,
          onSearchTap: config.onSearchTap,
          author: config.author,
          localHost: config.localHost,
@@ -79,11 +81,13 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     bool? enableAdvancedMfm,
     bool? enableAnimation,
     bool? enableNyaize,
+    MfmNyaizeMode? nyaizeMode,
     Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
     Widget Function(String emoji, MfmEmojiContext context)? unicodeEmojiBuilder,
     void Function(String url)? onLinkTap,
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
+    void Function(MfmHashtagTapDetails details)? onHashtagTapDetails,
     void Function(String query)? onSearchTap,
     MfmAuthorContext? author,
     String? localHost,
@@ -108,11 +112,13 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       enableAdvancedMfm: enableAdvancedMfm,
       enableAnimation: enableAnimation,
       enableNyaize: enableNyaize,
+      nyaizeMode: nyaizeMode,
       emojiBuilder: emojiBuilder,
       unicodeEmojiBuilder: unicodeEmojiBuilder,
       onLinkTap: onLinkTap,
       onMentionTap: onMentionTap,
       onHashtagTap: onHashtagTap,
+      onHashtagTapDetails: onHashtagTapDetails,
       onSearchTap: onSearchTap,
       author: author,
       localHost: localHost,
@@ -291,7 +297,7 @@ class MfmEmojiConfig {
     fallbackBuilder,
   }) {
     return (name, context) {
-      final size = emojiSize ?? context.fontSize * 2;
+      final size = emojiSize ?? context.fontSize * (context.normal ? 1.25 : 2);
       return MfmCustomEmoji(
         name: name,
         resolver: resolver,
@@ -302,7 +308,9 @@ class MfmEmojiConfig {
         // x-heightを0.5emと近似して下端の下降量を求める。Flutterの
         // PlaceholderAlignment.middleはテキストのascent/descentの中点基準で
         // CSSのmiddleとは別物のため、baseline揃えのまま位置を計算する。
-        baselineOffset: size / 2 - context.fontSize * 0.25,
+        baselineOffset: context.normal
+            ? context.fontSize * 0.25
+            : size / 2 - context.fontSize * 0.25,
         maxWidth: emojiMaxWidth,
         refreshListenable: emojiRefreshListenable,
         fallbackBuilder: fallbackBuilder,

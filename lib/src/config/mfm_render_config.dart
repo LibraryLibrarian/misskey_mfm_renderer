@@ -9,18 +9,52 @@ import 'mfm_color_scheme.dart';
 /// 追加できるよう、ホスト文字列を直接設定する代わりに独立した型とする。
 @immutable
 class MfmAuthorContext {
-  const MfmAuthorContext({this.host});
+  const MfmAuthorContext({this.host, this.isCat = false});
 
   /// 投稿者が所属するリモートホスト。
   ///
   /// ローカルユーザーの場合は`null`。
   final String? host;
+
+  /// 投稿者が猫モードを使うユーザーか。
+  final bool isCat;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MfmAuthorContext && other.host == host && other.isCat == isCat;
+
+  @override
+  int get hashCode => Object.hash(host, isCat);
+
+  @override
+  String toString() => 'MfmAuthorContext(host: $host, isCat: $isCat)';
+}
+
+/// nyaize変換の適用方法。
+enum MfmNyaizeMode { disabled, enabled, respectAuthor }
+
+/// ハッシュタグタップ時の遷移情報。
+@immutable
+class MfmHashtagTapDetails {
+  const MfmHashtagTapDetails({
+    required this.tag,
+    required this.isNote,
+    required this.path,
+  });
+
+  final String tag;
+  final bool isNote;
+  final String path;
 }
 
 /// 絵文字ビルダーに渡す描画文脈。
 @immutable
 class MfmEmojiContext {
-  const MfmEmojiContext({required this.fontSize, required this.scale});
+  const MfmEmojiContext({
+    required this.fontSize,
+    required this.scale,
+    this.normal = false,
+  });
 
   /// 現在の実効フォントサイズ（px）。本家のem計算の基準。
   final double fontSize;
@@ -31,6 +65,9 @@ class MfmEmojiContext {
   /// advanced MFMが無効でもx2/x3/x4の公称倍率は伝播するが、
   /// scale fnの倍率は伝播しない。
   final double scale;
+
+  /// plain表示用の通常サイズを使うか。
+  final bool normal;
 
   /// 本家と同じく2.5倍以上で原寸画像を使うべきか。
   ///
@@ -43,13 +80,15 @@ class MfmEmojiContext {
   bool operator ==(Object other) =>
       other is MfmEmojiContext &&
       other.fontSize == fontSize &&
-      other.scale == scale;
+      other.scale == scale &&
+      other.normal == normal;
 
   @override
-  int get hashCode => Object.hash(fontSize, scale);
+  int get hashCode => Object.hash(fontSize, scale, normal);
 
   @override
-  String toString() => 'MfmEmojiContext(fontSize: $fontSize, scale: $scale)';
+  String toString() =>
+      'MfmEmojiContext(fontSize: $fontSize, scale: $scale, normal: $normal)';
 }
 
 /// MFMレンダリングの設定クラス
@@ -59,11 +98,13 @@ class MfmRenderConfig {
     this.enableAdvancedMfm = true,
     this.enableAnimation = true,
     this.enableNyaize = false,
+    this.nyaizeMode,
     this.emojiBuilder,
     this.unicodeEmojiBuilder,
     this.onLinkTap,
     this.onMentionTap,
     this.onHashtagTap,
+    this.onHashtagTapDetails,
     this.onSearchTap,
     this.author,
     this.localHost,
@@ -98,8 +139,15 @@ class MfmRenderConfig {
   /// MFMアニメーションの実効的な有効判定。
   bool get useAnimation => enableAdvancedMfm && enableAnimation;
 
-  /// nyaize変換を有効化
+  /// nyaize変換を有効化。
+  ///
+  /// [nyaizeMode]が未指定の場合に使用する後方互換の設定。
   final bool enableNyaize;
+
+  /// nyaize変換の適用方法。
+  ///
+  /// nullの場合は[enableNyaize]をenabled/disabledとして解釈する。
+  final MfmNyaizeMode? nyaizeMode;
 
   /// カスタム絵文字ビルダー
   /// nameにはコロンを除いた絵文字名が渡される（例: "wave"）。
@@ -133,6 +181,11 @@ class MfmRenderConfig {
   /// ハッシュタグタップ時のコールバック
   /// tagにはハッシュを除いたタグ名が渡される（例: "misskey"）
   final void Function(String tag)? onHashtagTap;
+
+  /// ハッシュタグタップ時のタグと遷移先を受け取るコールバック。
+  ///
+  /// 指定時は[onHashtagTap]より優先して呼ばれる。
+  final void Function(MfmHashtagTapDetails details)? onHashtagTapDetails;
 
   /// 検索タップ時のコールバック
   final void Function(String query)? onSearchTap;
@@ -240,11 +293,13 @@ class MfmRenderConfig {
     bool? enableAdvancedMfm,
     bool? enableAnimation,
     bool? enableNyaize,
+    MfmNyaizeMode? nyaizeMode,
     Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
     Widget Function(String emoji, MfmEmojiContext context)? unicodeEmojiBuilder,
     void Function(String url)? onLinkTap,
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
+    void Function(MfmHashtagTapDetails details)? onHashtagTapDetails,
     void Function(String query)? onSearchTap,
     MfmAuthorContext? author,
     String? localHost,
@@ -287,11 +342,13 @@ class MfmRenderConfig {
       enableAdvancedMfm: enableAdvancedMfm ?? this.enableAdvancedMfm,
       enableAnimation: enableAnimation ?? this.enableAnimation,
       enableNyaize: enableNyaize ?? this.enableNyaize,
+      nyaizeMode: nyaizeMode ?? this.nyaizeMode,
       emojiBuilder: emojiBuilder ?? this.emojiBuilder,
       unicodeEmojiBuilder: unicodeEmojiBuilder ?? this.unicodeEmojiBuilder,
       onLinkTap: onLinkTap ?? this.onLinkTap,
       onMentionTap: onMentionTap ?? this.onMentionTap,
       onHashtagTap: onHashtagTap ?? this.onHashtagTap,
+      onHashtagTapDetails: onHashtagTapDetails ?? this.onHashtagTapDetails,
       onSearchTap: onSearchTap ?? this.onSearchTap,
       author: clearAuthor ? null : author ?? this.author,
       localHost: clearLocalHost ? null : localHost ?? this.localHost,

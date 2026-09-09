@@ -11,6 +11,8 @@ void main() {
       expect(config.enableAnimation, true);
       expect(config.useAnimation, true);
       expect(config.enableNyaize, false);
+      expect(config.nyaizeMode, isNull);
+      expect(config.onHashtagTapDetails, isNull);
       expect(config.baseTextStyle, null);
       expect(config.author, null);
       expect(config.localHost, null);
@@ -181,6 +183,22 @@ void main() {
           clearLocalHost: true,
         ),
         throwsArgumentError,
+      );
+    });
+  });
+
+  group('MfmAuthorContext', () {
+    test('value equality, hashCode and toString include host and isCat', () {
+      const cat = MfmAuthorContext(host: 'remote.example', isCat: true);
+      expect(cat, const MfmAuthorContext(host: 'remote.example', isCat: true));
+      expect(
+        cat.hashCode,
+        const MfmAuthorContext(host: 'remote.example', isCat: true).hashCode,
+      );
+      expect(cat, isNot(const MfmAuthorContext(host: 'remote.example')));
+      expect(
+        cat.toString(),
+        'MfmAuthorContext(host: remote.example, isCat: true)',
       );
     });
   });
