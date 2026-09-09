@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart' show CupertinoTheme;
+import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/widgets.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 
 import 'builder/mfm_node_builder.dart';
+import 'config/mfm_color_scheme.dart';
 import 'config/mfm_inherited_config.dart';
 import 'config/mfm_render_config.dart';
 
@@ -55,18 +58,20 @@ class MfmText extends StatelessWidget {
     final inheritedConfig = MfmConfig.maybeOf(context);
     final mergedConfig = _mergeConfigs(inheritedConfig, config);
 
-    // brightnessを判定
-    final brightness = MediaQuery.platformBrightnessOf(context);
+    final brightness = _resolveBrightness(context, mergedConfig.brightness);
+    final colorScheme = brightness == Brightness.dark
+        ? mergedConfig.darkColorScheme ?? const MfmColorScheme.dark()
+        : mergedConfig.lightColorScheme ?? const MfmColorScheme.light();
 
     // 明示スタイルは環境とマージせず、未指定のフォントサイズのみ補完する
     final rawStyle =
         mergedConfig.baseTextStyle ?? DefaultTextStyle.of(context).style;
     final rootStyle = rawStyle.copyWith(fontSize: rawStyle.fontSize ?? 14.0);
 
-    // baseTextStyleとbrightnessを設定
+    // baseTextStyleと解決済みbrightnessを設定
     final effectiveConfig = mergedConfig.copyWith(
       baseTextStyle: rootStyle,
-      brightness: mergedConfig.brightness ?? brightness,
+      brightness: brightness,
       searchButtonLabel:
           mergedConfig.searchButtonLabel ??
           _resolveSearchButtonLabel(Localizations.maybeLocaleOf(context)),
@@ -75,6 +80,7 @@ class MfmText extends StatelessWidget {
     // ビルダーを作成
     final builder = MfmNodeBuilder(
       config: effectiveConfig,
+      colorScheme: colorScheme,
       effectiveStyle: rootStyle,
       scale: rootScale,
       plain: plain,
@@ -160,6 +166,8 @@ MfmRenderConfig _mergeConfigs(
         explicit.fontFamilyResolver ?? inherited.fontFamilyResolver,
     codeTheme: explicit.codeTheme ?? inherited.codeTheme,
     codeDarkTheme: explicit.codeDarkTheme ?? inherited.codeDarkTheme,
+    lightColorScheme: explicit.lightColorScheme ?? inherited.lightColorScheme,
+    darkColorScheme: explicit.darkColorScheme ?? inherited.darkColorScheme,
     brightness: explicit.brightness ?? inherited.brightness,
     showCodeBlockCopyButton:
         explicit.showCodeBlockCopyButton ?? inherited.showCodeBlockCopyButton,
@@ -167,10 +175,6 @@ MfmRenderConfig _mergeConfigs(
     codeCopyTooltip: explicit.codeCopyTooltip ?? inherited.codeCopyTooltip,
     codeCopiedMessage:
         explicit.codeCopiedMessage ?? inherited.codeCopiedMessage,
-    inlineCodeBgColorLight:
-        explicit.inlineCodeBgColorLight ?? inherited.inlineCodeBgColorLight,
-    inlineCodeBgColorDark:
-        explicit.inlineCodeBgColorDark ?? inherited.inlineCodeBgColorDark,
   );
 }
 
@@ -197,13 +201,28 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.fontFamilyResolver == defaults.fontFamilyResolver &&
       config.codeTheme == defaults.codeTheme &&
       config.codeDarkTheme == defaults.codeDarkTheme &&
+      config.lightColorScheme == defaults.lightColorScheme &&
+      config.darkColorScheme == defaults.darkColorScheme &&
       config.brightness == defaults.brightness &&
       config.showCodeBlockCopyButton == defaults.showCodeBlockCopyButton &&
       config.onCodeCopied == defaults.onCodeCopied &&
       config.codeCopyTooltip == defaults.codeCopyTooltip &&
-      config.codeCopiedMessage == defaults.codeCopiedMessage &&
-      config.inlineCodeBgColorLight == defaults.inlineCodeBgColorLight &&
-      config.inlineCodeBgColorDark == defaults.inlineCodeBgColorDark;
+      config.codeCopiedMessage == defaults.codeCopiedMessage;
+}
+
+Brightness _resolveBrightness(
+  BuildContext context,
+  Brightness? explicitBrightness,
+) {
+  if (explicitBrightness != null) {
+    return explicitBrightness;
+  }
+  if (context.findAncestorWidgetOfExactType<Theme>() != null) {
+    return Theme.of(context).brightness;
+  }
+  return CupertinoTheme.maybeBrightnessOf(context) ??
+      MediaQuery.maybePlatformBrightnessOf(context) ??
+      Brightness.light;
 }
 
 String _resolveSearchButtonLabel(Locale? locale) {

@@ -628,7 +628,7 @@ class MfmFnHandler {
 
     var width = 1.0;
     var style = BorderStyle.solid;
-    var color = const Color(0xFF000000);
+    var color = builder.colorScheme.accent;
     var radius = 0.0;
     final noclip = args.containsKey('noclip');
 
@@ -848,8 +848,6 @@ class MfmFnHandler {
     final textStyle = (baseStyle ?? const TextStyle()).copyWith(
       fontSize: fontSize,
     );
-    final borderColor = (baseStyle?.color ?? const Color(0xFF000000))
-        .withValues(alpha: 0.2);
 
     // 本家はdisplay: inline-blockでvertical-align未指定のため、
     // ピル内テキストのベースラインで周囲と揃う。
@@ -860,7 +858,7 @@ class MfmFnHandler {
         Container(
           padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
           decoration: BoxDecoration(
-            border: Border.all(color: borderColor),
+            border: Border.all(color: builder.colorScheme.divider),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Row(

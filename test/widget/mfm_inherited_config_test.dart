@@ -82,6 +82,61 @@ void main() {
     expect(find.text('explicit:14.0:1.0'), findsOneWidget);
   });
 
+  group('MFM配色の継承', () {
+    const inheritedLight = MfmColorScheme.light(link: Colors.orange);
+    const inheritedDark = MfmColorScheme.dark(link: Colors.purple);
+
+    for (final brightness in Brightness.values) {
+      testWidgets('${brightness.name}配色を既存の明示設定と結合する', (tester) async {
+        await tester.pumpWidget(
+          MfmConfig(
+            config: const MfmRenderConfig(
+              lightColorScheme: inheritedLight,
+              darkColorScheme: inheritedDark,
+            ),
+            child: MaterialApp(
+              theme: ThemeData(brightness: brightness),
+              home: const Scaffold(
+                body: MfmText(
+                  text: 'https://example.com',
+                  config: MfmRenderConfig(enableAnimation: false),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        expect(
+          _spanForText(tester, 'https://example.com').style!.color,
+          brightness == Brightness.dark ? Colors.purple : Colors.orange,
+        );
+      });
+    }
+
+    testWidgets('明示配色が継承配色より優先される', (tester) async {
+      await tester.pumpWidget(
+        const MfmConfig(
+          config: MfmRenderConfig(lightColorScheme: inheritedLight),
+          child: MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: 'https://example.com',
+                config: MfmRenderConfig(
+                  lightColorScheme: MfmColorScheme.light(link: Colors.teal),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        _spanForText(tester, 'https://example.com').style!.color,
+        Colors.teal,
+      );
+    });
+  });
+
   group('コードコピー設定の継承', () {
     void inheritedCallback(String _) {}
     void explicitCallback(String _) {}
@@ -227,6 +282,22 @@ void main() {
       expect(details?.path, '/tags/tag');
     },
   );
+}
+
+TextSpan _spanForText(WidgetTester tester, String text) {
+  final root = tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+  return _findSpan(root, text)!;
+}
+
+TextSpan? _findSpan(TextSpan span, String text) {
+  if (span.text == text) return span;
+  for (final child in span.children ?? const <InlineSpan>[]) {
+    if (child is TextSpan) {
+      final found = _findSpan(child, text);
+      if (found != null) return found;
+    }
+  }
+  return null;
 }
 
 Widget _emojiTextBuilder(String _, MfmEmojiContext context) =>
