@@ -483,9 +483,12 @@ void main() {
           ),
         );
 
-        final root = tester.widget<RichText>(find.byType(RichText).first);
-        final container =
-            _firstWidgetSpan(root.text as TextSpan)!.child as Container;
+        final container = tester.widget<Container>(
+          find.descendant(
+            of: find.byType(MfmText),
+            matching: find.byType(Container),
+          ),
+        );
         final border =
             (container.decoration! as BoxDecoration).border! as Border;
         expect(border.left.color.a, closeTo(expected, 0.000001));
@@ -1582,6 +1585,125 @@ void main() {
         (style) => style?.fontWeight == FontWeight.bold,
       );
       expect(boldSpan, isNull);
+    });
+  });
+
+  group('MkMfm props', () {
+    testWidgets(
+      'simple preserves line breaks while plain replaces them with spaces',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: MfmText(text: 'a\nb', simple: true)),
+          ),
+        );
+        var root =
+            tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        expect(root.toPlainText(), 'a\nb');
+
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: MfmText(text: 'a\nb', plain: true)),
+          ),
+        );
+        root = tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        expect(root.toPlainText(), 'a b');
+      },
+    );
+
+    testWidgets(
+      'plain normalizes parsed line endings and nyaizes before replacing them',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                parsedNodes: [TextNode('な\r\nな\rな\nな')],
+                plain: true,
+                config: MfmRenderConfig(enableNyaize: true),
+              ),
+            ),
+          ),
+        );
+        final root =
+            tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        expect(root.toPlainText(), 'にゃ にゃ にゃ にゃ');
+      },
+    );
+
+    testWidgets('plain uses the simple parser', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: MfmText(text: '**not bold**', plain: true)),
+        ),
+      );
+      final root =
+          tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+      expect(
+        _findSpanWithStyle(
+          root,
+          (style) => style?.fontWeight == FontWeight.bold,
+        ),
+        isNull,
+      );
+      expect(root.toPlainText(), '**not bold**');
+    });
+
+    testWidgets('rejects a non-positive or non-finite rootScale', (
+      tester,
+    ) async {
+      expect(() => MfmText(text: 'x', rootScale: 0), throwsAssertionError);
+      expect(
+        () => MfmText(text: 'x', rootScale: double.infinity),
+        throwsAssertionError,
+      );
+    });
+
+    for (final testCase in [
+      (isNote: true, path: '/tags/%E3%81%82'),
+      (isNote: false, path: '/user-tags/%E3%81%82'),
+    ]) {
+      testWidgets('onHashtagTapDetails uses ${testCase.path}', (tester) async {
+        MfmHashtagTapDetails? details;
+        var legacyCalls = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '#あ',
+                isNote: testCase.isNote,
+                config: MfmRenderConfig(
+                  onHashtagTap: (_) => legacyCalls++,
+                  onHashtagTapDetails: (value) => details = value,
+                ),
+              ),
+            ),
+          ),
+        );
+        _invokeSpanTap(tester, '#あ');
+        expect(details?.tag, 'あ');
+        expect(details?.isNote, testCase.isNote);
+        expect(details?.path, testCase.path);
+        expect(legacyCalls, 0);
+      });
+    }
+
+    testWidgets('onHashtagTap remains the fallback when details is absent', (
+      tester,
+    ) async {
+      String? tag;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '#tag',
+              config: MfmRenderConfig(onHashtagTap: (value) => tag = value),
+            ),
+          ),
+        ),
+      );
+      _invokeSpanTap(tester, '#tag');
+      expect(tag, 'tag');
     });
   });
 }

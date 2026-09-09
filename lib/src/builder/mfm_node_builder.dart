@@ -18,6 +18,8 @@ class MfmNodeBuilder {
     this.sizeDepth = 0,
     this.opacity = 1.0,
     this.disableNyaize = false,
+    this.plain = false,
+    this.isNote = true,
   });
 
   /// リンク・URL・メンション・ハッシュタグに共通のリンク色
@@ -42,12 +44,20 @@ class MfmNodeBuilder {
   /// link / quote / plain など、原文を保ちたいノード配下では true となる
   final bool disableNyaize;
 
+  /// 本家MkMfmのplain表示を使うか。
+  final bool plain;
+
+  /// ハッシュタグをノート用の遷移先へ向けるか。
+  final bool isNote;
+
   MfmNodeBuilder _copyWith({
     TextStyle? effectiveStyle,
     double? scale,
     int? sizeDepth,
     double? opacity,
     bool? disableNyaize,
+    bool? plain,
+    bool? isNote,
   }) {
     return MfmNodeBuilder(
       config: config,
@@ -56,6 +66,8 @@ class MfmNodeBuilder {
       sizeDepth: sizeDepth ?? this.sizeDepth,
       opacity: opacity ?? this.opacity,
       disableNyaize: disableNyaize ?? this.disableNyaize,
+      plain: plain ?? this.plain,
+      isNote: isNote ?? this.isNote,
     );
   }
 
@@ -120,7 +132,17 @@ class MfmNodeBuilder {
   }
 
   /// 現在の文脈で nyaize 変換を適用すべきか
-  bool get shouldNyaize => config.enableNyaize && !disableNyaize;
+  bool get shouldNyaize {
+    final mode =
+        config.nyaizeMode ??
+        (config.enableNyaize ? MfmNyaizeMode.enabled : MfmNyaizeMode.disabled);
+    return !disableNyaize &&
+        switch (mode) {
+          MfmNyaizeMode.disabled => false,
+          MfmNyaizeMode.enabled => true,
+          MfmNyaizeMode.respectAuthor => config.author?.isCat == true,
+        };
+  }
 
   /// ノードリストをWidgetリストに変換
   List<InlineSpan> buildNodes(List<MfmNode> nodes) {
@@ -156,8 +178,11 @@ class MfmNodeBuilder {
   InlineSpan _buildText(TextNode node) {
     // styleをnullにして親のスタイルを継承
     // ルートのTextSpanでbaseTextStyleが設定されているため、ここで再設定する必要はない
-    final text = shouldNyaize ? nyaize(node.text) : node.text;
-    return TextSpan(text: text);
+    final normalized = plain
+        ? node.text.replaceAll(RegExp(r'\r\n|\r|\n'), '\n')
+        : node.text;
+    final nyaized = shouldNyaize ? nyaize(normalized) : normalized;
+    return TextSpan(text: plain ? nyaized.replaceAll('\n', ' ') : nyaized);
   }
 
   InlineSpan _buildBold(BoldNode node) {
@@ -193,33 +218,40 @@ class MfmNodeBuilder {
     );
   }
 
+  Color _resolveQuoteBaseColor() {
+    // smallやfgの実効色ではなくルートの未減光色を使う。
+    // 色未指定時はTextStyleの既定描画色と同じ白に揃える。
+    return config.baseTextStyle?.color ?? const Color(0xFFFFFFFF);
+  }
+
   InlineSpan _buildQuote(QuoteNode node) {
-    final baseColor = config.baseTextStyle?.color;
+    final baseColor = _resolveQuoteBaseColor();
     // 本家のQUOTE_STYLEもopacity: 0.7を要素全体に掛けるため、
     // 累積不透明度を0.7倍して配下のウィジェットまで減光する。
     final quoted = _withDisableNyaize()._copyWith(opacity: opacity * 0.7);
     // 引用は独自の色で上書きするため、累積不透明度を色のalphaに反映し直す。
     // Container全体を減光すると内側の文字や絵文字が二重に薄くなる。
     final quoteBuilder = quoted.withStyle(
-      TextStyle(
-        color: baseColor?.withValues(alpha: baseColor.a * quoted.opacity),
-      ),
+      TextStyle(color: quoted.applyOpacity(baseColor)),
     );
     final children = quoteBuilder.buildNodes(node.children);
 
     return WidgetSpan(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.only(left: 12),
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(
-              color: quoteBuilder.applyOpacity(const Color(0xFF888888)),
-              width: 3,
+      child: LayoutBuilder(
+        builder: (context, constraints) => Container(
+          width: constraints.hasBoundedWidth ? double.infinity : null,
+          margin: const EdgeInsets.all(8),
+          padding: const EdgeInsets.fromLTRB(12, 6, 0, 6),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: quoteBuilder.applyOpacity(baseColor),
+                width: 3,
+              ),
             ),
           ),
+          child: quoteBuilder.buildInlineRichText(children),
         ),
-        child: quoteBuilder.buildInlineRichText(children),
       ),
     );
   }
@@ -382,14 +414,29 @@ class MfmNodeBuilder {
 
   InlineSpan _buildHashtag(HashtagNode node) {
     final onHashtagTap = config.onHashtagTap;
+    final onHashtagTapDetails = config.onHashtagTapDetails;
     return TextSpan(
       text: '#${node.hashtag}',
       style: TextStyle(
         color: applyOpacity(_linkColor),
       ),
-      recognizer: onHashtagTap == null
+      recognizer: onHashtagTapDetails == null && onHashtagTap == null
           ? null
-          : (TapGestureRecognizer()..onTap = () => onHashtagTap(node.hashtag)),
+          : (TapGestureRecognizer()
+              ..onTap = () {
+                if (onHashtagTapDetails != null) {
+                  final pathPrefix = isNote ? '/tags/' : '/user-tags/';
+                  onHashtagTapDetails(
+                    MfmHashtagTapDetails(
+                      tag: node.hashtag,
+                      isNote: isNote,
+                      path: '$pathPrefix${Uri.encodeComponent(node.hashtag)}',
+                    ),
+                  );
+                } else {
+                  onHashtagTap!(node.hashtag);
+                }
+              }),
     );
   }
 
@@ -454,7 +501,11 @@ class MfmNodeBuilder {
         child: wrapOpacity(
           emojiBuilder(
             node.name,
-            MfmEmojiContext(fontSize: effectiveStyle.fontSize!, scale: scale),
+            MfmEmojiContext(
+              fontSize: effectiveStyle.fontSize!,
+              scale: scale,
+              normal: plain,
+            ),
           ),
         ),
       );
@@ -472,7 +523,10 @@ class MfmNodeBuilder {
         child: wrapOpacity(
           unicodeEmojiBuilder(
             node.emoji,
-            MfmEmojiContext(fontSize: effectiveStyle.fontSize!, scale: scale),
+            MfmEmojiContext(
+              fontSize: effectiveStyle.fontSize!,
+              scale: scale,
+            ),
           ),
         ),
       );

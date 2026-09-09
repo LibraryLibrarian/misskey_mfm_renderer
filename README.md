@@ -54,16 +54,19 @@ integration work.
 **Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
 Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg ...]`, link colors) and widgets such as emoji, so a child color override cannot cancel the dimming.
 
-**Quote**: `> quote` dims the whole quote block by 0.7, matching Misskey. Inside `<small>`, the factors are multiplied.
+**Quote**: `> quote` occupies a full line with an 8px margin on all sides, padding of 6px top/bottom and 12px left (0px right), and a 3px left border, matching Misskey's `QUOTE_STYLE`. Text and border use the undimmed root text color with cumulative opacity applied; each quote and `<small>` level multiplies the original alpha by 0.7. The root color comes from `baseTextStyle`, or `DefaultTextStyle` when no base style is provided. An explicit style without a color falls back to white, as Flutter text does.
+Block display requires a parent with bounded width (for example, `SizedBox(width: 300)` or `Expanded` in a `Row`). With unbounded width, such as a non-`Expanded` child of a `Row`, quotes use their natural width and are not guaranteed to occupy a separate line. No extra boundary newlines are inserted. CSS margin collapsing between adjacent quotes and the handling of extra newlines around blocks are not fully reproduced.
 
 **Literal fn fallback**: Unknown fn names, `font` without a valid family, and `position` with `enableAdvancedMfm: false` are displayed as `$[name content]` (arguments omitted), preserving child formatting, matching Misskey.
 
 **Not Yet Implemented:**
 - **Font Limitations**: Some font types in `$[font.xxx]` syntax (specifically `emoji` and `math`) fall back to default fonts due to platform limitations.
 
-**Nyaize (Cat-speak transformation)**: Text transformation feature is supported via `enableNyaize`.
-Equivalent to Misskey's cat mode, it converts text in text nodes to cat-speak (ja-JP / en-US / ko-KR).
-Subtrees of `link` / `quote` / `plain` are excluded from transformation (matching Misskey's upstream behavior).
+**Nyaize (Cat-speak transformation)**: Text transformation is supported via the legacy
+`enableNyaize` boolean or `nyaizeMode`. `MfmNyaizeMode.respectAuthor` converts only
+when `author?.isCat == true`; an explicitly supplied `nyaizeMode` takes precedence
+over `enableNyaize`. Subtrees of `link` / `quote` / `plain` are excluded from
+transformation (matching Misskey's upstream behavior).
 The `nyaize(String)` pure function is also exposed publicly.
 
 ### Custom Emoji Support
@@ -151,6 +154,10 @@ Like Misskey, `twitch` and `shake` apply `ease` to each adjacent keyframe
 interval.
 
 ## Getting started
+
+This package requires Flutter 3.38.1 or later (Dart 3.10.0 or later). The
+`.fvmrc` development environment uses Flutter 3.38.7, while the package
+support floor remains Flutter 3.38.1.
 
 Add the dependency to your `pubspec.yaml`:
 
@@ -241,6 +248,29 @@ MfmText(
 )
 ```
 
+### MkMfm-compatible document props
+
+`plain`, `rootScale`, and `isNote` belong to each rendered document, so they are
+arguments of `MfmText`, rather than `MfmRenderConfig`:
+
+```dart
+MfmText(
+  text: 'one\ntwo :wave:',
+  plain: true, // Uses the simple parser and renders line breaks as spaces.
+  rootScale: 3, // Initial cumulative scale for descendant MFM functions.
+  isNote: false, // Makes hashtag details use /user-tags/... instead of /tags/....
+)
+```
+
+`plain` is distinct from `simple: true`: both use the simple parser, but `simple`
+preserves line breaks and the normal custom-emoji size. `plain` normalizes CRLF/CR/LF,
+then replaces LF with spaces, including when `parsedNodes` is supplied. It also passes
+`MfmEmojiContext.normal: true` to custom emoji builders. `MfmEmojiConfig` renders this
+at 1.25em and uses a 0.25em descent, matching Misskey's `.normal` CSS class.
+
+`rootScale` must be finite and greater than zero. It only initializes traversal scale;
+it does not modify the root font size or add a transform.
+
 ### Callbacks Configuration
 
 ```dart
@@ -255,9 +285,13 @@ MfmText(
     onMentionTap: (acct) {
       navigateToUser(acct);
     },
-    // On hashtag tap
+    // Backward-compatible hashtag tap callback
     onHashtagTap: (tag) {
       navigateToHashtag(tag);
+    },
+    // Preferred detailed callback. When supplied, onHashtagTap is not called.
+    onHashtagTapDetails: (details) {
+      navigateToPath(details.path); // /tags/<encoded> or /user-tags/<encoded>
     },
     // On search tap
     onSearchTap: (query) {
@@ -300,7 +334,10 @@ can be resolved, the original acct is passed through unchanged.
 MfmText(
   text: '@alice',
   config: MfmRenderConfig(
-    author: const MfmAuthorContext(host: 'remote.example'),
+    author: const MfmAuthorContext(
+      host: 'remote.example',
+      isCat: true, // Used by MfmNyaizeMode.respectAuthor.
+    ),
     localHost: 'local.example',
     onMentionTap: navigateToUser,
   ),
@@ -413,12 +450,15 @@ widget). The publicly exported immutable `MfmEmojiContext` contains:
 - `fontSize`: the current effective font size in logical pixels, including
   size functions, `tada` (150%), and `<small>` (80%).
 - `scale`: the cumulative x2/x3/x4/scale-function multiplier. `tada` and
-  `<small>` do not change it. For a 14px base, x2 gives `(28, 2)`, x4 gives
-  `(84, 4)`, `scale.x=3,y=3` gives `(14, 3)`, and `tada` gives `(21, 1)`
-  with advanced MFM enabled. A non-uniform `scale` multiplies by `max(x, y)`
-  for non-negative values, matching Misskey, so `scale.x=3,y=1` also gives
-  `(14, 3)`. With `enableAdvancedMfm: false`, x2/x3/x4 instead give
-  `(14, 2)` / `(14, 3)` / `(14, 4)`, while `scale.x=3,y=3` gives `(14, 1)`.
+  `<small>` do not change it. `MfmText.rootScale` supplies the initial value.
+  For a 14px base, x2 gives `(28, 2)`, x4 gives `(84, 4)`, `scale.x=3,y=3`
+  gives `(14, 3)`, and `tada` gives `(21, 1)` with advanced MFM enabled.
+  A non-uniform `scale` multiplies by `max(x, y)` for non-negative values,
+  matching Misskey, so `scale.x=3,y=1` also gives `(14, 3)`. With
+  `enableAdvancedMfm: false`, x2/x3/x4 instead give `(14, 2)` / `(14, 3)` /
+  `(14, 4)`, while `scale.x=3,y=3` gives `(14, 1)`.
+- `normal`: true only for custom emoji in `MfmText(plain: true)`. Builders can use
+  it to select Misskey's 1.25em `.normal` appearance.
 - `useOriginalSize`: `scale >= 2.5`, matching Misskey's original-image hint.
   `misskey_emoji` 2.0.0-beta.1 exposes only one `EmojiImage.url`, with no
   original/thumbnail distinction. Automatic original-URL switching requires
@@ -598,7 +638,9 @@ void main() {
 | `enableAdvancedMfm` | `bool` | true | Enable visual x2/x3/x4 enlargement, scale/position effects, and MFM animations |
 | `enableAnimation` | `bool` | true | Enable MFM animations when advanced MFM is enabled |
 | `useAnimation` | `bool` (getter) | true (derived) | Read-only effective animation gate: `enableAdvancedMfm && enableAnimation` |
-| `enableNyaize` | `bool` | false | Enable nyaize (cat-speak) transformation on text nodes |
+| `enableNyaize` | `bool` | false | Legacy forced nyaize switch when `nyaizeMode` is null |
+| `nyaizeMode` | `MfmNyaizeMode?` | null | `disabled`, `enabled`, or `respectAuthor`; explicit value takes precedence |
+| `onHashtagTapDetails` | `void Function(MfmHashtagTapDetails)?` | null | Preferred hashtag callback with `tag`, `isNote`, and encoded route `path` |
 | `emojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Custom emoji builder |
 | `unicodeEmojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Unicode emoji builder |
 | `onLinkTap` | `void Function(String)?` | null | Link tap callback |
@@ -608,7 +650,7 @@ void main() {
 | `onCodeCopied` | `void Function(String)?` | null | Code copy completion callback; replaces the default SnackBar, which requires a ScaffoldMessenger ancestor |
 | `codeCopyTooltip` | `String?` | current locale | Code copy button accessibility label override (`コピー` for Japanese, `Copy` otherwise) |
 | `codeCopiedMessage` | `String?` | current locale | Default copy SnackBar message override (`コードをコピーしました` for Japanese, `Copied to clipboard` otherwise) |
-| `author` | `MfmAuthorContext?` | null | Author context used for host-dependent rendering |
+| `author` | `MfmAuthorContext?` | null | Author context (`host`, `isCat`) used for host-dependent rendering and `respectAuthor` nyaize |
 | `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback |
 | `searchButtonLabel` | `String?` | current locale | Search button label override (`検索` for Japanese, `Search` otherwise) |
 | `useLocaleSearchButtonLabel` | `bool` | false | Clear a configured or inherited search label and resolve it from the current locale |
