@@ -6,6 +6,8 @@ const versionReferencePaths = <String>[
   'README.ja.md',
 ];
 
+const _exampleLockPath = 'example/pubspec.lock';
+
 final RegExp _semanticVersionPattern = RegExp(
   r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)'
   r'(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)'
@@ -68,6 +70,13 @@ List<String> bumpVersion(
     releaseDate ?? DateTime.now(),
   );
 
+  updates[_exampleLockPath] = _replaceExampleLockVersion(
+    _readFile(root, _exampleLockPath),
+    packageName: project.name,
+    currentVersion: project.version,
+    nextVersion: nextVersion,
+  );
+
   for (final entry in updates.entries) {
     _file(root, entry.key).writeAsStringSync(entry.value);
   }
@@ -95,6 +104,12 @@ void verifyRelease(Directory root, String expectedVersion) {
       expectedVersion: expectedVersion,
     );
   }
+
+  _readExampleLockVersion(
+    _readFile(root, _exampleLockPath),
+    packageName: project.name,
+    expectedVersion: expectedVersion,
+  );
 
   final heading = _releaseHeading(
     _readFile(root, 'CHANGELOG.md'),
@@ -221,6 +236,64 @@ String _replacePubspecVersion(
     versionStart + foundVersion.length,
     nextVersion,
   );
+}
+
+String _replaceExampleLockVersion(
+  String content, {
+  required String packageName,
+  required String currentVersion,
+  required String nextVersion,
+}) {
+  final match = _exampleLockVersionMatch(content, packageName: packageName);
+  final foundVersion = match.group(2)!;
+  if (foundVersion != currentVersion) {
+    throw ReleaseToolException(
+      '$_exampleLockPath has $packageName version $foundVersion, expected '
+      '$currentVersion.',
+    );
+  }
+  final versionStart = match.start + match.group(1)!.length;
+  return content.replaceRange(
+    versionStart,
+    versionStart + foundVersion.length,
+    nextVersion,
+  );
+}
+
+void _readExampleLockVersion(
+  String content, {
+  required String packageName,
+  required String expectedVersion,
+}) {
+  final match = _exampleLockVersionMatch(content, packageName: packageName);
+  final foundVersion = match.group(2)!;
+  if (foundVersion != expectedVersion) {
+    throw ReleaseToolException(
+      '$_exampleLockPath has $packageName version $foundVersion, expected '
+      '$expectedVersion.',
+    );
+  }
+}
+
+RegExpMatch _exampleLockVersionMatch(
+  String content, {
+  required String packageName,
+}) {
+  final pattern = RegExp(
+    '^(  ${RegExp.escape(packageName)}:\\r?\\n'
+    r'(?:    [^\r\n]*(?:\r?\n|$))*?'
+    r'    source: path\r?\n'
+    r'    version: ")([^"]+)"[ \t]*$',
+    multiLine: true,
+  );
+  final matches = pattern.allMatches(content).toList();
+  if (matches.length != 1) {
+    throw ReleaseToolException(
+      '$_exampleLockPath must contain exactly one $packageName package entry '
+      'with a version.',
+    );
+  }
+  return matches.single;
 }
 
 String _replaceVersionReference(
