@@ -331,6 +331,35 @@ MfmText(
 )
 ```
 
+### Custom Emoji in Remote Posts
+
+Pass each remote note's emoji URL map together with its author host. Start from your
+shared local-server configuration and create a per-note copy:
+
+```dart
+MfmText(
+  text: note.text,
+  config: config.copyWith(
+    author: const MfmAuthorContext(host: 'remote.example'),
+    emojiUrls: note.emojis,
+  ),
+)
+```
+
+For a local post, custom emoji use the configured local resolver. For a remote post,
+the renderer first uses the exact shortcode key in `emojiUrls`; a mapped non-empty URL
+is used directly. If `emojiUrls` is present but has no key for the shortcode, the
+renderer shows literal `:name:` text and does not use a fallback. When `emojiUrls` is
+absent (or its matched URL is empty), `MfmEmojiConfig` falls back to the local Misskey
+server's `/emoji/name@host.webp` endpoint. `MfmEmojiConfig.createDefault` obtains that
+server URL from its client. For `MfmEmojiConfig.fromResolver`, provide
+`serverBaseUrl` to enable this remote endpoint fallback; without it, a remote emoji
+without a direct URL remains literal text and never uses the local resolver.
+
+Treat `emojiUrls` as immutable. Mutating a map after passing it to `MfmRenderConfig`
+does not notify inherited configuration listeners; replace it with a new map when the
+note data changes.
+
 ### Advanced Custom Emoji Configuration
 
 To display custom emojis from a Misskey server, integrate the `misskey_emoji` library:
