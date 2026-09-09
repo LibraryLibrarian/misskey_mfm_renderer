@@ -7,6 +7,7 @@ void main() {
       const config = MfmRenderConfig();
       expect(config.enableAdvancedMfm, true);
       expect(config.enableAnimation, true);
+      expect(config.useAnimation, true);
       expect(config.enableNyaize, false);
       expect(config.baseTextStyle, null);
       expect(config.author, null);
@@ -24,6 +25,27 @@ void main() {
       expect(localized.searchButtonLabel, isNull);
       expect(localized.useLocaleSearchButtonLabel, isTrue);
     });
+
+    for (final advanced in [false, true]) {
+      for (final animation in [false, true]) {
+        test('useAnimation is the AND of $advanced and $animation', () {
+          final config = MfmRenderConfig(
+            enableAdvancedMfm: advanced,
+            enableAnimation: animation,
+          );
+          expect(config.useAnimation, advanced && animation);
+          expect(config.copyWith().useAnimation, advanced && animation);
+          expect(
+            config.copyWith(enableAdvancedMfm: !advanced).useAnimation,
+            !advanced && animation,
+          );
+          expect(
+            config.copyWith(enableAnimation: !animation).useAnimation,
+            advanced && !animation,
+          );
+        });
+      }
+    }
 
     test('copyWith works correctly', () {
       const config = MfmRenderConfig();

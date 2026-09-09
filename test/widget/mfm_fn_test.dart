@@ -1825,6 +1825,49 @@ void main() {
     });
   });
 
+  group('MfmText advanced無効時のサイズ・scale', () {
+    for (final fn in ['x2', 'x3', 'x4', 'scale.x=3,y=2']) {
+      testWidgets('$fnはfontSizeとTransformを変更しない', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: 'before\$[$fn **body**]after',
+                config: const MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: 14),
+                  enableAdvancedMfm: false,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final richText = tester.widget<RichText>(find.byType(RichText));
+        expect(richText.text.toPlainText(), 'beforebodyafter');
+        expect(richText.text.style?.fontSize, 14);
+        richText.text.visitChildren((span) {
+          expect(span.style?.fontSize, anyOf(isNull, 14));
+          return true;
+        });
+        expect(_collectWidgetSpans(richText.text), isEmpty);
+        expect(
+          find.descendant(
+            of: find.byType(MfmText),
+            matching: find.byType(Transform),
+          ),
+          findsNothing,
+        );
+        expect(
+          _findSpanWithStyle(
+            richText.text as TextSpan,
+            (style) => style?.fontWeight == FontWeight.bold,
+          )?.toPlainText(),
+          'body',
+        );
+      });
+    }
+  });
+
   group('MfmText 未知のfn関数', () {
     testWidgets('未知のfn関数はリテラルで表示する', (tester) async {
       await tester.pumpWidget(

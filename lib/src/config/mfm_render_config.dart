@@ -26,6 +26,8 @@ class MfmEmojiContext {
   /// x2/x3/x4/scale fnの累積倍率。tadaやsmallのサイズ変更は含まない。
   ///
   /// scale fnは描画時の変形なので、[fontSize]には反映されない。
+  /// advanced MFMが無効でもx2/x3/x4の公称倍率は伝播するが、
+  /// scale fnの倍率は伝播しない。
   final double scale;
 
   /// 本家と同じく2.5倍以上で原寸画像を使うべきか。
@@ -83,11 +85,16 @@ class MfmRenderConfig {
   /// ベースのテキストスタイル（指定しない場合はデフォルトを使用）
   final TextStyle? baseTextStyle;
 
-  /// advancedMfm（position等の高度な機能）を有効化
+  /// x2/x3/x4の視覚的サイズ変更、scale/position、MFMアニメーションを有効化。
+  ///
+  /// 無効時もx2/x3/x4の公称倍率は絵文字の描画文脈へ伝播する。
   final bool enableAdvancedMfm;
 
-  /// アニメーションを有効化（将来用）
+  /// [enableAdvancedMfm]が有効な場合のMFMアニメーションを有効化。
   final bool enableAnimation;
+
+  /// MFMアニメーションの実効的な有効判定。
+  bool get useAnimation => enableAdvancedMfm && enableAnimation;
 
   /// nyaize変換を有効化
   final bool enableNyaize;
