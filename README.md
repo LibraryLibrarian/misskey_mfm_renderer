@@ -49,12 +49,12 @@ integration work.
 
 ### Additional Notes
 
-**Inline code**: Inherits the surrounding text size, color, and weight, uses monospace fonts, and scales its padding (0.1em) and border radius (0.3em) with the inherited font size.
+**Inline code**: Inherits the surrounding text size, color, and weight, uses monospace fonts, uses the active `MfmColorScheme.bg`, and scales its padding (0.1em) and border radius (0.3em) with the inherited font size.
 
 **Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
 Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg ...]`, link colors) and widgets such as emoji, so a child color override cannot cancel the dimming.
 
-**Quote**: `> quote` occupies a full line with an 8px margin on all sides, padding of 6px top/bottom and 12px left (0px right), and a 3px left border, matching Misskey's `QUOTE_STYLE`. Text and border use the undimmed root text color with cumulative opacity applied; each quote and `<small>` level multiplies the original alpha by 0.7. The root color comes from `baseTextStyle`, or `DefaultTextStyle` when no base style is provided. An explicit style without a color falls back to white, as Flutter text does.
+**Quote**: `> quote` occupies a full line with an 8px margin on all sides, padding of 6px top/bottom and 12px left (0px right), and a 3px left border, matching Misskey's `QUOTE_STYLE`. Text and border use the active `MfmColorScheme.fg` with cumulative opacity applied; each quote and `<small>` level multiplies the original alpha by 0.7. This quote color is independent of `baseTextStyle` and `DefaultTextStyle`.
 Block display requires a parent with bounded width (for example, `SizedBox(width: 300)` or `Expanded` in a `Row`). With unbounded width, such as a non-`Expanded` child of a `Row`, quotes use their natural width and are not guaranteed to occupy a separate line. No extra boundary newlines are inserted. CSS margin collapsing between adjacent quotes and the handling of extra newlines around blocks are not fully reproduced.
 
 **Literal fn fallback**: Unknown fn names, `font` without a valid family, and `position` with `enableAdvancedMfm: false` are displayed as `$[name content]` (arguments omitted), preserving child formatting, matching Misskey.
@@ -573,25 +573,93 @@ MfmText(
 )
 ```
 
-### Color Customization
+### MFM Color Schemes
 
-Customize background colors for inline code only (math formulas have no background):
+`MfmColorScheme` controls the Misskey theme colors used by URL/link, mention,
+hashtag, quote, search borders, the border fn default, unixtime borders, and
+inline-code backgrounds. Ordinary body text continues to use `baseTextStyle`
+or `DefaultTextStyle`.
+
+The built-in presets contain resolved colors from Misskey's Mi Light and Mi
+Dark themes:
+
+| Role | Mi Light | Mi Dark |
+|------|----------|---------|
+| `accent` | `#86B300` | `#86B300` |
+| `link` | `#44A4C1` | `#86B300` |
+| `hashtag` | `#FF9156` | `#4CB8D4` |
+| `mention` | `#86B300` | `#DA6D35` |
+| `mentionMe` | `#00B346` | `#D44C4C` |
+| `fg` | `#676767` | `#C7D1D8` |
+| `bg` | `#F9F9F9` | `#232323` |
+| `divider` | `#E8E8E8` | `rgba(255, 255, 255, 0.14)` |
+| `panel` | `#FFFFFF` | `#2D2D2D` |
+
+Set one or both schemes on `MfmRenderConfig`. An omitted mode keeps its
+built-in preset:
 
 ```dart
 MfmText(
-  text: r'Inline `code` and math \(x^2\)',
-  config: MfmRenderConfig(
-    // Custom background color for light mode (default: #F5F5F5)
-    inlineCodeBgColorLight: const Color(0xFFF0F0F0),
-    // Custom background color for dark mode (default: #121212)
-    inlineCodeBgColorDark: const Color(0xFF1A1A1A),
+  text: '@user #flutter https://example.com and `code`',
+  config: const MfmRenderConfig(
+    lightColorScheme: MfmColorScheme.light(
+      link: Color(0xFF0066CC),
+      bg: Color(0xFFF0F0F0),
+    ),
+    darkColorScheme: MfmColorScheme.dark(
+      link: Color(0xFF80CBC4),
+      bg: Color(0xFF1A1A1A),
+    ),
   ),
 )
 ```
 
-The default colors are based on Misskey's official implementation:
-- Light mode: `Color(0xFFF5F5F5)` - Very light gray
-- Dark mode: `Color(0xFF121212)` - Very dark gray
+Each field is a resolved, independent color. For example, overriding `accent`
+does not automatically change `mention`, `link`, or any other field. Normal
+mentions currently use `mention`; `mentionMe` is available in the scheme but
+cannot be selected until the renderer has viewer identity information.
+
+The mode is resolved in this order:
+
+1. `MfmRenderConfig.brightness`
+2. the nearest Material `Theme`
+3. the nearest Cupertino theme
+4. `MediaQuery` platform brightness
+5. `Brightness.light`
+
+Ambient themes select the mode only; their colors are not mapped automatically.
+To opt into an application's Material colors, define that mapping explicitly:
+
+```dart
+MfmColorScheme mfmColorsFrom(ColorScheme material) => MfmColorScheme(
+  accent: material.primary,
+  link: material.primary,
+  hashtag: material.tertiary,
+  mention: material.secondary,
+  mentionMe: material.error,
+  fg: material.onSurface,
+  bg: material.surface,
+  divider: material.outlineVariant,
+  panel: material.surfaceContainer,
+);
+
+final config = MfmRenderConfig(
+  lightColorScheme: mfmColorsFrom(lightTheme.colorScheme),
+  darkColorScheme: mfmColorsFrom(darkTheme.colorScheme),
+);
+```
+
+The former `inlineCodeBgColorLight` / `inlineCodeBgColorDark` properties have
+been removed. Migrate them to the corresponding preset's `bg` override:
+
+```dart
+const MfmRenderConfig(
+  lightColorScheme: MfmColorScheme.light(bg: Color(0xFFF0F0F0)),
+  darkColorScheme: MfmColorScheme.dark(bg: Color(0xFF1A1A1A)),
+)
+```
+
+Math formulas remain unadorned and do not use `bg`.
 
 ### Advanced MFM Control
 
@@ -624,6 +692,23 @@ animations while keeping size, scale, and position effects.
 These flags control MFM animation functions, not playback of animated emoji
 images. They do not automatically follow the OS reduced-motion preference.
 
+### Rainbow animation and source colors
+
+Like Misskey, `rainbow` applies `hue-rotate` → `contrast(150%)` →
+`saturate(150%)`, rotating the hue **from the original text colors** rather
+than sweeping a gradient across the text. **Gray or black body text shows no
+hue change**: dark gray only becomes slightly darker, and black stays black.
+Colored `fg` text, links, and color emoji visibly cycle through rainbow hues:
+
+```dart
+MfmText(text: r'$[rainbow $[fg.color=ff0000 colorful]]')
+```
+
+The default cycle is 1 second with linear, infinite repetition. `speed` changes
+the cycle duration; a positive `delay` leaves the original child unfiltered
+until the animation starts. When `config.useAnimation` is false, the static
+fallback remains the familiar rainbow gradient (seven colors and seven stops).
+
 ### Localizing unixtime
 
 `$[unixtime]` uses the [timeago](https://pub.dev/packages/timeago) package for relative time display. Set locale at app startup for localization:
@@ -647,6 +732,9 @@ void main() {
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `baseTextStyle` | `TextStyle?` | null | Base text style |
+| `lightColorScheme` | `MfmColorScheme?` | Mi Light preset | MFM colors used in light mode |
+| `darkColorScheme` | `MfmColorScheme?` | Mi Dark preset | MFM colors used in dark mode |
+| `brightness` | `Brightness?` | ambient theme/platform | Explicitly select the active MFM color mode |
 | `enableAdvancedMfm` | `bool` | true | Enable visual x2/x3/x4 enlargement, scale/position effects, and MFM animations |
 | `enableAnimation` | `bool` | true | Enable MFM animations when advanced MFM is enabled |
 | `useAnimation` | `bool` (getter) | true (derived) | Read-only effective animation gate: `enableAdvancedMfm && enableAnimation` |

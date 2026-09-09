@@ -46,12 +46,12 @@ MFMを完全に描画できるようにするため、`misskey_emoji` を依存�
 
 ### 追加の注意事項
 
-**インラインコード**: 周囲の文字サイズ・色・太字などを継承した等幅フォントで表示し、余白（0.1em）と角丸（0.3em）は継承サイズに比例します。
+**インラインコード**: 周囲の文字サイズ・色・太字などを継承した等幅フォントで表示し、背景には選択中の `MfmColorScheme.bg` を使います。余白（0.1em）と角丸（0.3em）は継承サイズに比例します。
 
 **小文字**: `<small>` はネストするたびに継承サイズを0.8倍にし、0.7減光します。
 減光は継承色のalphaだけでなく、`$[fg ...]` やリンク色などの固定色、絵文字などのウィジェットにも適用されるため、子の色指定で減光が打ち消されることはありません。
 
-**引用**: `> quote` は本家の `QUOTE_STYLE` に合わせ、行全幅を使い、四辺8pxのmargin、上下6px・左12px・右0pxのpadding、幅3pxの左罫線で表示します。文字と罫線はルートの未減光文字色を共通のソースとし、引用と `<small>` の各階層で元のalphaに0.7を乗算します。ルート色は `baseTextStyle`、ベーススタイル未指定時は `DefaultTextStyle` から取得します。明示スタイルで色が未指定の場合は、Flutterの文字描画と同じ白を既定とします。
+**引用**: `> quote` は本家の `QUOTE_STYLE` に合わせ、行全幅を使い、四辺8pxのmargin、上下6px・左12px・右0pxのpadding、幅3pxの左罫線で表示します。文字と罫線には選択中の `MfmColorScheme.fg` を使い、引用と `<small>` の各階層で元のalphaに0.7を乗算します。引用色は `baseTextStyle` / `DefaultTextStyle` とは独立しています。
 ブロック表示は有限幅の親（例: `SizedBox(width: 300)` や `Row` 内の `Expanded`）を前提とします。`Row` 内の非 `Expanded` 子など幅が無制約の場合は自然幅となり、独立した行になる保証はありません。境界の改行は追加しません。隣接引用のCSS margin collapseやブロック前後の余分な改行の扱いまでは完全再現していません。
 
 **fnのリテラル表示**: 未知のfn、有効なフォント指定のない `font`、`enableAdvancedMfm: false` 時の `position` は、本家Misskeyと同じく子要素の装飾を維持した `$[name 中身]`（引数は省略）として表示されます。
@@ -567,25 +567,93 @@ MfmText(
 )
 ```
 
-### 色のカスタマイズ
+### MFM配色のカスタマイズ
 
-インラインコードの背景色をカスタマイズできます（数式には背景を付けません）：
+`MfmColorScheme` では、URL・リンク、メンション、ハッシュタグ、引用、検索の
+枠線、border fnの既定色、unixtimeの枠線、インラインコード背景に使う
+Misskeyテーマ色を設定できます。通常の本文色は引き続き `baseTextStyle` または
+`DefaultTextStyle` に従います。
+
+組み込みpresetにはMisskeyのMi Light / Mi Darkテーマから解決した次の色を
+設定しています。
+
+| role | Mi Light | Mi Dark |
+|------|----------|---------|
+| `accent` | `#86B300` | `#86B300` |
+| `link` | `#44A4C1` | `#86B300` |
+| `hashtag` | `#FF9156` | `#4CB8D4` |
+| `mention` | `#86B300` | `#DA6D35` |
+| `mentionMe` | `#00B346` | `#D44C4C` |
+| `fg` | `#676767` | `#C7D1D8` |
+| `bg` | `#F9F9F9` | `#232323` |
+| `divider` | `#E8E8E8` | `rgba(255, 255, 255, 0.14)` |
+| `panel` | `#FFFFFF` | `#2D2D2D` |
+
+`MfmRenderConfig` に一方または両方の配色を指定できます。省略したmodeでは
+組み込みpresetを使います。
 
 ```dart
 MfmText(
-  text: r'インライン`コード`と数式 \(x^2\)',
-  config: MfmRenderConfig(
-    // ライトモード用の背景色（デフォルト: #F5F5F5）
-    inlineCodeBgColorLight: const Color(0xFFF0F0F0),
-    // ダークモード用の背景色（デフォルト: #121212）
-    inlineCodeBgColorDark: const Color(0xFF1A1A1A),
+  text: '@user #flutter https://example.com と `code`',
+  config: const MfmRenderConfig(
+    lightColorScheme: MfmColorScheme.light(
+      link: Color(0xFF0066CC),
+      bg: Color(0xFFF0F0F0),
+    ),
+    darkColorScheme: MfmColorScheme.dark(
+      link: Color(0xFF80CBC4),
+      bg: Color(0xFF1A1A1A),
+    ),
   ),
 )
 ```
 
-デフォルトの色はMisskey本家の実装に準拠しています：
-- ライトモード: `Color(0xFFF5F5F5)` - 非常に薄いグレー
-- ダークモード: `Color(0xFF121212)` - 非常に暗いグレー
+各fieldは参照を解決済みの独立した色です。例えば `accent` だけを変更しても
+`mention`、`link` などは自動では変わりません。通常のメンションは現在
+`mention` を使います。`mentionMe` は配色として公開していますが、閲覧者情報を
+レンダラーへ渡すAPIがないため、現時点では自分宛て判定に利用しません。
+
+modeは次の優先順位で解決します。
+
+1. `MfmRenderConfig.brightness`
+2. 最寄りのMaterial `Theme`
+3. 最寄りのCupertino theme
+4. `MediaQuery` のplatform brightness
+5. `Brightness.light`
+
+周囲のthemeはmode選択にだけ使い、色そのものは自動変換しません。アプリの
+Material配色へ合わせる場合は、対応関係を明示して構築してください。
+
+```dart
+MfmColorScheme mfmColorsFrom(ColorScheme material) => MfmColorScheme(
+  accent: material.primary,
+  link: material.primary,
+  hashtag: material.tertiary,
+  mention: material.secondary,
+  mentionMe: material.error,
+  fg: material.onSurface,
+  bg: material.surface,
+  divider: material.outlineVariant,
+  panel: material.surfaceContainer,
+);
+
+final config = MfmRenderConfig(
+  lightColorScheme: mfmColorsFrom(lightTheme.colorScheme),
+  darkColorScheme: mfmColorsFrom(darkTheme.colorScheme),
+);
+```
+
+従来の `inlineCodeBgColorLight` / `inlineCodeBgColorDark` は削除しました。
+対応するpresetの `bg` 上書きへ移行してください。
+
+```dart
+const MfmRenderConfig(
+  lightColorScheme: MfmColorScheme.light(bg: Color(0xFFF0F0F0)),
+  darkColorScheme: MfmColorScheme.dark(bg: Color(0xFF1A1A1A)),
+)
+```
+
+数式は引き続き装飾を付けず、`bg` を使用しません。
 
 ### 高度なMFMの制御
 
@@ -618,6 +686,23 @@ advanced MFM無効時、x2/x3/x4はフォントサイズを維持します（絵
 これらのフラグはMFMアニメーション関数を制御し、アニメーション絵文字画像の再生は
 制御しません。OSの「視差効果を減らす」設定には自動連動しません。
 
+### rainbow のアニメーションと元の色
+
+`rainbow` は本家Misskeyと同じく `hue-rotate` → `contrast(150%)` →
+`saturate(150%)` を適用し、グラデーションを横に流すのではなく、**元の文字色を
+起点に色相を回転**させます。**灰色や黒の本文では色相変化は見えません**。
+暗い灰色は少し濃くなるだけで、黒は黒のままです。色付きの `fg`、リンク、
+カラー絵文字では虹色への変化が見えます。
+
+```dart
+MfmText(text: r'$[rainbow $[fg.color=ff0000 カラフル]]')
+```
+
+既定周期は1秒で、等速・無限に繰り返します。`speed` で周期を変更でき、
+正の `delay` の待機中は元の子要素にフィルタを掛けません。
+`config.useAnimation` がfalseの場合は、従来どおり虹色グラデーションの
+静的フォールバック（7色・7ストップ）を表示します。
+
 ### unixtime のローカライズ
 
 `$[unixtime]` は [timeago](https://pub.dev/packages/timeago) パッケージを使用して相対時間を表示します。  
@@ -642,6 +727,9 @@ void main() {
 | プロパティ | 型 | デフォルト | 説明 |
 |-----------|------|---------|------|
 | `baseTextStyle` | `TextStyle?` | null | ベースのテキストスタイル |
+| `lightColorScheme` | `MfmColorScheme?` | Mi Light preset | ライトモード用のMFM配色 |
+| `darkColorScheme` | `MfmColorScheme?` | Mi Dark preset | ダークモード用のMFM配色 |
+| `brightness` | `Brightness?` | 周囲のtheme/platform | 使用するMFM配色modeを明示指定 |
 | `enableAdvancedMfm` | `bool` | true | x2/x3/x4の視覚的拡大、scale/positionの効果、MFMアニメーションを有効化 |
 | `enableAnimation` | `bool` | true | advanced MFM有効時のMFMアニメーションを有効化 |
 | `useAnimation` | `bool`（getter） | true（導出値） | 読み取り専用の実効判定: `enableAdvancedMfm && enableAnimation` |

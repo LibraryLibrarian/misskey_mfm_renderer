@@ -82,63 +82,59 @@ void main() {
     expect(find.text('explicit:14.0:1.0'), findsOneWidget);
   });
 
-  group('emojiUrls inheritance and default config detection', () {
-    const inheritedUrls = {'Wave': 'https://remote.example/inherited.png'};
-    const explicitUrls = {'Wave': 'https://remote.example/explicit.png'};
-    for (final testCase in [
-      (name: 'default', config: const MfmRenderConfig(), urls: inheritedUrls),
-      (
-        name: 'merge unrelated field',
-        config: const MfmRenderConfig(enableAnimation: false),
-        urls: inheritedUrls,
-      ),
-      (
-        name: 'map only is not default',
-        config: const MfmRenderConfig(emojiUrls: explicitUrls),
-        urls: explicitUrls,
-      ),
-      (
-        name: 'empty map overrides inherited map',
-        config: const MfmRenderConfig(emojiUrls: {}),
-        urls: <String, String>{},
-      ),
-      (
-        name: 'maps are replaced rather than combined',
-        config: const MfmRenderConfig(
-          emojiUrls: {'Other': 'https://other.example/e.png'},
-        ),
-        urls: <String, String>{},
-      ),
-    ]) {
-      testWidgets(testCase.name, (tester) async {
-        final received = <MfmEmojiContext>[];
+  group('MFM配色の継承', () {
+    const inheritedLight = MfmColorScheme.light(link: Colors.orange);
+    const inheritedDark = MfmColorScheme.dark(link: Colors.purple);
+
+    for (final brightness in Brightness.values) {
+      testWidgets('${brightness.name}配色を既存の明示設定と結合する', (tester) async {
         await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: MfmConfig(
-                config: MfmRenderConfig(
-                  author: const MfmAuthorContext(host: 'remote.example'),
-                  emojiUrls: inheritedUrls,
-                  emojiBuilder: (_, context) {
-                    received.add(context);
-                    return const SizedBox.shrink();
-                  },
+          MfmConfig(
+            config: const MfmRenderConfig(
+              lightColorScheme: inheritedLight,
+              darkColorScheme: inheritedDark,
+            ),
+            child: MaterialApp(
+              theme: ThemeData(brightness: brightness),
+              home: const Scaffold(
+                body: MfmText(
+                  text: 'https://example.com',
+                  config: MfmRenderConfig(enableAnimation: false),
                 ),
-                child: MfmText(text: ':Wave:', config: testCase.config),
               ),
             ),
           ),
         );
-        if (testCase.urls.isEmpty) {
-          expect(received, isEmpty);
-          final root = tester.widget<RichText>(find.byType(RichText));
-          expect(root.text.toPlainText(), ':Wave:');
-        } else {
-          expect(received.single.host, 'remote.example');
-          expect(received.single.url, Uri.parse(testCase.urls['Wave']!));
-        }
+
+        expect(
+          _spanForText(tester, 'https://example.com').style!.color,
+          brightness == Brightness.dark ? Colors.purple : Colors.orange,
+        );
       });
     }
+
+    testWidgets('明示配色が継承配色より優先される', (tester) async {
+      await tester.pumpWidget(
+        const MfmConfig(
+          config: MfmRenderConfig(lightColorScheme: inheritedLight),
+          child: MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: 'https://example.com',
+                config: MfmRenderConfig(
+                  lightColorScheme: MfmColorScheme.light(link: Colors.teal),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        _spanForText(tester, 'https://example.com').style!.color,
+        Colors.teal,
+      );
+    });
   });
 
   group('コードコピー設定の継承', () {
@@ -288,6 +284,22 @@ void main() {
   );
 }
 
+TextSpan _spanForText(WidgetTester tester, String text) {
+  final root = tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+  return _findSpan(root, text)!;
+}
+
+TextSpan? _findSpan(TextSpan span, String text) {
+  if (span.text == text) return span;
+  for (final child in span.children ?? const <InlineSpan>[]) {
+    if (child is TextSpan) {
+      final found = _findSpan(child, text);
+      if (found != null) return found;
+    }
+  }
+  return null;
+}
+
 Widget _emojiTextBuilder(String _, MfmEmojiContext context) =>
     Text('inherited:${context.fontSize}:${context.scale}');
 
@@ -303,4 +315,63 @@ TextSpan? _findSpanWithText(TextSpan span, String text) {
     }
   }
   return null;
+
+  group('emojiUrls inheritance and default config detection', () {
+    const inheritedUrls = {'Wave': 'https://remote.example/inherited.png'};
+    const explicitUrls = {'Wave': 'https://remote.example/explicit.png'};
+    for (final testCase in [
+      (name: 'default', config: const MfmRenderConfig(), urls: inheritedUrls),
+      (
+        name: 'merge unrelated field',
+        config: const MfmRenderConfig(enableAnimation: false),
+        urls: inheritedUrls,
+      ),
+      (
+        name: 'map only is not default',
+        config: const MfmRenderConfig(emojiUrls: explicitUrls),
+        urls: explicitUrls,
+      ),
+      (
+        name: 'empty map overrides inherited map',
+        config: const MfmRenderConfig(emojiUrls: {}),
+        urls: <String, String>{},
+      ),
+      (
+        name: 'maps are replaced rather than combined',
+        config: const MfmRenderConfig(
+          emojiUrls: {'Other': 'https://other.example/e.png'},
+        ),
+        urls: <String, String>{},
+      ),
+    ]) {
+      testWidgets(testCase.name, (tester) async {
+        final received = <MfmEmojiContext>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmConfig(
+                config: MfmRenderConfig(
+                  author: const MfmAuthorContext(host: 'remote.example'),
+                  emojiUrls: inheritedUrls,
+                  emojiBuilder: (_, context) {
+                    received.add(context);
+                    return const SizedBox.shrink();
+                  },
+                ),
+                child: MfmText(text: ':Wave:', config: testCase.config),
+              ),
+            ),
+          ),
+        );
+        if (testCase.urls.isEmpty) {
+          expect(received, isEmpty);
+          final root = tester.widget<RichText>(find.byType(RichText));
+          expect(root.text.toPlainText(), ':Wave:');
+        } else {
+          expect(received.single.host, 'remote.example');
+          expect(received.single.url, Uri.parse(testCase.urls['Wave']!));
+        }
+      });
+    }
+  });
 }

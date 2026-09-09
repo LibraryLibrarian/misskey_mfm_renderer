@@ -4,6 +4,7 @@ import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 
+import '../config/mfm_color_scheme.dart';
 import '../config/mfm_render_config.dart';
 import '../fn/mfm_fn_handler.dart';
 import '../utils/nyaize.dart';
@@ -13,6 +14,7 @@ import '../widgets/mfm_code_block.dart';
 class MfmNodeBuilder {
   MfmNodeBuilder({
     required this.config,
+    required this.colorScheme,
     required this.effectiveStyle,
     this.scale = 1.0,
     this.sizeDepth = 0,
@@ -22,11 +24,11 @@ class MfmNodeBuilder {
     this.isNote = true,
   });
 
-  /// リンク・URL・メンション・ハッシュタグに共通のリンク色
-  static const _linkColor = Color(0xFF0066CC);
-
   /// レンダリング設定
   final MfmRenderConfig config;
+
+  /// 現在のbrightnessに対して解決済みのMFM配色
+  final MfmColorScheme colorScheme;
 
   /// 祖先ノードの差分スタイルを反映した現在の実効スタイル
   final TextStyle effectiveStyle;
@@ -61,6 +63,7 @@ class MfmNodeBuilder {
   }) {
     return MfmNodeBuilder(
       config: config,
+      colorScheme: colorScheme,
       effectiveStyle: effectiveStyle ?? this.effectiveStyle,
       scale: scale ?? this.scale,
       sizeDepth: sizeDepth ?? this.sizeDepth,
@@ -218,14 +221,8 @@ class MfmNodeBuilder {
     );
   }
 
-  Color _resolveQuoteBaseColor() {
-    // smallやfgの実効色ではなくルートの未減光色を使う。
-    // 色未指定時はTextStyleの既定描画色と同じ白に揃える。
-    return config.baseTextStyle?.color ?? const Color(0xFFFFFFFF);
-  }
-
   InlineSpan _buildQuote(QuoteNode node) {
-    final baseColor = _resolveQuoteBaseColor();
+    final baseColor = colorScheme.fg;
     // 本家のQUOTE_STYLEもopacity: 0.7を要素全体に掛けるため、
     // 累積不透明度を0.7倍して配下のウィジェットまで減光する。
     final quoted = _withDisableNyaize()._copyWith(opacity: opacity * 0.7);
@@ -285,11 +282,7 @@ class MfmNodeBuilder {
 
   InlineSpan _buildInlineCode(InlineCodeNode node) {
     final fontSize = effectiveStyle.fontSize!;
-
-    // 背景色を取得（Misskey本家に準拠した色をデフォルトとして使用）
-    final backgroundColor = config.brightness == Brightness.dark
-        ? (config.inlineCodeBgColorDark ?? const Color(0xFF121212))
-        : (config.inlineCodeBgColorLight ?? const Color(0xFFF5F5F5));
+    final backgroundColor = colorScheme.bg;
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
@@ -355,8 +348,8 @@ class MfmNodeBuilder {
     return TextSpan(
       text: node.url,
       style: TextStyle(
-        color: applyOpacity(_linkColor),
-        decoration: TextDecoration.underline,
+        color: applyOpacity(colorScheme.link),
+        decoration: TextDecoration.none,
       ),
       recognizer: onLinkTap == null
           ? null
@@ -368,8 +361,8 @@ class MfmNodeBuilder {
     final onLinkTap = config.onLinkTap;
     return _withDisableNyaize().buildStyledSpan(
       TextStyle(
-        color: applyOpacity(_linkColor),
-        decoration: TextDecoration.underline,
+        color: applyOpacity(colorScheme.link),
+        decoration: TextDecoration.none,
       ),
       node.children,
       recognizer: onLinkTap == null
@@ -384,7 +377,7 @@ class MfmNodeBuilder {
     return TextSpan(
       text: node.acct,
       style: TextStyle(
-        color: applyOpacity(_linkColor),
+        color: applyOpacity(colorScheme.mention),
       ),
       recognizer: onMentionTap == null
           ? null
@@ -418,7 +411,7 @@ class MfmNodeBuilder {
     return TextSpan(
       text: '#${node.hashtag}',
       style: TextStyle(
-        color: applyOpacity(_linkColor),
+        color: applyOpacity(colorScheme.hashtag),
       ),
       recognizer: onHashtagTapDetails == null && onHashtagTap == null
           ? null
@@ -442,6 +435,7 @@ class MfmNodeBuilder {
 
   InlineSpan _buildSearch(SearchNode node) {
     final baseStyle = config.baseTextStyle ?? const TextStyle(fontSize: 14);
+    final borderSide = BorderSide(color: colorScheme.divider);
 
     return WidgetSpan(
       child: wrapOpacity(
@@ -456,13 +450,15 @@ class MfmNodeBuilder {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFCCCCCC)),
-                    borderRadius: BorderRadius.circular(4),
+                    border: Border.fromBorderSide(borderSide),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      bottomLeft: Radius.circular(4),
+                    ),
                   ),
                   child: Text(node.query, style: baseStyle),
                 ),
               ),
-              const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
                   config.onSearchTap?.call(node.query);
@@ -473,15 +469,19 @@ class MfmNodeBuilder {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0066CC),
-                    borderRadius: BorderRadius.circular(4),
+                    border: Border(
+                      top: borderSide,
+                      right: borderSide,
+                      bottom: borderSide,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(4),
+                      bottomRight: Radius.circular(4),
+                    ),
                   ),
                   child: Text(
                     config.searchButtonLabel ?? 'Search',
-                    style: const TextStyle(
-                      color: Color(0xFFFFFFFF),
-                      fontSize: 14,
-                    ),
+                    style: baseStyle,
                   ),
                 ),
               ),
