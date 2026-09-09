@@ -52,6 +52,8 @@ class MfmEmojiContext {
     required this.fontSize,
     required this.scale,
     this.normal = false,
+    this.host,
+    this.url,
   });
 
   /// 現在の実効フォントサイズ（px）。本家のem計算の基準。
@@ -65,6 +67,12 @@ class MfmEmojiContext {
   /// plain表示用の通常サイズを使うか。
   final bool normal;
 
+  /// カスタム絵文字の投稿者ホスト。nullならローカル投稿。
+  final String? host;
+
+  /// MfmRenderConfig.emojiUrlsから取得した直接画像URL。
+  final Uri? url;
+
   /// 本家と同じく2.5倍以上で原寸画像を使うべきか。
   ///
   /// 原寸URLを取得できる独自ビルダーで利用するためのヒント。
@@ -77,14 +85,17 @@ class MfmEmojiContext {
       other is MfmEmojiContext &&
       other.fontSize == fontSize &&
       other.scale == scale &&
-      other.normal == normal;
+      other.normal == normal &&
+      other.host == host &&
+      other.url == url;
 
   @override
-  int get hashCode => Object.hash(fontSize, scale, normal);
+  int get hashCode => Object.hash(fontSize, scale, normal, host, url);
 
   @override
   String toString() =>
-      'MfmEmojiContext(fontSize: $fontSize, scale: $scale, normal: $normal)';
+      'MfmEmojiContext(fontSize: $fontSize, scale: $scale, normal: $normal, '
+      'host: $host, url: $url)';
 }
 
 /// MFMレンダリングの設定クラス
@@ -103,6 +114,7 @@ class MfmRenderConfig {
     this.onHashtagTapDetails,
     this.onSearchTap,
     this.author,
+    this.emojiUrls,
     this.localHost,
     String? searchButtonLabel,
     this.useLocaleSearchButtonLabel = false,
@@ -183,6 +195,16 @@ class MfmRenderConfig {
 
   /// MFMを含むコンテンツの投稿者情報。
   final MfmAuthorContext? author;
+
+  /// リモート投稿のカスタム絵文字名から直接画像URLへの辞書。
+  ///
+  /// ノートごとに`copyWith(author: ..., emojiUrls: ...)`で渡す想定。
+  /// キーはトークン名との完全一致で検索し、ローカル投稿では使用しない。
+  /// nullならリモート用エンドポイントへフォールバックし、辞書が存在して
+  /// キーがなければ`:name:`を表示する。空のURLは未指定として扱う。
+  /// Mapは不変として扱うこと。同じMapをmutateしても再描画されないため、
+  /// 更新時は新しいMapと設定を渡す。
+  final Map<String, String>? emojiUrls;
 
   /// 表示中のローカルMisskeyインスタンスのホスト。
   ///
@@ -271,8 +293,8 @@ class MfmRenderConfig {
   /// 設定をコピーして新しいインスタンスを作成。
   ///
   /// {@template mfm_render_config_copy_with_mention_context}
-  /// [author]と[localHost]は、`null`または省略時に現在の値を維持する。
-  /// 値を削除する場合は、対応する[clearAuthor]または[clearLocalHost]を
+  /// [author]、[emojiUrls]、[localHost]は、`null`または省略時に現在の値を維持する。
+  /// 値を削除する場合は、対応する[clearAuthor]、[clearEmojiUrls]、[clearLocalHost]を
   /// `true`にする。値の指定と削除を同時に要求すると[ArgumentError]を投げる。
   /// {@endtemplate}
   MfmRenderConfig copyWith({
@@ -289,8 +311,10 @@ class MfmRenderConfig {
     void Function(MfmHashtagTapDetails details)? onHashtagTapDetails,
     void Function(String query)? onSearchTap,
     MfmAuthorContext? author,
+    Map<String, String>? emojiUrls,
     String? localHost,
     bool clearAuthor = false,
+    bool clearEmojiUrls = false,
     bool clearLocalHost = false,
     String? searchButtonLabel,
     bool? useLocaleSearchButtonLabel,
@@ -311,6 +335,13 @@ class MfmRenderConfig {
         author,
         'author',
         'clearAuthorがtrueの場合は指定できません',
+      );
+    }
+    if (clearEmojiUrls && emojiUrls != null) {
+      throw ArgumentError.value(
+        emojiUrls,
+        'emojiUrls',
+        'clearEmojiUrlsがtrueの場合は指定できません',
       );
     }
     if (clearLocalHost && localHost != null) {
@@ -338,6 +369,7 @@ class MfmRenderConfig {
       onHashtagTapDetails: onHashtagTapDetails ?? this.onHashtagTapDetails,
       onSearchTap: onSearchTap ?? this.onSearchTap,
       author: clearAuthor ? null : author ?? this.author,
+      emojiUrls: clearEmojiUrls ? null : emojiUrls ?? this.emojiUrls,
       localHost: clearLocalHost ? null : localHost ?? this.localHost,
       searchButtonLabel: effectiveUseLocaleSearchButtonLabel
           ? null

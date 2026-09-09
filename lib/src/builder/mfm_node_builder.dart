@@ -487,24 +487,35 @@ class MfmNodeBuilder {
 
   InlineSpan _buildEmojiCode(EmojiCodeNode node) {
     final emojiBuilder = config.emojiBuilder;
-    if (emojiBuilder != null) {
-      return WidgetSpan(
-        alignment: PlaceholderAlignment.baseline,
-        baseline: TextBaseline.alphabetic,
-        child: wrapOpacity(
-          emojiBuilder(
-            node.name,
-            MfmEmojiContext(
-              fontSize: effectiveStyle.fontSize!,
-              scale: scale,
-              normal: plain,
-            ),
-          ),
-        ),
-      );
+    final authorHost = config.author?.host;
+    final host = authorHost == null || authorHost.isEmpty ? null : authorHost;
+    final emojiUrls = config.emojiUrls;
+    if (emojiBuilder == null ||
+        (host != null &&
+            emojiUrls != null &&
+            !emojiUrls.containsKey(node.name))) {
+      return TextSpan(text: ':${node.name}:');
     }
 
-    return TextSpan(text: ':${node.name}:');
+    // ローカル投稿はURL辞書を見ない。空URLは本家のtruthy判定と同じく未指定。
+    final rawUrl = host == null ? null : emojiUrls?[node.name];
+    final url = rawUrl == null || rawUrl.isEmpty ? null : Uri.tryParse(rawUrl);
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: wrapOpacity(
+        emojiBuilder(
+          node.name,
+          MfmEmojiContext(
+            fontSize: effectiveStyle.fontSize!,
+            scale: scale,
+            normal: plain,
+            host: host,
+            url: url,
+          ),
+        ),
+      ),
+    );
   }
 
   InlineSpan _buildUnicodeEmoji(UnicodeEmojiNode node) {
