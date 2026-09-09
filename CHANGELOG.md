@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MfmHashtagTapDetails` と `onHashtagTapDetails` を追加。詳細コールバックはタグ、isNote、エンコード済みの `/tags/...` または `/user-tags/...` を受け取り、指定時は既存の `onHashtagTap` より優先する（#39）。
 
 ### Fixed
+- `rainbow` のアニメーションをグラデーション走査から、本家Misskeyと同じ `hue-rotate` → `contrast(150%)` → `saturate(150%)` の3段フィルタへ修正（#40、見た目の変更）。元の文字色を起点に色相が回るため、灰色や黒の本文では色相変化は見えず、暗い灰色が少し濃くなるだけ（黒は不変）。色付きのfg・リンク・カラー絵文字では色相変化が見える。正のdelay待機中はフィルタなしとし、無効時の虹色グラデーションは維持して本家と同じ7色7ストップへ整理した。
 - `twitch` と `shake` の `ease` をアニメーション全体ではなく、本家Misskeyと同じく隣接する各キーフレーム区間へ適用するよう修正（#42）。
 - 引用を有限幅の親では行全幅のブロックとして表示し、前後のテキストと分離。幅が無制約の場合は自然幅にフォールバックする（#32）。
 - 引用の余白を本家の `QUOTE_STYLE`（四辺margin 8px、padding 上下6px・左12px・右0px）に合わせ、幅3pxの左罫線と文字に `MfmColorScheme.fg` から累積opacityを適用するよう修正（#52）。

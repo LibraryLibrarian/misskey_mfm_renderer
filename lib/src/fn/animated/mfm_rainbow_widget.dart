@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import 'mfm_animated_wrapper.dart';
@@ -16,64 +18,77 @@ class MfmRainbowWidget extends StatelessWidget {
   final Duration delay;
   final bool enabled;
 
-  static const _rainbowBaseColors = <Color>[
-    Color(0xFFFF0000),
-    Color(0xFFFFA500),
-    Color(0xFFFFFF00),
-    Color(0xFF00FF00),
-    Color(0xFF00FFFF),
-    Color(0xFF0000FF),
-    Color(0xFFFF00FF),
-  ];
-
-  static const _animatedStops = <double>[
+  static const _contrastFilter = ColorFilter.matrix(<double>[
+    1.5,
     0,
-    0.14,
-    0.28,
-    0.43,
-    0.57,
-    0.71,
-    0.86,
+    0,
+    0,
+    -63.75,
+    0,
+    1.5,
+    0,
+    0,
+    -63.75,
+    0,
+    0,
+    1.5,
+    0,
+    -63.75,
+    0,
+    0,
+    0,
     1,
-  ];
+    0,
+  ]);
 
-  List<Color> _buildShiftedColors(double progress) {
-    final normalized = progress % 1.0;
-    final colorCount = _rainbowBaseColors.length;
-    final scaled = normalized * colorCount;
-    final baseIndex = scaled.floor();
-    final localT = scaled - baseIndex;
-    final colors = <Color>[];
+  static const _saturationFilter = ColorFilter.matrix(<double>[
+    0.213 + 0.787 * 1.5,
+    0.715 - 0.715 * 1.5,
+    0.072 - 0.072 * 1.5,
+    0,
+    0,
+    0.213 - 0.213 * 1.5,
+    0.715 + 0.285 * 1.5,
+    0.072 - 0.072 * 1.5,
+    0,
+    0,
+    0.213 - 0.213 * 1.5,
+    0.715 - 0.715 * 1.5,
+    0.072 + 0.928 * 1.5,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ]);
 
-    for (var i = 0; i <= colorCount; i++) {
-      final index = (baseIndex + i) % colorCount;
-      final nextIndex = (index + 1) % colorCount;
-      final color = Color.lerp(
-        _rainbowBaseColors[index],
-        _rainbowBaseColors[nextIndex],
-        localT,
-      )!;
-      colors.add(color);
-    }
-
-    return colors;
-  }
-
-  Widget _buildShaderMask(
-    Widget child,
-    List<Color> colors,
-    List<double> stops,
-  ) {
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) {
-        return LinearGradient(
-          colors: colors,
-          stops: stops,
-        ).createShader(bounds);
-      },
-      child: child,
-    );
+  static List<double> _hueRotateMatrix(double radians) {
+    final cos = math.cos(radians);
+    final sin = math.sin(radians);
+    return <double>[
+      0.213 + 0.787 * cos - 0.213 * sin,
+      0.715 - 0.715 * cos - 0.715 * sin,
+      0.072 - 0.072 * cos + 0.928 * sin,
+      0,
+      0,
+      0.213 - 0.213 * cos + 0.143 * sin,
+      0.715 + 0.285 * cos + 0.140 * sin,
+      0.072 - 0.072 * cos - 0.283 * sin,
+      0,
+      0,
+      0.213 - 0.213 * cos - 0.787 * sin,
+      0.715 - 0.715 * cos + 0.715 * sin,
+      0.072 + 0.928 * cos + 0.072 * sin,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+    ];
   }
 
   @override
@@ -88,8 +103,25 @@ class MfmRainbowWidget extends StatelessWidget {
       enabled: enabled,
       child: child,
       builder: (context, child, controller, progress) {
-        final colors = _buildShiftedColors(progress.value);
-        return _buildShaderMask(child, colors, _animatedStops);
+        // CSS の fill-mode: none に合わせ、正の delay 待機中は素の子を表示する。
+        if (delay > Duration.zero && !controller.isAnimating) {
+          return child;
+        }
+
+        // CSS は各 filter の出力をクランプするため、単一の合成行列ではなく
+        // 内側から hue-rotate → contrast → saturate の3段で適用する。
+        return ColorFiltered(
+          colorFilter: _saturationFilter,
+          child: ColorFiltered(
+            colorFilter: _contrastFilter,
+            child: ColorFiltered(
+              colorFilter: ColorFilter.matrix(
+                _hueRotateMatrix(progress.value * 2 * math.pi),
+              ),
+              child: child,
+            ),
+          ),
+        );
       },
     );
   }
@@ -109,7 +141,6 @@ class MfmStaticRainbowWidget extends StatelessWidget {
     Color(0xFF00FFFF),
     Color(0xFF0000FF),
     Color(0xFFFF00FF),
-    Color(0xFFFF0000),
   ];
 
   static const _staticStops = <double>[
@@ -119,7 +150,6 @@ class MfmStaticRainbowWidget extends StatelessWidget {
     0.5,
     0.67,
     0.83,
-    1,
     1,
   ];
 
