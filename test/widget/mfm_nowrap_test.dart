@@ -84,13 +84,13 @@ void main() {
 
     testWidgets('幅無制約でも引用と長文を例外なく描画する', (tester) async {
       await tester.pumpWidget(
-        Directionality(
+        const Directionality(
           textDirection: TextDirection.ltr,
           child: DefaultTextStyle(
             style: _baseStyle,
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 MfmText(
                   text: '> quote with a very long line that is ellipsized',
                   nowrap: true,
