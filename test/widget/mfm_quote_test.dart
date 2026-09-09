@@ -138,7 +138,9 @@ void main() {
       expect(tester.takeException(), isNull);
       // 文字5個×14pxに左右margin 16px・左padding 12px・罫線3pxを加える。
       expect(tester.getSize(_quotes()), const Size(101, 42));
-      expect(_rootParagraph(tester).size, const Size(101, 42));
+      final rootSize = _rootParagraph(tester).size;
+      expect(rootSize.width, 101);
+      expect(rootSize.height, 42);
     });
   });
 
