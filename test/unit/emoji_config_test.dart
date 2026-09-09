@@ -77,6 +77,30 @@ void main() {
     expect(custom.baselineOffset, 8.5);
   });
 
+  test('fromResolver uses normal 1.25em size and -0.25em baseline', () {
+    final config = MfmEmojiConfig.fromResolver(resolver: (_) async => null);
+    final custom = config.emojiBuilder!(
+      'emoji',
+      const MfmEmojiContext(fontSize: 14, scale: 1, normal: true),
+    ) as MfmCustomEmoji;
+    expect(custom.size, 17.5);
+    // normal class has vertical-align: -0.25em, so its descent is 14 * 0.25.
+    expect(custom.baselineOffset, 3.5);
+  });
+
+  test('normal baseline policy is retained for an explicit emojiSize', () {
+    final config = MfmEmojiConfig.fromResolver(
+      resolver: (_) async => null,
+      emojiSize: 24,
+    );
+    final custom = config.emojiBuilder!(
+      'emoji',
+      const MfmEmojiContext(fontSize: 14, scale: 1, normal: true),
+    ) as MfmCustomEmoji;
+    expect(custom.size, 24);
+    expect(custom.baselineOffset, 3.5);
+  });
+
   test('createDefault derives the store scope from client.baseUrl', () async {
     final dir = await Directory.systemTemp.createTemp('mfm_emoji_quick');
     final store = _FakeEmojiStore();
@@ -158,6 +182,26 @@ void main() {
     expect(config.onCodeCopied, isNull);
     expect(config.codeCopyTooltip, isNull);
     expect(config.codeCopiedMessage, isNull);
+  });
+
+  test('handle copyWith preserves and overrides nyaizeMode and hashtag details', () async {
+    final dir = await Directory.systemTemp.createTemp('mfm_emoji_props');
+    addTearDown(() => dir.delete(recursive: true));
+    final config = await MfmEmojiConfig.createDefault(
+      client: _createClient(),
+      storagePath: dir.path,
+      autoSync: false,
+      emojiStoreFactory: ({required Uri serverUrl, required String directory}) => _FakeEmojiStore(),
+    );
+    addTearDown(config.dispose);
+    void details(MfmHashtagTapDetails _) {}
+    final copied = config.copyWith(
+      nyaizeMode: MfmNyaizeMode.respectAuthor,
+      onHashtagTapDetails: details,
+    );
+    final preserved = copied.copyWith(enableAnimation: false);
+    expect(preserved.nyaizeMode, MfmNyaizeMode.respectAuthor);
+    expect(preserved.onHashtagTapDetails, same(details));
   });
 
   test('copyWith preserves shared lifecycle ownership', () async {

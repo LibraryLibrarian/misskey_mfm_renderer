@@ -102,6 +102,70 @@ void main() {
       expect(_findSpanWithText(_rootSpan(tester), 'にゃにぬ'), isNull);
     });
   });
+
+  group('MfmNyaizeMode', () {
+    for (final mode in MfmNyaizeMode.values) {
+      for (final author in <MfmAuthorContext?>[
+        null,
+        const MfmAuthorContext(isCat: false),
+        const MfmAuthorContext(isCat: true),
+      ]) {
+        testWidgets('${mode.name} / author: ${author?.isCat}', (tester) async {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: 'なにぬ',
+                  config: MfmRenderConfig(nyaizeMode: mode, author: author),
+                ),
+              ),
+            ),
+          );
+          final shouldTransform = mode == MfmNyaizeMode.enabled ||
+              (mode == MfmNyaizeMode.respectAuthor && author?.isCat == true);
+          expect(
+            _findSpanWithText(
+              _rootSpan(tester),
+              shouldTransform ? 'にゃにぬ' : 'なにぬ',
+            ),
+            isNotNull,
+          );
+        });
+      }
+    }
+
+    testWidgets('nyaizeMode overrides legacy enableNyaize', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: 'なにぬ',
+              config: MfmRenderConfig(
+                enableNyaize: true,
+                nyaizeMode: MfmNyaizeMode.disabled,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(_findSpanWithText(_rootSpan(tester), 'なにぬ'), isNotNull);
+    });
+
+    testWidgets('legacy enableNyaize=true continues forced transformation', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: 'なにぬ',
+              config: MfmRenderConfig(enableNyaize: true),
+            ),
+          ),
+        ),
+      );
+      expect(_findSpanWithText(_rootSpan(tester), 'にゃにぬ'), isNotNull);
+    });
+  });
+
 }
 
 TextSpan _rootSpan(WidgetTester tester) {
