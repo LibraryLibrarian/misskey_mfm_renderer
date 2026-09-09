@@ -119,11 +119,21 @@ class MfmFnHandler {
 
   static InlineSpan _buildFlip(FnNode node, MfmNodeBuilder builder) {
     final args = node.args;
-    final flipH = args.containsKey('h') || args.containsKey('');
+    final flipH = args.containsKey('h');
     final flipV = args.containsKey('v');
 
-    final scaleX = flipH ? -1.0 : 1.0;
-    final scaleY = flipV ? -1.0 : 1.0;
+    final double scaleX;
+    final double scaleY;
+    if (flipH && flipV) {
+      scaleX = -1.0;
+      scaleY = -1.0;
+    } else if (flipV) {
+      scaleX = 1.0;
+      scaleY = -1.0;
+    } else {
+      scaleX = -1.0;
+      scaleY = 1.0;
+    }
 
     final children = builder.buildNodes(node.children);
 
