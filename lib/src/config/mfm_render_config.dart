@@ -217,7 +217,9 @@ class MfmRenderConfig {
 
   /// 表示中のローカルMisskeyインスタンスのホスト。
   ///
-  /// 投稿者やMFMノードにホストがない場合の解決に使用する。
+  /// 投稿者やMFMノードにホストがない場合の解決と、URLのself判定に使用する。
+  /// URLではschemeを比較できないためhostベースの近似となり、portを含めた場合だけ
+  /// URLのeffective portも比較する。
   final String? localHost;
 
   /// 検索ボタンのラベル
