@@ -5,8 +5,365 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_jump_widget.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_shake_widget.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_spin_widget.dart';
 
 void main() {
+  group('MfmText WidgetSpan境界のスタイル継承', () {
+    const baseStyle = TextStyle(fontSize: 14, color: Colors.blue);
+    final styleCases = [
+      (
+        name: '斜体',
+        text: r'<i>$[spin abc]</i>',
+        patch: const TextStyle(fontStyle: FontStyle.italic),
+      ),
+      (
+        name: '取り消し線',
+        text: r'~~$[spin abc]~~',
+        patch: const TextStyle(decoration: TextDecoration.lineThrough),
+      ),
+      (
+        name: 'smallのルート基準サイズとalpha',
+        text: r'<small>$[spin abc]</small>',
+        patch: TextStyle(
+          fontSize: 14 * 0.8,
+          color: Colors.blue.withValues(alpha: 0.7),
+        ),
+      ),
+      (
+        name: '標準フォント',
+        text: r'$[font.monospace $[spin abc]]',
+        patch: const TextStyle(
+          fontFamily: 'Courier',
+          fontFamilyFallback: ['Courier New', 'monospace'],
+        ),
+      ),
+      (
+        name: 'カスタムフォント',
+        text: r'$[font.serif $[spin abc]]',
+        patch: const TextStyle(fontFamily: 'CustomSerif'),
+      ),
+    ];
+    for (final styleCase in styleCases) {
+      testWidgets('${styleCase.name}の差分をspin配下へ引き継ぐ', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: styleCase.text,
+                config: MfmRenderConfig(
+                  baseTextStyle: baseStyle,
+                  fontFamilyResolver: (type) =>
+                      type == 'serif' ? 'CustomSerif' : null,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final richText = tester.widget<RichText>(
+          find.descendant(
+            of: find.byType(MfmSpinWidget),
+            matching: find.byType(RichText),
+          ),
+        );
+        expect(richText.text.style, baseStyle.merge(styleCase.patch));
+      });
+    }
+
+    testWidgets('リンクからscaleとサイズ関数を経てもスタイルとnyaize抑止を維持する', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text:
+                  r'**[$[scale.x=2,y=2 $[x2 $[spin な]]]](https://example.com)**',
+              config: MfmRenderConfig(
+                baseTextStyle: baseStyle,
+                enableNyaize: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmSpinWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(richText.text.style?.fontWeight, FontWeight.bold);
+      expect(richText.text.style?.color, const Color(0xFF0066CC));
+      expect(richText.text.style?.decoration, TextDecoration.underline);
+      // scale=2の文脈でx2の倍率は1.5。ルート基準の計算式は変更しない。
+      expect(richText.text.style?.fontSize, 21);
+      expect(richText.text.toPlainText(), 'な');
+    });
+
+    testWidgets('太字をspin配下のRichTextへ引き継ぐ', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'**$[spin abc]**',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmSpinWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(richText.text.style?.fontWeight, FontWeight.bold);
+    });
+
+    testWidgets('x2のフォントサイズをshake配下のRichTextへ引き継ぐ', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'$[x2 $[shake abc]]',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmShakeWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(richText.text.style?.fontSize, 28);
+    });
+
+    testWidgets('前景色をjump配下のRichTextへ引き継ぐ', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[fg.color=f00 $[jump abc]]'),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmJumpWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(richText.text.style?.color, const Color(0xFFFF0000));
+    });
+
+    testWidgets('太字が兄弟のspinへ漏れない', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'**abc** $[spin def]',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmSpinWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(richText.text.style?.fontWeight, isNull);
+      expect(richText.text.toPlainText(), 'def');
+    });
+
+    testWidgets('baseTextStyle未指定で環境のfontSizeがnullでも描画できる', (tester) async {
+      await tester.pumpWidget(
+        const MediaQuery(
+          data: MediaQueryData(),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: DefaultTextStyle(
+              style: TextStyle(color: Colors.black),
+              child: MfmText(text: r'$[spin abc]'),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      final root = tester.widget<RichText>(
+        find
+            .descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(RichText),
+            )
+            .first,
+      );
+      expect(root.text.style?.fontSize, 14);
+      final inner = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmSpinWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(inner.text.style, root.text.style);
+    });
+
+    testWidgets('inheritがfalseの明示スタイルでもfontSizeを補完し環境とはマージしない', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: DefaultTextStyle(
+              style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+              child: MfmText(
+                text: r'$[spin abc]',
+                config: MfmRenderConfig(
+                  baseTextStyle: TextStyle(inherit: false, color: Colors.red),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      final richTexts = tester.widgetList<RichText>(
+        find.descendant(
+          of: find.byType(MfmText),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(richTexts, hasLength(2));
+      for (final richText in richTexts) {
+        expect(richText.text.style?.fontSize, 14);
+        expect(richText.text.style?.fontWeight, isNull);
+        expect(richText.text.style?.color, Colors.red);
+        expect(richText.text.style?.inherit, isFalse);
+      }
+    });
+
+    testWidgets('center内側のRichTextに実効スタイルを設定する', (tester) async {
+      const baseStyle = TextStyle(fontSize: 20, color: Colors.blue);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '<center>**abc**</center>',
+              config: MfmRenderConfig(baseTextStyle: baseStyle),
+            ),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmText),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is RichText && widget.textAlign == TextAlign.center,
+          ),
+        ),
+      );
+      expect(richText.text.style, baseStyle);
+      expect(
+        _findSpanWithStyle(
+          richText.text as TextSpan,
+          (style) => style?.fontWeight == FontWeight.bold,
+        ),
+        isNotNull,
+      );
+    });
+
+    testWidgets('引用内側のRichTextに引用色と実効フォントサイズを設定する', (tester) async {
+      const baseStyle = TextStyle(fontSize: 20, color: Colors.blue);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '> **abc**',
+              config: MfmRenderConfig(baseTextStyle: baseStyle),
+            ),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.descendant(
+            of: find.byType(MfmText),
+            matching: find.byType(Container),
+          ),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(
+        richText.text.style,
+        baseStyle.copyWith(color: Colors.blue.withValues(alpha: 0.7)),
+      );
+      expect(
+        _findSpanWithStyle(
+          richText.text as TextSpan,
+          (style) => style?.fontWeight == FontWeight.bold,
+        ),
+        isNotNull,
+      );
+    });
+
+    testWidgets('引用色と太字をさらに内側のspinへ伝播しnyaize抑止も維持する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'> **$[x2 $[spin な]]**',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+                enableNyaize: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmSpinWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(richText.text.style?.color, Colors.blue.withValues(alpha: 0.7));
+      expect(richText.text.style?.fontWeight, FontWeight.bold);
+      expect(richText.text.style?.fontSize, 28);
+      expect(richText.text.toPlainText(), 'な');
+    });
+  });
+
   group('MfmText fn size関数', () {
     testWidgets('x2で2倍のフォントサイズになる', (tester) async {
       await tester.pumpWidget(

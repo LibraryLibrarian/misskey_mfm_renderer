@@ -13,12 +13,16 @@ import '../widgets/mfm_code_block.dart';
 class MfmNodeBuilder {
   MfmNodeBuilder({
     required this.config,
+    required this.effectiveStyle,
     this.scale = 1.0,
     this.disableNyaize = false,
   });
 
   /// レンダリング設定
   final MfmRenderConfig config;
+
+  /// 祖先ノードの差分スタイルを反映した現在の実効スタイル
+  final TextStyle effectiveStyle;
 
   /// 現在のスケール（ネストしたscale fnで使用）
   final double scale;
@@ -27,19 +31,58 @@ class MfmNodeBuilder {
   /// link / quote / plain など、原文を保ちたいノード配下では true となる
   final bool disableNyaize;
 
-  /// 新しいスケールでビルダーをコピー
-  MfmNodeBuilder withScale(double newScale) {
+  MfmNodeBuilder _copyWith({
+    TextStyle? effectiveStyle,
+    double? scale,
+    bool? disableNyaize,
+  }) {
     return MfmNodeBuilder(
       config: config,
-      scale: newScale,
-      disableNyaize: disableNyaize,
+      effectiveStyle: effectiveStyle ?? this.effectiveStyle,
+      scale: scale ?? this.scale,
+      disableNyaize: disableNyaize ?? this.disableNyaize,
     );
+  }
+
+  /// 新しいスケールでビルダーをコピー
+  MfmNodeBuilder withScale(double newScale) {
+    return _copyWith(scale: newScale);
+  }
+
+  /// 差分スタイル（inherit: true）を実効スタイルに反映したビルダーを返す
+  MfmNodeBuilder withStyle(TextStyle patch) {
+    return _copyWith(effectiveStyle: effectiveStyle.merge(patch));
   }
 
   /// nyaize 変換を抑止したサブツリー用ビルダーを返す
   MfmNodeBuilder _withDisableNyaize() {
     if (disableNyaize) return this;
-    return MfmNodeBuilder(config: config, scale: scale, disableNyaize: true);
+    return _copyWith(disableNyaize: true);
+  }
+
+  /// 差分スタイルをTextSpanに設定し、同じ差分を実効スタイルに反映した
+  /// ビルダーで子ノードを構築する
+  TextSpan buildStyledSpan(
+    TextStyle patch,
+    List<MfmNode> nodes, {
+    GestureRecognizer? recognizer,
+  }) {
+    return TextSpan(
+      style: patch,
+      children: withStyle(patch).buildNodes(nodes),
+      recognizer: recognizer,
+    );
+  }
+
+  /// WidgetSpan内で子ノードを描画するRichTextを、現在の実効スタイルで組む
+  Widget buildInlineRichText(
+    List<InlineSpan> children, {
+    TextAlign textAlign = TextAlign.start,
+  }) {
+    return RichText(
+      textAlign: textAlign,
+      text: TextSpan(style: effectiveStyle, children: children),
+    );
   }
 
   /// 現在の文脈で nyaize 変換を適用すべきか
@@ -84,46 +127,45 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildBold(BoldNode node) {
-    final children = buildNodes(node.children);
-    return TextSpan(
-      style: const TextStyle(fontWeight: FontWeight.bold),
-      children: children,
+    return buildStyledSpan(
+      const TextStyle(fontWeight: FontWeight.bold),
+      node.children,
     );
   }
 
   InlineSpan _buildItalic(ItalicNode node) {
-    final children = buildNodes(node.children);
-    return TextSpan(
-      style: const TextStyle(fontStyle: FontStyle.italic),
-      children: children,
+    return buildStyledSpan(
+      const TextStyle(fontStyle: FontStyle.italic),
+      node.children,
     );
   }
 
   InlineSpan _buildStrike(StrikeNode node) {
-    final children = buildNodes(node.children);
-    return TextSpan(
-      style: const TextStyle(decoration: TextDecoration.lineThrough),
-      children: children,
+    return buildStyledSpan(
+      const TextStyle(decoration: TextDecoration.lineThrough),
+      node.children,
     );
   }
 
   InlineSpan _buildSmall(SmallNode node) {
-    final children = buildNodes(node.children);
     final baseFontSize = config.baseTextStyle?.fontSize ?? 14;
     final baseColor = config.baseTextStyle?.color;
 
-    return TextSpan(
-      style: TextStyle(
+    return buildStyledSpan(
+      TextStyle(
         fontSize: baseFontSize * 0.8,
         color: baseColor?.withValues(alpha: 0.7),
       ),
-      children: children,
+      node.children,
     );
   }
 
   InlineSpan _buildQuote(QuoteNode node) {
-    final children = _withDisableNyaize().buildNodes(node.children);
     final baseColor = config.baseTextStyle?.color;
+    final quoteBuilder = _withDisableNyaize().withStyle(
+      TextStyle(color: baseColor?.withValues(alpha: 0.7)),
+    );
+    final children = quoteBuilder.buildNodes(node.children);
 
     return WidgetSpan(
       child: Container(
@@ -137,15 +179,7 @@ class MfmNodeBuilder {
             ),
           ),
         ),
-        child: RichText(
-          text: TextSpan(
-            // baseTextStyleをベースにしてcolorのみ上書き
-            style: config.baseTextStyle?.copyWith(
-              color: baseColor?.withValues(alpha: 0.7),
-            ),
-            children: children,
-          ),
-        ),
+        child: quoteBuilder.buildInlineRichText(children),
       ),
     );
   }
@@ -155,13 +189,7 @@ class MfmNodeBuilder {
     return WidgetSpan(
       child: SizedBox(
         width: double.infinity,
-        child: RichText(
-          textAlign: TextAlign.center,
-          text: TextSpan(
-            style: config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: buildInlineRichText(children, textAlign: TextAlign.center),
       ),
     );
   }
@@ -278,14 +306,13 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildLink(LinkNode node) {
-    final children = _withDisableNyaize().buildNodes(node.children);
     final onLinkTap = config.onLinkTap;
-    return TextSpan(
-      style: const TextStyle(
+    return _withDisableNyaize().buildStyledSpan(
+      const TextStyle(
         color: Color(0xFF0066CC),
         decoration: TextDecoration.underline,
       ),
-      children: children,
+      node.children,
       recognizer: onLinkTap == null
           ? null
           : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url)),

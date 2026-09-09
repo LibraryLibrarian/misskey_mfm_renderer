@@ -45,24 +45,25 @@ class MfmText extends StatelessWidget {
     // brightnessを判定
     final brightness = MediaQuery.platformBrightnessOf(context);
 
+    // 明示スタイルは環境とマージせず、未指定のフォントサイズのみ補完する
+    final rawStyle =
+        mergedConfig.baseTextStyle ?? DefaultTextStyle.of(context).style;
+    final rootStyle = rawStyle.copyWith(fontSize: rawStyle.fontSize ?? 14.0);
+
     // baseTextStyleとbrightnessを設定
-    final effectiveConfig =
-        mergedConfig.baseTextStyle == null ||
-            mergedConfig.brightness == null ||
-            mergedConfig.searchButtonLabel == null
-        ? mergedConfig.copyWith(
-            baseTextStyle:
-                mergedConfig.baseTextStyle ??
-                DefaultTextStyle.of(context).style,
-            brightness: mergedConfig.brightness ?? brightness,
-            searchButtonLabel:
-                mergedConfig.searchButtonLabel ??
-                _resolveSearchButtonLabel(Localizations.maybeLocaleOf(context)),
-          )
-        : mergedConfig;
+    final effectiveConfig = mergedConfig.copyWith(
+      baseTextStyle: rootStyle,
+      brightness: mergedConfig.brightness ?? brightness,
+      searchButtonLabel:
+          mergedConfig.searchButtonLabel ??
+          _resolveSearchButtonLabel(Localizations.maybeLocaleOf(context)),
+    );
 
     // ビルダーを作成
-    final builder = MfmNodeBuilder(config: effectiveConfig);
+    final builder = MfmNodeBuilder(
+      config: effectiveConfig,
+      effectiveStyle: rootStyle,
+    );
 
     // ノードをスパンに変換
     final spans = builder.buildNodes(nodes);
@@ -70,7 +71,7 @@ class MfmText extends StatelessWidget {
     // RichTextでレンダリング
     return RichText(
       text: TextSpan(
-        style: effectiveConfig.baseTextStyle,
+        style: rootStyle,
         children: spans,
       ),
     );
