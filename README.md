@@ -54,6 +54,9 @@ integration work.
 **Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
 Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg ...]`, link colors) and widgets such as emoji, so a child color override cannot cancel the dimming.
 
+**URL display**: Auto-linked HTTP(S) URLs are split into scheme, host, port, path, query, and fragment with the same emphasis as Misskey's `MkUrl`. Punycode hosts and percent-encoded hosts, paths, queries, and fragments are decoded for display only; `onLinkTap` always receives the original URL. External URLs end with an external-link icon, which requires the application to bundle the `MaterialIcons` font.
+Set `MfmRenderConfig.localHost` to shorten URLs to the local instance: non-root URLs omit the scheme and host, while a root URL displays the bold host. The current API provides a host rather than a complete origin, so this is a host-based approximation: comparison is case-insensitive, ignores trailing dots, and checks the effective port only when `localHost` includes one. It cannot distinguish HTTP from HTTPS, and when no port is supplied it compares only the host.
+
 **Quote**: `> quote` occupies a full line with an 8px margin on all sides, padding of 6px top/bottom and 12px left (0px right), and a 3px left border, matching Misskey's `QUOTE_STYLE`. Text and border use the active `MfmColorScheme.fg` with cumulative opacity applied; each quote and `<small>` level multiplies the original alpha by 0.7. This quote color is independent of `baseTextStyle` and `DefaultTextStyle`.
 Block display requires a parent with bounded width (for example, `SizedBox(width: 300)` or `Expanded` in a `Row`). With unbounded width, such as a non-`Expanded` child of a `Row`, quotes use their natural width and are not guaranteed to occupy a separate line. No extra boundary newlines are inserted. CSS margin collapsing between adjacent quotes and the handling of extra newlines around blocks are not fully reproduced.
 
@@ -762,7 +765,7 @@ void main() {
 | `codeCopyTooltip` | `String?` | current locale | Code copy button accessibility label override (`コピー` for Japanese, `Copy` otherwise) |
 | `codeCopiedMessage` | `String?` | current locale | Default copy SnackBar message override (`コードをコピーしました` for Japanese, `Copied to clipboard` otherwise) |
 | `author` | `MfmAuthorContext?` | null | Author context (`host`, `isCat`) used for host-dependent rendering and `respectAuthor` nyaize |
-| `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback |
+| `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback and for self-URL shortening |
 | `searchButtonLabel` | `String?` | current locale | Search button label override (`検索` for Japanese, `Search` otherwise) |
 | `useLocaleSearchButtonLabel` | `bool` | false | Clear a configured or inherited search label and resolve it from the current locale |
 | `fontFamilyResolver` | `String? Function(String)?` | null | Font family resolver function |

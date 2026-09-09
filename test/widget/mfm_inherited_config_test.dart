@@ -107,7 +107,7 @@ void main() {
         );
 
         expect(
-          _spanForText(tester, 'https://example.com').style!.color,
+          _spanForText(tester, 'example.com').style!.color,
           brightness == Brightness.dark ? Colors.purple : Colors.orange,
         );
       });
@@ -131,7 +131,7 @@ void main() {
       );
 
       expect(
-        _spanForText(tester, 'https://example.com').style!.color,
+        _spanForText(tester, 'example.com').style!.color,
         Colors.teal,
       );
     });
@@ -344,7 +344,18 @@ void main() {
 }
 
 TextSpan _spanForText(WidgetTester tester, String text) {
-  final root = tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+  final root =
+      tester
+              .widget<RichText>(
+                find
+                    .descendant(
+                      of: find.byType(MfmText),
+                      matching: find.byType(RichText),
+                    )
+                    .first,
+              )
+              .text
+          as TextSpan;
   return _findSpan(root, text)!;
 }
 

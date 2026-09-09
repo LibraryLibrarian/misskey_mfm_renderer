@@ -8,6 +8,7 @@ import '../config/mfm_color_scheme.dart';
 import '../config/mfm_render_config.dart';
 import '../fn/mfm_fn_handler.dart';
 import '../utils/nyaize.dart';
+import '../utils/url_display.dart';
 import '../widgets/mfm_code_block.dart';
 
 /// MfmNodeをWidgetに変換するビルダー
@@ -361,15 +362,101 @@ class MfmNodeBuilder {
 
   InlineSpan _buildUrl(UrlNode node) {
     final onLinkTap = config.onLinkTap;
+    final recognizer = onLinkTap == null
+        ? null
+        : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url));
+    final baseColor = applyOpacity(colorScheme.link);
+    final parts = parseUrlDisplay(node.url, localHost: config.localHost);
+    if (parts == null) {
+      return TextSpan(
+        text: node.url,
+        style: TextStyle(
+          color: baseColor,
+          decoration: TextDecoration.none,
+        ),
+        recognizer: recognizer,
+      );
+    }
+
+    TextSpan part(
+      String text, {
+      double colorOpacity = 1,
+      FontWeight? fontWeight,
+      FontStyle? fontStyle,
+    }) {
+      final color = colorOpacity == 1
+          ? baseColor
+          : baseColor.withValues(alpha: baseColor.a * colorOpacity);
+      return TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontWeight: fontWeight,
+          fontStyle: fontStyle,
+          decoration: TextDecoration.none,
+        ),
+        recognizer: recognizer,
+      );
+    }
+
+    final children = <InlineSpan>[];
+    if (parts.isSelf) {
+      if (parts.path == '/') {
+        children.add(part(parts.host, fontWeight: FontWeight.bold));
+      } else {
+        children.add(
+          part(
+            parts.path.startsWith('/') ? parts.path.substring(1) : parts.path,
+            colorOpacity: 0.8,
+          ),
+        );
+      }
+    } else {
+      children.addAll([
+        part('${parts.scheme}://', colorOpacity: 0.5),
+        part(parts.host, fontWeight: FontWeight.bold),
+        if (parts.port != null) part(':${parts.port}'),
+        part(parts.path, colorOpacity: 0.8),
+      ]);
+    }
+    if (parts.query.isNotEmpty) {
+      children.add(part(parts.query, colorOpacity: 0.5));
+    }
+    if (parts.fragment.isNotEmpty) {
+      children.add(part(parts.fragment, fontStyle: FontStyle.italic));
+    }
+    if (!parts.isSelf) {
+      final icon = Padding(
+        padding: const EdgeInsets.only(left: 2),
+        child: Icon(
+          const IconData(
+            0xe45c,
+            fontFamily: 'MaterialIcons',
+            matchTextDirection: true,
+          ),
+          size: effectiveStyle.fontSize! * 0.9,
+          color: baseColor,
+          semanticLabel: 'External link',
+        ),
+      );
+      children.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: recognizer == null
+              ? icon
+              : Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: recognizer.addPointer,
+                  child: icon,
+                ),
+        ),
+      );
+    }
+
     return TextSpan(
-      text: node.url,
-      style: TextStyle(
-        color: applyOpacity(colorScheme.link),
-        decoration: TextDecoration.none,
-      ),
-      recognizer: onLinkTap == null
-          ? null
-          : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url)),
+      style: TextStyle(color: baseColor, decoration: TextDecoration.none),
+      children: children,
     );
   }
 
