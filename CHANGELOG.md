@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `rainbow` のアニメーションをグラデーション走査から、本家Misskeyと同じ `hue-rotate` → `contrast(150%)` → `saturate(150%)` の3段フィルタへ修正（#40、見た目の変更）。元の文字色を起点に色相が回るため、灰色や黒の本文では色相変化は見えず、暗い灰色が少し濃くなるだけ（黒は不変）。色付きのfg・リンク・カラー絵文字では色相変化が見える。正のdelay待機中はフィルタなしとし、無効時の虹色グラデーションは維持して本家と同じ7色7ストップへ整理した。
 - `twitch` と `shake` の `ease` をアニメーション全体ではなく、本家Misskeyと同じく隣接する各キーフレーム区間へ適用するよう修正（#42）。
 
 ### Changed

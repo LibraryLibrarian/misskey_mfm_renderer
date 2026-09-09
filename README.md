@@ -555,6 +555,23 @@ animations while keeping size, scale, and position effects.
 These flags control MFM animation functions, not playback of animated emoji
 images. They do not automatically follow the OS reduced-motion preference.
 
+### Rainbow animation and source colors
+
+Like Misskey, `rainbow` applies `hue-rotate` → `contrast(150%)` →
+`saturate(150%)`, rotating the hue **from the original text colors** rather
+than sweeping a gradient across the text. **Gray or black body text shows no
+hue change**: dark gray only becomes slightly darker, and black stays black.
+Colored `fg` text, links, and color emoji visibly cycle through rainbow hues:
+
+```dart
+MfmText(text: r'$[rainbow $[fg.color=ff0000 colorful]]')
+```
+
+The default cycle is 1 second with linear, infinite repetition. `speed` changes
+the cycle duration; a positive `delay` leaves the original child unfiltered
+until the animation starts. When `config.useAnimation` is false, the static
+fallback remains the familiar rainbow gradient (seven colors and seven stops).
+
 ### Localizing unixtime
 
 `$[unixtime]` uses the [timeago](https://pub.dev/packages/timeago) package for relative time display. Set locale at app startup for localization:
