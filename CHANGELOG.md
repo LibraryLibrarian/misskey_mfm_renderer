@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MfmHashtagTapDetails` と `onHashtagTapDetails` を追加。詳細コールバックはタグ、isNote、エンコード済みの `/tags/...` または `/user-tags/...` を受け取り、指定時は既存の `onHashtagTap` より優先する（#39）。
 - `MfmRenderConfig.emojiUrls`、`MfmCustomEmoji.url`、`MfmEmojiContext.host` / `url`、`MfmEmojiConfig.fromResolver(serverBaseUrl:)` を追加し、リモート投稿のカスタム絵文字の直接URLとローカルサーバー経由のフォールバックをサポート（#56）。
 
+### Fixed
+- 引用を有限幅の親では行全幅のブロックとして表示し、前後のテキストと分離。幅が無制約の場合は自然幅にフォールバックする（#32）。
+- 引用の余白を本家の `QUOTE_STYLE`（四辺margin 8px、padding 上下6px・左12px・右0px）に合わせ、幅3pxの左罫線と文字にルートの未減光文字色から累積opacityを適用するよう修正。色未指定時も文字と罫線に同じ既定色を使用する（#52）。
+
 ### Changed
 - `MfmEmojiContext` に `normal` を追加し、値比較、hashCode、toStringの対象を拡張。`MfmEmojiConfig` はnormal時に既定1.25em、`vertical-align: -0.25em`相当の0.25em下降量を使う。明示した `emojiSize` は高さを優先し、normalのベースライン方針は維持する（#39）。
 - `MfmCustomEmoji.resolver` を任意にし、`url`の直指定を優先するよう変更。`MfmEmojiContext`の`==`と`toString`はhost / URLを含む（#56）。
