@@ -97,7 +97,7 @@ class MfmNodeBuilder {
   }
 
   /// 現在の文脈で nyaize 変換を適用すべきか
-  bool get _shouldNyaize => config.enableNyaize && !disableNyaize;
+  bool get shouldNyaize => config.enableNyaize && !disableNyaize;
 
   /// ノードリストをWidgetリストに変換
   List<InlineSpan> buildNodes(List<MfmNode> nodes) {
@@ -133,7 +133,7 @@ class MfmNodeBuilder {
   InlineSpan _buildText(TextNode node) {
     // styleをnullにして親のスタイルを継承
     // ルートのTextSpanでbaseTextStyleが設定されているため、ここで再設定する必要はない
-    final text = _shouldNyaize ? nyaize(node.text) : node.text;
+    final text = shouldNyaize ? nyaize(node.text) : node.text;
     return TextSpan(text: text);
   }
 
@@ -212,6 +212,10 @@ class MfmNodeBuilder {
         language: node.language,
         theme: _getCodeTheme(),
         showCopyButton: config.showCodeBlockCopyButton ?? true,
+        onCodeCopied: config.onCodeCopied,
+        copyTooltip: config.codeCopyTooltip,
+        copiedMessage: config.codeCopiedMessage,
+        fontSize: config.baseTextStyle?.fontSize,
       ),
     );
   }
@@ -361,15 +365,15 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildHashtag(HashtagNode node) {
+    final onHashtagTap = config.onHashtagTap;
     return TextSpan(
       text: '#${node.hashtag}',
       style: const TextStyle(
         color: Color(0xFF0066CC),
       ),
-      recognizer: TapGestureRecognizer()
-        ..onTap = () {
-          config.onHashtagTap?.call(node.hashtag);
-        },
+      recognizer: onHashtagTap == null
+          ? null
+          : (TapGestureRecognizer()..onTap = () => onHashtagTap(node.hashtag)),
     );
   }
 
