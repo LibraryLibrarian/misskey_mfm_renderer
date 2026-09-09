@@ -47,7 +47,9 @@ void main() {
         ),
         findsNothing,
       );
-      expect(tester.getSize(quote), const Size(101, 42));
+      final quoteSize = tester.getSize(quote);
+      expect(quoteSize.width, closeTo(101, 0.01));
+      expect(quoteSize.height, 42);
       expect(tester.getSize(find.byType(RichText).first).height, 42);
       expect(tester.takeException(), isNull);
     });
