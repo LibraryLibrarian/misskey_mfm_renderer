@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
@@ -334,6 +334,95 @@ void main() {
 
     expect(store.disposeCalls, 1);
   });
+
+  test(
+    'createDefault resolves remote emoji without a direct URL via its origin',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('mfm_emoji_remote');
+      addTearDown(() => dir.delete(recursive: true));
+      final config = await MfmEmojiConfig.createDefault(
+        client: _createClient(),
+        storagePath: dir.path,
+        autoSync: false,
+        emojiStoreFactory:
+            ({required Uri serverUrl, required String directory}) =>
+                _FakeEmojiStore(),
+      );
+      addTearDown(config.dispose);
+
+      final custom =
+          config.emojiBuilder!(
+                'wave',
+                const MfmEmojiContext(
+                  fontSize: 14,
+                  scale: 1,
+                  host: 'remote.example',
+                ),
+              )
+              as MfmCustomEmoji;
+
+      expect(
+        custom.url,
+        Uri.parse('https://example.com/emoji/wave@remote.example.webp'),
+      );
+      expect(custom.resolver, isNull);
+    },
+  );
+
+  test('fromResolver uses serverBaseUrl for a remote endpoint', () {
+    var resolveCount = 0;
+    final config = MfmEmojiConfig.fromResolver(
+      resolver: (_) async {
+        resolveCount++;
+        return null;
+      },
+      serverBaseUrl: Uri.parse('http://localhost:3000/misskey/'),
+    );
+
+    final custom =
+        config.emojiBuilder!(
+              'wave',
+              const MfmEmojiContext(
+                fontSize: 14,
+                scale: 1,
+                host: 'remote.example',
+              ),
+            )
+            as MfmCustomEmoji;
+
+    expect(
+      custom.url,
+      Uri.parse('http://localhost:3000/emoji/wave@remote.example.webp'),
+    );
+    expect(custom.resolver, isNull);
+    expect(resolveCount, 0);
+  });
+
+  test(
+    'fromResolver does not use the local resolver for remote emoji without URL',
+    () {
+      var resolveCount = 0;
+      final config = MfmEmojiConfig.fromResolver(
+        resolver: (_) async {
+          resolveCount++;
+          return null;
+        },
+      );
+
+      final widget = config.emojiBuilder!(
+        'wave',
+        const MfmEmojiContext(
+          fontSize: 14,
+          scale: 1,
+          host: 'remote.example',
+        ),
+      );
+
+      expect(widget, isA<Text>());
+      expect((widget as Text).data, ':wave:');
+      expect(resolveCount, 0);
+    },
+  );
 }
 
 MisskeyClient _createClient() => MisskeyClient(
