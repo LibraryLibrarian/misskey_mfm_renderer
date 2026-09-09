@@ -54,7 +54,8 @@ integration work.
 **Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
 Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg ...]`, link colors) and widgets such as emoji, so a child color override cannot cancel the dimming.
 
-**Quote**: `> quote` dims the whole quote block by 0.7, matching Misskey. Inside `<small>`, the factors are multiplied.
+**Quote**: `> quote` occupies a full line with an 8px margin on all sides, padding of 6px top/bottom and 12px left (0px right), and a 3px left border, matching Misskey's `QUOTE_STYLE`. Text and border use the undimmed root text color with cumulative opacity applied; each quote and `<small>` level multiplies the original alpha by 0.7. The root color comes from `baseTextStyle`, or `DefaultTextStyle` when no base style is provided. An explicit style without a color falls back to white, as Flutter text does.
+Block display requires a parent with bounded width (for example, `SizedBox(width: 300)` or `Expanded` in a `Row`). With unbounded width, such as a non-`Expanded` child of a `Row`, quotes use their natural width and are not guaranteed to occupy a separate line. No extra boundary newlines are inserted. CSS margin collapsing between adjacent quotes and the handling of extra newlines around blocks are not fully reproduced.
 
 **Literal fn fallback**: Unknown fn names, `font` without a valid family, and `position` with `enableAdvancedMfm: false` are displayed as `$[name content]` (arguments omitted), preserving child formatting, matching Misskey.
 
@@ -151,6 +152,10 @@ Like Misskey, `twitch` and `shake` apply `ease` to each adjacent keyframe
 interval.
 
 ## Getting started
+
+This package requires Flutter 3.38.1 or later (Dart 3.10.0 or later). The
+`.fvmrc` development environment uses Flutter 3.38.7, while the package
+support floor remains Flutter 3.38.1.
 
 Add the dependency to your `pubspec.yaml`:
 
