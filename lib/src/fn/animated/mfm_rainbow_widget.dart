@@ -141,7 +141,6 @@ class MfmStaticRainbowWidget extends StatelessWidget {
     Color(0xFF00FFFF),
     Color(0xFF0000FF),
     Color(0xFFFF00FF),
-    Color(0xFFFF0000),
   ];
 
   static const _staticStops = <double>[
@@ -151,7 +150,6 @@ class MfmStaticRainbowWidget extends StatelessWidget {
     0.5,
     0.67,
     0.83,
-    1,
     1,
   ];
 
