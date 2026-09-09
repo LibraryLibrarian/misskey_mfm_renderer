@@ -309,7 +309,9 @@ class MfmExamples {
           syntax: ':ai_smile_misskeyio: :pudding_cat: :not_in_map:',
           mfm: ':ai_smile_misskeyio: :pudding_cat: :not_in_map:',
           description:
-              '設定パネルの「リモート投稿として扱う」「emojiUrls を渡す」「絵文字の文脈を表示」で経路が変わります。ローカルresolver、直接URL、mapにキー無しならショートコード、mapなしならリモートエンドポイント取得となり、失敗時はショートコード表示です',
+              '設定パネルの「リモート投稿として扱う」「emojiUrls を渡す」「絵文字の文脈を表示」で経路が変わります。'
+              'ローカルresolver、直接URL、mapにキー無しならショートコード、'
+              'mapなしならリモートエンドポイント取得となり、失敗時はショートコード表示です',
         ),
         MfmExample(
           name: 'Custom Emoji (x2)',
