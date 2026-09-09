@@ -61,9 +61,11 @@ Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg
 **Not Yet Implemented:**
 - **Font Limitations**: Some font types in `$[font.xxx]` syntax (specifically `emoji` and `math`) fall back to default fonts due to platform limitations.
 
-**Nyaize (Cat-speak transformation)**: Text transformation feature is supported via `enableNyaize`.
-Equivalent to Misskey's cat mode, it converts text in text nodes to cat-speak (ja-JP / en-US / ko-KR).
-Subtrees of `link` / `quote` / `plain` are excluded from transformation (matching Misskey's upstream behavior).
+**Nyaize (Cat-speak transformation)**: Text transformation is supported via the legacy
+`enableNyaize` boolean or `nyaizeMode`. `MfmNyaizeMode.respectAuthor` converts only
+when `author?.isCat == true`; an explicitly supplied `nyaizeMode` takes precedence
+over `enableNyaize`. Subtrees of `link` / `quote` / `plain` are excluded from
+transformation (matching Misskey's upstream behavior).
 The `nyaize(String)` pure function is also exposed publicly.
 
 ### Custom Emoji Support
@@ -233,6 +235,29 @@ MfmText(
 )
 ```
 
+### MkMfm-compatible document props
+
+`plain`, `rootScale`, and `isNote` belong to each rendered document, so they are
+arguments of `MfmText`, rather than `MfmRenderConfig`:
+
+```dart
+MfmText(
+  text: 'one\ntwo :wave:',
+  plain: true, // Uses the simple parser and renders line breaks as spaces.
+  rootScale: 3, // Initial cumulative scale for descendant MFM functions.
+  isNote: false, // Makes hashtag details use /user-tags/... instead of /tags/....
+)
+```
+
+`plain` is distinct from `simple: true`: both use the simple parser, but `simple`
+preserves line breaks and the normal custom-emoji size. `plain` normalizes CRLF/CR/LF,
+then replaces LF with spaces, including when `parsedNodes` is supplied. It also passes
+`MfmEmojiContext.normal: true` to custom emoji builders. `MfmEmojiConfig` renders this
+at 1.25em and uses a 0.25em descent, matching Misskey's `.normal` CSS class.
+
+`rootScale` must be finite and greater than zero. It only initializes traversal scale;
+it does not modify the root font size or add a transform.
+
 ### Callbacks Configuration
 
 ```dart
@@ -247,9 +272,13 @@ MfmText(
     onMentionTap: (acct) {
       navigateToUser(acct);
     },
-    // On hashtag tap
+    // Backward-compatible hashtag tap callback
     onHashtagTap: (tag) {
       navigateToHashtag(tag);
+    },
+    // Preferred detailed callback. When supplied, onHashtagTap is not called.
+    onHashtagTapDetails: (details) {
+      navigateToPath(details.path); // /tags/<encoded> or /user-tags/<encoded>
     },
     // On search tap
     onSearchTap: (query) {
@@ -292,7 +321,10 @@ can be resolved, the original acct is passed through unchanged.
 MfmText(
   text: '@alice',
   config: MfmRenderConfig(
-    author: const MfmAuthorContext(host: 'remote.example'),
+    author: const MfmAuthorContext(
+      host: 'remote.example',
+      isCat: true, // Used by MfmNyaizeMode.respectAuthor.
+    ),
     localHost: 'local.example',
     onMentionTap: navigateToUser,
   ),
@@ -405,7 +437,9 @@ widget). The publicly exported immutable `MfmEmojiContext` contains:
 - `fontSize`: the current effective font size in logical pixels, including
   size functions, `tada` (150%), and `<small>` (80%).
 - `scale`: the cumulative x2/x3/x4/scale-function multiplier. `tada` and
-  `<small>` do not change it. For a 14px base, x2 gives `(28, 2)`, x4 gives
+  `<small>` do not change it. `MfmText.rootScale` supplies the initial value.
+- `normal`: true only for custom emoji in `MfmText(plain: true)`. Builders can use
+  it to select Misskey's 1.25em `.normal` appearance. For a 14px base, x2 gives `(28, 2)`, x4 gives
   `(84, 6)`, `scale.x=3,y=3` gives `(14, 3)`, and `tada` gives `(21, 1)`.
   A non-uniform `scale` multiplies by `max(x, y)`, matching Misskey, so
   `scale.x=3,y=1` also gives `(14, 3)`.
@@ -551,7 +585,9 @@ void main() {
 | `baseTextStyle` | `TextStyle?` | null | Base text style |
 | `enableAdvancedMfm` | `bool` | true | Enable advanced features like position |
 | `enableAnimation` | `bool` | true | Enable animations (for future use) |
-| `enableNyaize` | `bool` | false | Enable nyaize (cat-speak) transformation on text nodes |
+| `enableNyaize` | `bool` | false | Legacy forced nyaize switch when `nyaizeMode` is null |
+| `nyaizeMode` | `MfmNyaizeMode?` | null | `disabled`, `enabled`, or `respectAuthor`; explicit value takes precedence |
+| `onHashtagTapDetails` | `void Function(MfmHashtagTapDetails)?` | null | Preferred hashtag callback with `tag`, `isNote`, and encoded route `path` |
 | `emojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Custom emoji builder |
 | `unicodeEmojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Unicode emoji builder |
 | `onLinkTap` | `void Function(String)?` | null | Link tap callback |
@@ -561,7 +597,7 @@ void main() {
 | `onCodeCopied` | `void Function(String)?` | null | Code copy completion callback; replaces the default SnackBar, which requires a ScaffoldMessenger ancestor |
 | `codeCopyTooltip` | `String?` | current locale | Code copy button accessibility label override (`コピー` for Japanese, `Copy` otherwise) |
 | `codeCopiedMessage` | `String?` | current locale | Default copy SnackBar message override (`コードをコピーしました` for Japanese, `Copied to clipboard` otherwise) |
-| `author` | `MfmAuthorContext?` | null | Author context used for host-dependent rendering |
+| `author` | `MfmAuthorContext?` | null | Author context (`host`, `isCat`) used for host-dependent rendering and `respectAuthor` nyaize |
 | `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback |
 | `searchButtonLabel` | `String?` | current locale | Search button label override (`検索` for Japanese, `Search` otherwise) |
 | `useLocaleSearchButtonLabel` | `bool` | false | Clear a configured or inherited search label and resolve it from the current locale |
