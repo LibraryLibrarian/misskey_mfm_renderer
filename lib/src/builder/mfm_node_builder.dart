@@ -245,6 +245,7 @@ class MfmNodeBuilder {
           code: node.code,
           language: node.language,
           theme: _getCodeTheme(),
+          colorScheme: colorScheme,
           showCopyButton: config.showCodeBlockCopyButton ?? true,
           onCodeCopied: config.onCodeCopied,
           copyTooltip: config.codeCopyTooltip,
