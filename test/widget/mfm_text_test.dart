@@ -18,7 +18,7 @@ void main() {
       );
 
       // MfmTextはRichTextを使用するため、TextSpanの内容を確認する
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
       final foundSpan = _findSpanWithText(textSpan, 'Hello, World!');
       expect(foundSpan, isNotNull);
@@ -45,7 +45,7 @@ void main() {
       );
 
       // MfmTextはRichTextを使用するため、TextSpanの内容を確認する
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
       final foundSpan = _findSpanWithText(textSpan, 'Direct nodes');
       expect(foundSpan, isNotNull);
@@ -65,7 +65,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
       expect(textSpan.style?.fontSize, 20);
       expect(textSpan.style?.color, Colors.red);
@@ -203,7 +203,7 @@ void main() {
           ),
         );
 
-        final richText = tester.widget<RichText>(find.byType(RichText));
+        final richText = _rootRichText(tester);
         final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
         expect(style, isNotNull);
         expect(style!.fontSize, closeTo(testCase.size, 0.000001));
@@ -228,7 +228,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
       expect(style!.color!.a, closeTo(0.35, 0.000001));
     });
@@ -250,7 +250,7 @@ void main() {
           ),
         );
 
-        final richText = tester.widget<RichText>(find.byType(RichText));
+        final richText = _rootRichText(tester);
         final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
         // 本家のopacityはスタッキングコンテキストを作るため、
         // 子のfgでも減光を上書きできない。
@@ -279,7 +279,7 @@ void main() {
       (
         name: 'URL',
         text: 'https://example.com',
-        label: 'https://example.com',
+        label: 'example.com',
         color: const Color(0xFF44A4C1),
       ),
       (
@@ -311,7 +311,7 @@ void main() {
             ),
           );
 
-          final richText = tester.widget<RichText>(find.byType(RichText));
+          final richText = _rootRichText(tester);
           final style = _effectiveStyleForText(
             richText.text as TextSpan,
             testCase.label,
@@ -345,7 +345,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
       expect(style!.fontSize, closeTo(11.2, 0.000001));
       expect(style.color, isNull);
@@ -415,8 +415,7 @@ void main() {
             ),
           );
 
-          final root =
-              tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+          final root = _rootRichText(tester).text as TextSpan;
           final formula = _findSpanWithStyle(
             root,
             (style) => style?.fontFamily == 'monospace',
@@ -444,8 +443,7 @@ void main() {
         ),
       );
 
-      final root =
-          tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+      final root = _rootRichText(tester).text as TextSpan;
       final style = _effectiveStyleForText(root, 'x')!;
       expect(style.fontFamily, 'monospace');
       expect(style.color!.a, closeTo(0.7, 0.000001));
@@ -729,7 +727,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       // 太字スタイルを持つ子Spanを検索
@@ -747,7 +745,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final italicSpan = _findSpanWithStyle(
@@ -764,7 +762,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final strikeSpan = _findSpanWithStyle(
@@ -786,7 +784,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final smallSpan = _findSpanWithStyle(
@@ -886,20 +884,248 @@ void main() {
       expect(coloredStyle.color, const Color(0xFFFF0000));
     });
 
-    testWidgets('URLをリンク色でレンダリングできる', (tester) async {
+    testWidgets('URLのhostをリンク色・太字・下線なしでレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(body: MfmText(text: 'https://example.com')),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
-      final linkSpan = _findSpanWithText(textSpan, 'https://example.com');
-      expect(linkSpan, isNotNull);
-      expect(linkSpan!.style!.color, const Color(0xFF44A4C1));
-      expect(linkSpan.style!.decoration, TextDecoration.none);
+      final hostSpan = _findSpanWithText(textSpan, 'example.com');
+      expect(hostSpan, isNotNull);
+      expect(hostSpan!.style!.color, const Color(0xFF44A4C1));
+      expect(hostSpan.style!.fontWeight, FontWeight.bold);
+      expect(hostSpan.style!.decoration, TextDecoration.none);
+    });
+
+    testWidgets('external URLをパート別styleと外部リンクiconで表示する', (tester) async {
+      const linkColor = Color.fromRGBO(16, 32, 48, 0.6);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text:
+                  '<small>https://example.com:8443/'
+                  '%E3%83%91%E3%82%B9?q=%E3%81%82+b#%E7%89%87</small>',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+                lightColorScheme: MfmColorScheme.light(link: linkColor),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      final expectedAlphas = <String, double>{
+        'https://': 0.21,
+        'example.com': 0.42,
+        ':8443': 0.42,
+        '/パス': 0.336,
+        '?q=あ+b': 0.21,
+        '#片': 0.42,
+      };
+      for (final entry in expectedAlphas.entries) {
+        final style = _effectiveStyleForText(root, entry.key)!;
+        expect(
+          style.color!.withValues(alpha: 1),
+          linkColor.withValues(alpha: 1),
+          reason: entry.key,
+        );
+        expect(
+          style.color!.a,
+          closeTo(entry.value, 0.000001),
+          reason: entry.key,
+        );
+        expect(style.decoration, TextDecoration.none, reason: entry.key);
+      }
+      expect(
+        _effectiveStyleForText(root, 'example.com')!.fontWeight,
+        FontWeight.bold,
+      );
+      expect(_effectiveStyleForText(root, '#片')!.fontStyle, FontStyle.italic);
+
+      final iconFinder = _externalLinkIconFinder();
+      expect(iconFinder, findsOneWidget);
+      final icon = tester.widget<Icon>(iconFinder);
+      expect(icon.size, closeTo(10.08, 0.000001));
+      expect(icon.color!.a, closeTo(0.42, 0.000001));
+      expect(icon.semanticLabel, 'External link');
+      final widgetSpan = _firstWidgetSpan(root)!;
+      expect(widgetSpan.alignment, PlaceholderAlignment.baseline);
+      expect(widgetSpan.baseline, TextBaseline.alphabetic);
+      final padding = widgetSpan.child as Padding;
+      expect(padding.padding, const EdgeInsets.only(left: 2));
+      expect(find.byType(Opacity), findsNothing);
+    });
+
+    testWidgets('self URLは先頭slashを除いたpathだけを表示してiconを付けない', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              parsedNodes: [
+                UrlNode(
+                  url:
+                      'https://LOCAL.example/%E3%83%91%E3%82%B9'
+                      '?q=%E3%81%82#%E7%89%87',
+                ),
+              ],
+              config: MfmRenderConfig(localHost: 'local.EXAMPLE.'),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      expect(_findSpanWithText(root, 'https://'), isNull);
+      expect(_findSpanWithText(root, 'LOCAL.example'), isNull);
+      expect(_findSpanWithText(root, '/パス'), isNull);
+      expect(_findSpanWithText(root, 'パス'), isNotNull);
+      expect(_findSpanWithText(root, '?q=あ'), isNotNull);
+      expect(_findSpanWithText(root, '#片'), isNotNull);
+      expect(_externalLinkIconFinder(), findsNothing);
+    });
+
+    testWidgets('rootのself URLだけはhostを太字表示する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: 'https://local.example',
+              config: MfmRenderConfig(localHost: 'LOCAL.EXAMPLE.'),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      final host = _findSpanWithText(root, 'local.example');
+      expect(host, isNotNull);
+      expect(host!.style!.fontWeight, FontWeight.bold);
+      expect(_findSpanWithText(root, '/'), isNull);
+      expect(_externalLinkIconFinder(), findsNothing);
+    });
+
+    testWidgets('external URLの全パートとiconが同じ原URLをcallbackへ渡す', (
+      tester,
+    ) async {
+      const original =
+          'https://example.com:8443/%E3%83%91%E3%82%B9'
+          '?q=%E3%81%82#%E7%89%87';
+      final tappedUrls = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              parsedNodes: const [UrlNode(url: original)],
+              config: MfmRenderConfig(onLinkTap: tappedUrls.add),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      final spans = [
+        'https://',
+        'example.com',
+        ':8443',
+        '/パス',
+        '?q=あ',
+        '#片',
+      ].map((text) => _findSpanWithText(root, text)!).toList();
+      final recognizer = spans.first.recognizer! as TapGestureRecognizer;
+      for (final span in spans) {
+        expect(span.recognizer, same(recognizer));
+        (span.recognizer! as TapGestureRecognizer).onTap!.call();
+      }
+      expect(tappedUrls, List.filled(spans.length, original));
+
+      final widgetSpan = _firstWidgetSpan(root)!;
+      expect(widgetSpan.child, isA<Listener>());
+      await tester.tap(_externalLinkIconFinder());
+      await tester.pump();
+      expect(tappedUrls, [...List.filled(spans.length, original), original]);
+    });
+
+    testWidgets('angle bracket形式も括弧を除いた同じ分解表示にする', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '<https://example.com/%E3%83%91%E3%82%B9>',
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      expect(_findSpanWithText(root, 'https://'), isNotNull);
+      expect(_findSpanWithText(root, 'example.com'), isNotNull);
+      expect(_findSpanWithText(root, '/パス'), isNotNull);
+      expect(root.toPlainText(), isNot(contains('<')));
+      expect(root.toPlainText(), isNot(contains('>')));
+      expect(_externalLinkIconFinder(), findsOneWidget);
+    });
+
+    testWidgets('狭幅でも長い連続URLを文字境界で複数行に折り返す', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 60,
+              child: MfmText(
+                parsedNodes: [
+                  UrlNode(
+                    url:
+                        'https://example.com/'
+                        'abcdefghijklmnopqrstuvwxyz0123456789',
+                  ),
+                ],
+                config: MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final richText = _rootRichText(tester);
+      expect(tester.getSize(_rootRichTextFinder()).height, greaterThan(20));
+      expect(
+        richText.text.toPlainText(),
+        isNot(contains(String.fromCharCode(0x200B))),
+      );
+    });
+
+    testWidgets('URL表示用parse失敗時は生文字列へfallbackする', (tester) async {
+      const raw = 'not a url';
+      String? tappedUrl;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              parsedNodes: const [UrlNode(url: raw, brackets: true)],
+              config: MfmRenderConfig(onLinkTap: (url) => tappedUrl = url),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      final rawSpan = _findSpanWithText(root, raw);
+      expect(rawSpan, isNotNull);
+      expect(rawSpan!.style!.color, const Color(0xFF44A4C1));
+      expect(rawSpan.style!.decoration, TextDecoration.none);
+      expect(_externalLinkIconFinder(), findsNothing);
+      (rawSpan.recognizer! as TapGestureRecognizer).onTap!.call();
+      expect(tappedUrl, raw);
     });
 
     testWidgets('メンションをリンク色でレンダリングできる', (tester) async {
@@ -909,7 +1135,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final mentionSpan = _findSpanWithText(textSpan, '@user');
@@ -924,7 +1150,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final hashtagSpan = _findSpanWithText(textSpan, '#misskey');
@@ -936,7 +1162,7 @@ void main() {
       (
         name: 'URL',
         source: 'https://example.com',
-        label: 'https://example.com',
+        label: 'example.com',
         role: 'link',
       ),
       (
@@ -966,8 +1192,7 @@ void main() {
               ),
             );
 
-            final root =
-                tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+            final root = _rootRichText(tester).text as TextSpan;
             final style = _effectiveStyleForText(root, testCase.label)!;
             final scheme = brightness == Brightness.dark
                 ? const MfmColorScheme.dark()
@@ -1004,8 +1229,7 @@ void main() {
           ),
         );
 
-        final root =
-            tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        final root = _rootRichText(tester).text as TextSpan;
         final style = _effectiveStyleForText(root, testCase.label)!;
         final expected = switch (testCase.role) {
           'mention' => scheme.mention,
@@ -1076,7 +1300,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final emojiSpan = _findSpanWithText(textSpan, ':custom:');
@@ -1090,7 +1314,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final emojiSpan = _findSpanWithText(textSpan, '😀');
@@ -1127,7 +1351,7 @@ void main() {
       );
 
       // plainブロック内では**は太字としてパースされない
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final boldSpan = _findSpanWithStyle(
@@ -1266,7 +1490,7 @@ void main() {
             ),
           );
 
-          final richText = tester.widget<RichText>(find.byType(RichText));
+          final richText = _rootRichText(tester);
           final root = richText.text as TextSpan;
           final formula = _findSpanWithStyle(
             root,
@@ -1306,8 +1530,7 @@ void main() {
         ),
       );
 
-      final root =
-          tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+      final root = _rootRichText(tester).text as TextSpan;
       final formula = _findSpanWithStyle(
         root,
         (style) => style?.fontFamily == 'monospace',
@@ -1343,8 +1566,7 @@ void main() {
           ),
         );
 
-        final root =
-            tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        final root = _rootRichText(tester).text as TextSpan;
         expect(_findSpanWithText(root, 'x^2')!.style!.fontFamily, 'monospace');
         expect(
           root.toPlainText(),
@@ -1463,15 +1685,14 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
-      // URLスパンを検索
-      final linkSpan = _findSpanWithText(textSpan, 'https://example.com');
-      expect(linkSpan, isNotNull);
+      final hostSpan = _findSpanWithText(textSpan, 'example.com');
+      expect(hostSpan, isNotNull);
 
       // recognizerを呼び出してタップをシミュレート
-      final recognizer = linkSpan?.recognizer;
+      final recognizer = hostSpan?.recognizer;
       if (recognizer is TapGestureRecognizer) {
         recognizer.onTap?.call();
       }
@@ -1495,7 +1716,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final mentionSpan = _findSpanWithText(textSpan, '@user@example.com');
@@ -1651,7 +1872,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
       final hashtagSpan = _findSpanWithText(textSpan, '#flutter');
       expect(hashtagSpan, isNotNull);
@@ -1672,7 +1893,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final hashtagSpan = _findSpanWithText(textSpan, '#flutter');
@@ -1809,7 +2030,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       // 太字スタイルを持つべき
@@ -1836,7 +2057,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final linkSpan = _findSpanWithStyle(
@@ -1863,7 +2084,7 @@ void main() {
       );
 
       // simpleモードでは太字がパースされない
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       // simpleモードでは太字スタイルが適用されない
@@ -1874,6 +2095,25 @@ void main() {
       expect(boldSpan, isNull);
     });
   });
+}
+
+Finder _rootRichTextFinder() {
+  return find
+      .descendant(of: find.byType(MfmText), matching: find.byType(RichText))
+      .first;
+}
+
+RichText _rootRichText(WidgetTester tester) {
+  return tester.widget<RichText>(_rootRichTextFinder());
+}
+
+Finder _externalLinkIconFinder() {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Icon &&
+        widget.icon?.codePoint == 0xe45c &&
+        widget.icon?.fontFamily == 'MaterialIcons',
+  );
 }
 
 Color? _inlineCodeBackground(WidgetTester tester) {
@@ -1955,7 +2195,7 @@ TextSpan? _findSpanWithText(TextSpan parent, String text) {
 }
 
 void _invokeSpanTap(WidgetTester tester, String text) {
-  final richText = tester.widget<RichText>(find.byType(RichText));
+  final richText = _rootRichText(tester);
   final textSpan = richText.text as TextSpan;
   final targetSpan = _findSpanWithText(textSpan, text);
   expect(targetSpan, isNotNull);
