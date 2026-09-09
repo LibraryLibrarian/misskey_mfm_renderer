@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoApp, CupertinoThemeData;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_highlight/themes/dracula.dart';
@@ -68,6 +69,101 @@ void main() {
       final textSpan = richText.text as TextSpan;
       expect(textSpan.style?.fontSize, 20);
       expect(textSpan.style?.color, Colors.red);
+    });
+  });
+
+  group('MfmText brightness解決', () {
+    testWidgets('platform lightよりMaterial darkを優先する', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: const Scaffold(body: MfmText(text: '`code`')),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFF232323));
+    });
+
+    testWidgets('platform darkよりMaterial lightを優先する', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.light(),
+          home: const Scaffold(body: MfmText(text: '`code`')),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFFF9F9F9));
+    });
+
+    testWidgets('明示brightnessをMaterial themeより優先する', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: const Scaffold(
+            body: MfmText(
+              text: '`code`',
+              config: MfmRenderConfig(brightness: Brightness.light),
+            ),
+          ),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFFF9F9F9));
+    });
+
+    testWidgets('MaterialなしではCupertino themeをplatformより優先する', (
+      tester,
+    ) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+      await tester.pumpWidget(
+        const CupertinoApp(
+          theme: CupertinoThemeData(brightness: Brightness.dark),
+          home: MfmText(text: '`code`'),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFF232323));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('MaterialなしのWidgetsAppではplatform brightnessを使う', (
+      tester,
+    ) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: Colors.white,
+          builder: (context, _) => const MfmText(text: '`code`'),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFF232323));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('themeもMediaQueryもない場合はlightへfallbackする', (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: DefaultTextStyle(
+            style: TextStyle(fontSize: 14),
+            child: MfmText(text: '`code`'),
+          ),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFFF9F9F9));
+      expect(tester.takeException(), isNull);
     });
   });
 
@@ -174,10 +270,30 @@ void main() {
     }
 
     final linkCases = [
-      (name: 'リンク', text: '[link](https://example.com)', label: 'link'),
-      (name: 'URL', text: 'https://example.com', label: 'https://example.com'),
-      (name: 'メンション', text: '@user', label: '@user'),
-      (name: 'ハッシュタグ', text: '#tag', label: '#tag'),
+      (
+        name: 'リンク',
+        text: '[link](https://example.com)',
+        label: 'link',
+        color: const Color(0xFF44A4C1),
+      ),
+      (
+        name: 'URL',
+        text: 'https://example.com',
+        label: 'https://example.com',
+        color: const Color(0xFF44A4C1),
+      ),
+      (
+        name: 'メンション',
+        text: '@user',
+        label: '@user',
+        color: const Color(0xFF86B300),
+      ),
+      (
+        name: 'ハッシュタグ',
+        text: '#tag',
+        label: '#tag',
+        color: const Color(0xFFFF9156),
+      ),
     ];
     for (final testCase in linkCases) {
       for (final depth in [0, 1, 2]) {
@@ -201,10 +317,7 @@ void main() {
             testCase.label,
           );
           expect(style, isNotNull);
-          expect(
-            style!.color!.withValues(alpha: 1),
-            const Color(0xFF0066CC),
-          );
+          expect(style!.color!.withValues(alpha: 1), testCase.color);
           expect(
             style.color!.a,
             closeTo(
@@ -416,8 +529,12 @@ void main() {
                     text: '${'<small>' * depth}`code`${'</small>' * depth}',
                     config: MfmRenderConfig(
                       baseTextStyle: baseStyle,
-                      inlineCodeBgColorLight: backgroundCase.light,
-                      inlineCodeBgColorDark: backgroundCase.dark,
+                      lightColorScheme: backgroundCase.light == null
+                          ? null
+                          : MfmColorScheme.light(bg: backgroundCase.light!),
+                      darkColorScheme: backgroundCase.dark == null
+                          ? null
+                          : MfmColorScheme.dark(bg: backgroundCase.dark!),
                     ),
                   ),
                 ),
@@ -440,8 +557,8 @@ void main() {
             );
             final background = (container.decoration! as BoxDecoration).color!;
             final originalBackground = brightness == Brightness.dark
-                ? (backgroundCase.dark ?? const Color(0xFF121212))
-                : (backgroundCase.light ?? const Color(0xFFF5F5F5));
+                ? (backgroundCase.dark ?? const Color(0xFF232323))
+                : (backgroundCase.light ?? const Color(0xFFF9F9F9));
             expect(
               background.a,
               closeTo(originalBackground.a * alpha, 0.000001),
@@ -491,6 +608,10 @@ void main() {
         );
         final border =
             (container.decoration! as BoxDecoration).border! as Border;
+        expect(
+          border.left.color.withValues(alpha: 1),
+          const MfmColorScheme.light().fg,
+        );
         expect(border.left.color.a, closeTo(expected, 0.000001));
         final innerText = container.child! as RichText;
         expect(
@@ -735,7 +856,7 @@ void main() {
           expect(corner.x, closeTo(testCase.radius, 0.000001));
           expect(corner.y, closeTo(testCase.radius, 0.000001));
         }
-        expect(decoration.color, const Color(0xFFF5F5F5));
+        expect(decoration.color, const Color(0xFFF9F9F9));
         final root = tester.widget<RichText>(find.byType(RichText).first);
         final span = _firstWidgetSpan(root.text as TextSpan)!;
         expect(span.alignment, PlaceholderAlignment.baseline);
@@ -775,11 +896,10 @@ void main() {
       final richText = tester.widget<RichText>(find.byType(RichText));
       final textSpan = richText.text as TextSpan;
 
-      final linkSpan = _findSpanWithStyle(
-        textSpan,
-        (style) => style?.color == const Color(0xFF0066CC),
-      );
+      final linkSpan = _findSpanWithText(textSpan, 'https://example.com');
       expect(linkSpan, isNotNull);
+      expect(linkSpan!.style!.color, const Color(0xFF44A4C1));
+      expect(linkSpan.style!.decoration, TextDecoration.none);
     });
 
     testWidgets('メンションをリンク色でレンダリングできる', (tester) async {
@@ -794,6 +914,7 @@ void main() {
 
       final mentionSpan = _findSpanWithText(textSpan, '@user');
       expect(mentionSpan, isNotNull);
+      expect(mentionSpan!.style!.color, const Color(0xFF86B300));
     });
 
     testWidgets('ハッシュタグを#付きでレンダリングできる', (tester) async {
@@ -808,7 +929,92 @@ void main() {
 
       final hashtagSpan = _findSpanWithText(textSpan, '#misskey');
       expect(hashtagSpan, isNotNull);
+      expect(hashtagSpan!.style!.color, const Color(0xFFFF9156));
     });
+
+    final themedNodeCases = [
+      (
+        name: 'URL',
+        source: 'https://example.com',
+        label: 'https://example.com',
+        role: 'link',
+      ),
+      (
+        name: 'リンク',
+        source: '[label](https://example.com)',
+        label: 'label',
+        role: 'link',
+      ),
+      (name: 'メンション', source: '@user', label: '@user', role: 'mention'),
+      (name: 'ハッシュタグ', source: '#tag', label: '#tag', role: 'hashtag'),
+    ];
+    for (final brightness in Brightness.values) {
+      for (final testCase in themedNodeCases) {
+        testWidgets(
+          '${testCase.name}は${brightness.name} presetの${testCase.role}色を使う',
+          (
+            tester,
+          ) async {
+            await tester.pumpWidget(
+              MaterialApp(
+                home: Scaffold(
+                  body: MfmText(
+                    text: testCase.source,
+                    config: MfmRenderConfig(brightness: brightness),
+                  ),
+                ),
+              ),
+            );
+
+            final root =
+                tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+            final style = _effectiveStyleForText(root, testCase.label)!;
+            final scheme = brightness == Brightness.dark
+                ? const MfmColorScheme.dark()
+                : const MfmColorScheme.light();
+            final expected = switch (testCase.role) {
+              'mention' => scheme.mention,
+              'hashtag' => scheme.hashtag,
+              _ => scheme.link,
+            };
+            expect(style.color, expected);
+            if (testCase.role == 'link') {
+              expect(style.decoration, TextDecoration.none);
+            }
+          },
+        );
+      }
+    }
+
+    for (final testCase in themedNodeCases) {
+      testWidgets('${testCase.name}はカスタム配色を使う', (tester) async {
+        const scheme = MfmColorScheme.light(
+          link: Color(0xFF102030),
+          mention: Color(0xFF405060),
+          hashtag: Color(0xFF708090),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: testCase.source,
+                config: const MfmRenderConfig(lightColorScheme: scheme),
+              ),
+            ),
+          ),
+        );
+
+        final root =
+            tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        final style = _effectiveStyleForText(root, testCase.label)!;
+        final expected = switch (testCase.role) {
+          'mention' => scheme.mention,
+          'hashtag' => scheme.hashtag,
+          _ => scheme.link,
+        };
+        expect(style.color, expected);
+      });
+    }
 
     testWidgets('カスタム絵文字をビルダーでレンダリングできる', (tester) async {
       await tester.pumpWidget(
@@ -1052,8 +1258,8 @@ void main() {
                   text: testCase.source,
                   config: const MfmRenderConfig(
                     baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
-                    inlineCodeBgColorLight: Colors.red,
-                    inlineCodeBgColorDark: Colors.green,
+                    lightColorScheme: MfmColorScheme.light(bg: Colors.red),
+                    darkColorScheme: MfmColorScheme.dark(bg: Colors.green),
                   ),
                 ),
               ),
@@ -1149,15 +1355,96 @@ void main() {
       });
     }
 
-    testWidgets('検索ブロックをボタン付きでレンダリングできる', (tester) async {
+    testWidgets('検索ブロックはdividerで連結した左右controlとして描画する', (tester) async {
+      const baseStyle = TextStyle(fontSize: 18, color: Colors.brown);
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(body: MfmText(text: 'test query 検索')),
+          home: Scaffold(
+            body: MfmText(
+              text: 'test query 検索',
+              config: MfmRenderConfig(baseTextStyle: baseStyle),
+            ),
+          ),
         ),
       );
 
-      expect(find.text('test query'), findsOneWidget);
-      expect(find.text('Search'), findsOneWidget);
+      final query = tester.widget<Text>(find.text('test query'));
+      final button = tester.widget<Text>(find.text('Search'));
+      expect(query.style, baseStyle);
+      expect(button.style, baseStyle);
+
+      final inputContainer = tester
+          .element(find.text('test query'))
+          .findAncestorWidgetOfExactType<Container>()!;
+      final buttonContainer = tester
+          .element(find.text('Search'))
+          .findAncestorWidgetOfExactType<Container>()!;
+      final inputDecoration = inputContainer.decoration! as BoxDecoration;
+      final buttonDecoration = buttonContainer.decoration! as BoxDecoration;
+      final inputBorder = inputDecoration.border! as Border;
+      final buttonBorder = buttonDecoration.border! as Border;
+      for (final side in [
+        inputBorder.top,
+        inputBorder.right,
+        inputBorder.bottom,
+        inputBorder.left,
+        buttonBorder.top,
+        buttonBorder.right,
+        buttonBorder.bottom,
+      ]) {
+        expect(side.color, const Color(0xFFE8E8E8));
+        expect(side.width, 1);
+        expect(side.style, BorderStyle.solid);
+      }
+      expect(buttonBorder.left.style, BorderStyle.none);
+      expect(inputDecoration.color, isNull);
+      expect(buttonDecoration.color, isNull);
+      expect(
+        inputDecoration.borderRadius,
+        const BorderRadius.only(
+          topLeft: Radius.circular(4),
+          bottomLeft: Radius.circular(4),
+        ),
+      );
+      expect(
+        buttonDecoration.borderRadius,
+        const BorderRadius.only(
+          topRight: Radius.circular(4),
+          bottomRight: Radius.circular(4),
+        ),
+      );
+
+      final row = tester
+          .element(find.text('test query'))
+          .findAncestorWidgetOfExactType<Row>()!;
+      expect(row.children, hasLength(2));
+      expect(row.children.first, isA<Expanded>());
+      expect(row.children.last, isA<GestureDetector>());
+    });
+
+    testWidgets('検索ブロックはカスタムdividerを両controlへ使う', (tester) async {
+      const divider = Color(0x80112233);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: 'test query Search',
+              config: MfmRenderConfig(
+                lightColorScheme: MfmColorScheme.light(divider: divider),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      for (final label in ['test query', 'Search']) {
+        final container = tester
+            .element(find.text(label))
+            .findAncestorWidgetOfExactType<Container>()!;
+        final border =
+            (container.decoration! as BoxDecoration).border! as Border;
+        expect(border.top.color, divider);
+      }
     });
   });
 
@@ -1555,8 +1842,8 @@ void main() {
       final linkSpan = _findSpanWithStyle(
         textSpan,
         (style) =>
-            style?.decoration == TextDecoration.underline &&
-            style?.color == const Color(0xFF0066CC),
+            style?.decoration == TextDecoration.none &&
+            style?.color == const Color(0xFF44A4C1),
       );
       expect(linkSpan, isNotNull);
     });
@@ -1587,6 +1874,13 @@ void main() {
       expect(boldSpan, isNull);
     });
   });
+}
+
+Color? _inlineCodeBackground(WidgetTester tester) {
+  final container = tester.widget<Container>(
+    find.ancestor(of: find.text('code'), matching: find.byType(Container)),
+  );
+  return (container.decoration! as BoxDecoration).color;
 }
 
 /// TextSpanの祖先から差分をマージして、対象テキストの実効スタイルを得る。

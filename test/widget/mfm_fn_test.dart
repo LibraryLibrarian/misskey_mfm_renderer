@@ -262,6 +262,9 @@ void main() {
               config: MfmRenderConfig(
                 baseTextStyle: baseStyle,
                 enableNyaize: true,
+                lightColorScheme: MfmColorScheme.light(
+                  link: Color(0xFF102030),
+                ),
               ),
             ),
           ),
@@ -276,8 +279,8 @@ void main() {
         ),
       );
       expect(richText.text.style?.fontWeight, FontWeight.bold);
-      expect(richText.text.style?.color, const Color(0xFF0066CC));
-      expect(richText.text.style?.decoration, TextDecoration.underline);
+      expect(richText.text.style?.color, const Color(0xFF102030));
+      expect(richText.text.style?.decoration, TextDecoration.none);
       // scaleはサイズ関数の深さを増やさないため、最初のx2は親サイズの2倍。
       expect(richText.text.style?.fontSize, 28);
       expect(richText.text.toPlainText(), 'な');
@@ -501,7 +504,9 @@ void main() {
       );
       expect(
         richText.text.style,
-        baseStyle.copyWith(color: Colors.blue.withValues(alpha: 0.7)),
+        baseStyle.copyWith(
+          color: const MfmColorScheme.light().fg.withValues(alpha: 0.7),
+        ),
       );
       expect(
         _findSpanWithStyle(
@@ -521,6 +526,9 @@ void main() {
               config: MfmRenderConfig(
                 baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
                 enableNyaize: true,
+                lightColorScheme: MfmColorScheme.light(
+                  fg: Color(0xFF102030),
+                ),
               ),
             ),
           ),
@@ -534,7 +542,10 @@ void main() {
           matching: find.byType(RichText),
         ),
       );
-      expect(richText.text.style?.color, Colors.blue.withValues(alpha: 0.7));
+      expect(
+        richText.text.style?.color,
+        const Color(0xFF102030).withValues(alpha: 0.7),
+      );
       expect(richText.text.style?.fontWeight, FontWeight.bold);
       expect(richText.text.style?.fontSize, 28);
       expect(richText.text.toPlainText(), 'な');
@@ -1136,6 +1147,36 @@ void main() {
         orElse: Container.new,
       );
       expect(borderContainer.decoration, isNotNull);
+      final decoration = borderContainer.decoration! as BoxDecoration;
+      final border = decoration.border! as Border;
+      expect(border.top.color, const MfmColorScheme.light().accent);
+      expect(border.top.width, 1);
+    });
+
+    testWidgets('borderの色省略時はカスタムschemeのaccentを使う', (tester) async {
+      const accent = Color(0xFF123456);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'$[border bordered]',
+              config: MfmRenderConfig(
+                lightColorScheme: MfmColorScheme.light(accent: accent),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final container = tester
+          .widgetList<Container>(find.byType(Container))
+          .firstWhere(
+            (container) =>
+                container.decoration is BoxDecoration &&
+                (container.decoration! as BoxDecoration).border != null,
+          );
+      final border = (container.decoration! as BoxDecoration).border! as Border;
+      expect(border.top.color, accent);
     });
 
     testWidgets('border.widthとcolorでカスタム幅と色を適用できる', (tester) async {
@@ -1161,6 +1202,9 @@ void main() {
 
       final decoration = borderContainer.decoration as BoxDecoration?;
       expect(decoration?.border, isNotNull);
+      final border = decoration!.border! as Border;
+      expect(border.top.color, const Color(0xFFFF0000));
+      expect(border.top.width, 2);
     });
 
     testWidgets('border.radiusで角丸を適用できる', (tester) async {
@@ -1744,22 +1788,56 @@ void main() {
   });
 
   group('MfmText fn unixtime関数', () {
-    testWidgets('unixtimeでフォーマット済み日時を表示できる', (tester) async {
-      // テスト用に固定のタイムスタンプを使用
-      final timestamp =
-          DateTime(2024, 1, 15, 12).millisecondsSinceEpoch ~/ 1000;
+    final timestamp = DateTime(2024, 1, 15, 12).millisecondsSinceEpoch ~/ 1000;
 
+    for (final brightness in Brightness.values) {
+      testWidgets('unixtimeは${brightness.name} presetのdividerで枠を描画する', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '\$[unixtime $timestamp]',
+                config: MfmRenderConfig(brightness: brightness),
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(Icon), findsOneWidget);
+        final container = tester
+            .element(find.byType(Icon))
+            .findAncestorWidgetOfExactType<Container>()!;
+        final border =
+            (container.decoration! as BoxDecoration).border! as Border;
+        final expected = brightness == Brightness.dark
+            ? const MfmColorScheme.dark().divider
+            : const MfmColorScheme.light().divider;
+        expect(border.top.color, expected);
+      });
+    }
+
+    testWidgets('unixtimeはカスタムschemeのdividerを使う', (tester) async {
+      const divider = Color(0x80112233);
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: MfmText(text: '\$[unixtime $timestamp]'),
+            body: MfmText(
+              text: '\$[unixtime $timestamp]',
+              config: const MfmRenderConfig(
+                lightColorScheme: MfmColorScheme.light(divider: divider),
+              ),
+            ),
           ),
         ),
       );
 
-      // アイコンとフォーマット済み時間でレンダリングされる
-      expect(find.byType(Icon), findsOneWidget);
-      expect(find.byType(Row), findsWidgets);
+      final container = tester
+          .element(find.byType(Icon))
+          .findAncestorWidgetOfExactType<Container>()!;
+      final border = (container.decoration! as BoxDecoration).border! as Border;
+      expect(border.top.color, divider);
     });
   });
 

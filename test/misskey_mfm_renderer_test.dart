@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
@@ -13,6 +15,8 @@ void main() {
       expect(config.localHost, null);
       expect(config.searchButtonLabel, null);
       expect(config.useLocaleSearchButtonLabel, false);
+      expect(config.lightColorScheme, isNull);
+      expect(config.darkColorScheme, isNull);
       expect(config.onCodeCopied, isNull);
       expect(config.codeCopyTooltip, isNull);
       expect(config.codeCopiedMessage, isNull);
@@ -53,6 +57,24 @@ void main() {
       );
       expect(overriddenAgain.searchButtonLabel, 'Search again');
       expect(overriddenAgain.useLocaleSearchButtonLabel, isFalse);
+    });
+
+    test('copyWithが配色を保持し上書きできる', () {
+      const light = MfmColorScheme.light(link: Color(0xFF111111));
+      const dark = MfmColorScheme.dark(link: Color(0xFF222222));
+      const replacement = MfmColorScheme.light(link: Color(0xFF333333));
+      const config = MfmRenderConfig(
+        lightColorScheme: light,
+        darkColorScheme: dark,
+      );
+
+      final preserved = config.copyWith(enableAnimation: false);
+      expect(preserved.lightColorScheme, light);
+      expect(preserved.darkColorScheme, dark);
+
+      final overridden = config.copyWith(lightColorScheme: replacement);
+      expect(overridden.lightColorScheme, replacement);
+      expect(overridden.darkColorScheme, dark);
     });
 
     test('copyWithがコードコピー設定を保持し上書きできる', () {
