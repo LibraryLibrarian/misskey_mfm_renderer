@@ -120,6 +120,8 @@ for setup instructions.
 || | rainbow | `$[rainbow text]` | ✅ |
 || | sparkle | `$[sparkle text]` | ✅ |
 
+For `fg` / `bg`, use 3- or 6-digit RGB or 4-digit RGBA hexadecimal `color` values without `#`. Missing or invalid values fall back to red (`f00`), matching Misskey. Five-digit values pass Misskey's regex but are invalid CSS colors that browsers drop, so no color is applied here either.
+
 ## Getting started
 
 Add the dependency to your `pubspec.yaml`:
