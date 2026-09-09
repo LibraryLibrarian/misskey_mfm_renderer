@@ -253,13 +253,14 @@ MfmText(
 
 ### MkMfm-compatible document props
 
-`plain`, `rootScale`, and `isNote` belong to each rendered document, so they are
-arguments of `MfmText`, rather than `MfmRenderConfig`:
+`plain`, `nowrap`, `rootScale`, and `isNote` belong to each rendered document, so they
+are arguments of `MfmText`, rather than `MfmRenderConfig`:
 
 ```dart
 MfmText(
   text: 'one\ntwo :wave:',
   plain: true, // Uses the simple parser and renders line breaks as spaces.
+  nowrap: true, // Single-line ellipsis, for example in timeline previews.
   rootScale: 3, // Initial cumulative scale for descendant MFM functions.
   isNote: false, // Makes hashtag details use /user-tags/... instead of /tags/....
 )
@@ -270,6 +271,11 @@ preserves line breaks and the normal custom-emoji size. `plain` normalizes CRLF/
 then replaces LF with spaces, including when `parsedNodes` is supplied. It also passes
 `MfmEmojiContext.normal: true` to custom emoji builders. `MfmEmojiConfig` renders this
 at 1.25em and uses a 0.25em descent, matching Misskey's `.normal` CSS class.
+
+`nowrap` sets the outer `RichText` to one line with `TextOverflow.ellipsis` and
+`softWrap: false`, making it suitable for timeline previews. Quotes retain their margin,
+left border, and opacity, but use their natural inline width instead of expanding to the
+full line so they can fit in the preview.
 
 `rootScale` must be finite and greater than zero. It only initializes traversal scale;
 it does not modify the root font size or add a transform.
