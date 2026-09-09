@@ -14,6 +14,7 @@ class MfmText extends StatelessWidget {
     this.config = const MfmRenderConfig(),
     this.simple = false,
     this.plain = false,
+    this.nowrap = false,
     this.rootScale = 1.0,
     this.isNote = true,
   }) : assert(rootScale > 0 && rootScale < double.infinity),
@@ -39,6 +40,9 @@ class MfmText extends StatelessWidget {
 
   /// 本家MkMfmのplain表示を使うか。
   final bool plain;
+
+  /// 1行に収め、はみ出した内容を省略記号で表示するか。
+  final bool nowrap;
 
   /// ルートでの累積スケール。
   final double rootScale;
@@ -78,6 +82,7 @@ class MfmText extends StatelessWidget {
       effectiveStyle: rootStyle,
       scale: rootScale,
       plain: plain,
+      nowrap: nowrap,
       isNote: isNote,
     );
 
@@ -86,6 +91,9 @@ class MfmText extends StatelessWidget {
 
     // RichTextでレンダリング
     return RichText(
+      maxLines: nowrap ? 1 : null,
+      softWrap: !nowrap,
+      overflow: nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
       text: TextSpan(
         style: rootStyle,
         children: spans,

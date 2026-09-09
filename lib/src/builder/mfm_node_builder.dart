@@ -19,6 +19,7 @@ class MfmNodeBuilder {
     this.opacity = 1.0,
     this.disableNyaize = false,
     this.plain = false,
+    this.nowrap = false,
     this.isNote = true,
   });
 
@@ -47,6 +48,9 @@ class MfmNodeBuilder {
   /// 本家MkMfmのplain表示を使うか。
   final bool plain;
 
+  /// 1行に収める表示を使うか。
+  final bool nowrap;
+
   /// ハッシュタグをノート用の遷移先へ向けるか。
   final bool isNote;
 
@@ -57,6 +61,7 @@ class MfmNodeBuilder {
     double? opacity,
     bool? disableNyaize,
     bool? plain,
+    bool? nowrap,
     bool? isNote,
   }) {
     return MfmNodeBuilder(
@@ -67,6 +72,7 @@ class MfmNodeBuilder {
       opacity: opacity ?? this.opacity,
       disableNyaize: disableNyaize ?? this.disableNyaize,
       plain: plain ?? this.plain,
+      nowrap: nowrap ?? this.nowrap,
       isNote: isNote ?? this.isNote,
     );
   }
@@ -236,23 +242,32 @@ class MfmNodeBuilder {
     );
     final children = quoteBuilder.buildNodes(node.children);
 
-    return WidgetSpan(
-      child: LayoutBuilder(
-        builder: (context, constraints) => Container(
-          width: constraints.hasBoundedWidth ? double.infinity : null,
-          margin: const EdgeInsets.all(8),
-          padding: const EdgeInsets.fromLTRB(12, 6, 0, 6),
-          decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                color: quoteBuilder.applyOpacity(baseColor),
-                width: 3,
-              ),
+    Widget buildQuoteContainer({double? width}) {
+      return Container(
+        width: width,
+        margin: const EdgeInsets.all(8),
+        padding: const EdgeInsets.fromLTRB(12, 6, 0, 6),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: quoteBuilder.applyOpacity(baseColor),
+              width: 3,
             ),
           ),
-          child: quoteBuilder.buildInlineRichText(children),
         ),
-      ),
+        child: quoteBuilder.buildInlineRichText(children),
+      );
+    }
+
+    // nowrapでは1行に収めるため、引用も全幅化せずインライン幅で描画する。
+    return WidgetSpan(
+      child: nowrap
+          ? buildQuoteContainer()
+          : LayoutBuilder(
+              builder: (context, constraints) => buildQuoteContainer(
+                width: constraints.hasBoundedWidth ? double.infinity : null,
+              ),
+            ),
     );
   }
 
