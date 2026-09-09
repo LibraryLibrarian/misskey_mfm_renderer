@@ -7,6 +7,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../builder/mfm_node_builder.dart';
 import '../utils/color_parser.dart';
+import '../utils/nyaize.dart';
 import 'animated/mfm_animated_wrapper.dart';
 import 'animated/mfm_bounce_widget.dart';
 import 'animated/mfm_jelly_widget.dart';
@@ -768,28 +769,47 @@ class MfmFnHandler {
 
   static InlineSpan _buildRuby(FnNode node, MfmNodeBuilder builder) {
     // ruby構文: $[ruby ベーステキスト ルビテキスト]
-    // 子ノードからテキストを取得、スペースで分割する
-    String? baseText;
-    String? rubyText;
-
-    // 最初のTextNodeからテキストを取得
-    for (final child in node.children) {
-      if (child is TextNode) {
-        final parts = child.text.split(' ');
-        if (parts.length >= 2) {
-          baseText = parts[0];
-          rubyText = parts.sublist(1).join(' ');
-        } else if (parts.length == 1) {
-          baseText = parts[0];
-        }
-        break;
-      }
+    if (node.children.isEmpty) {
+      return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    // ベーステキストまたはルビテキストがない場合は通常のテキストとして表示
-    if (baseText == null || rubyText == null || rubyText.isEmpty) {
-      final children = builder.buildNodes(node.children);
-      return TextSpan(children: children);
+    final InlineSpan baseSpan;
+    final String rubyText;
+    final lastChild = node.children.last;
+    if (node.children.length == 1 && lastChild is TextNode) {
+      // テキストのみの場合、本家と同じく全文をnyaizeしてから空白分割し、
+      // 2番目だけをルビにする。分割前に変換しないとnyaizeの
+      // 空白依存パターンが分割位置に影響されてしまう。
+      final raw = builder.shouldNyaize
+          ? nyaize(lastChild.text)
+          : lastChild.text;
+      final parts = raw.split(' ');
+      if (parts.length < 2 || parts[1].isEmpty) {
+        return TextSpan(children: builder.buildNodes(node.children));
+      }
+      baseSpan = TextSpan(text: parts[0]);
+      rubyText = parts[1];
+    } else {
+      // 最後の子をルビ、それ以外を装飾を保持したベースとして描画する。
+      // TextPainterではルビ側の非テキストノードを描けないため、そのまま表示する。
+      if (lastChild is! TextNode || lastChild.text.trim().isEmpty) {
+        return TextSpan(children: builder.buildNodes(node.children));
+      }
+      baseSpan = TextSpan(
+        children: builder.buildNodes(
+          node.children.sublist(0, node.children.length - 1),
+        ),
+      );
+      // 本家と同じくnyaizeしてからトリムする。
+      // ベース側はbuildNodes経由でnyaizeされる。
+      rubyText =
+          (builder.shouldNyaize ? nyaize(lastChild.text) : lastChild.text)
+              .trim();
+
+      // TextPainter単体ではWidgetSpanを描けない。ネストしたものも検出する。
+      if (!baseSpan.visitChildren((span) => span is! WidgetSpan)) {
+        return TextSpan(children: builder.buildNodes(node.children));
+      }
     }
 
     final baseStyle = builder.config.baseTextStyle;
@@ -804,7 +824,7 @@ class MfmFnHandler {
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: _RubyTextWidget(
-        baseText: baseText,
+        baseSpan: baseSpan,
         rubyText: rubyText,
         baseStyle: baseStyle,
         rubyStyle: rubyStyle,
@@ -923,14 +943,14 @@ class MfmFnHandler {
 /// ベーステキストのベースラインを維持しながら、ルビテキストを上に配置
 class _RubyTextWidget extends LeafRenderObjectWidget {
   const _RubyTextWidget({
-    required this.baseText,
+    required this.baseSpan,
     required this.rubyText,
     required this.baseStyle,
     required this.rubyStyle,
     required this.rubyFontSize,
   });
 
-  final String baseText;
+  final InlineSpan baseSpan;
   final String rubyText;
   final TextStyle? baseStyle;
   final TextStyle rubyStyle;
@@ -939,7 +959,7 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderRubyText(
-      baseText: baseText,
+      baseSpan: baseSpan,
       rubyText: rubyText,
       baseStyle: baseStyle,
       rubyStyle: rubyStyle,
@@ -953,7 +973,7 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
     _RenderRubyText renderObject,
   ) {
     renderObject
-      ..baseText = baseText
+      ..baseSpan = baseSpan
       ..rubyText = rubyText
       ..baseStyle = baseStyle
       ..rubyStyle = rubyStyle
@@ -963,22 +983,22 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
 
 class _RenderRubyText extends RenderBox {
   _RenderRubyText({
-    required String baseText,
+    required InlineSpan baseSpan,
     required String rubyText,
     required TextStyle? baseStyle,
     required TextStyle rubyStyle,
     required double rubyFontSize,
-  }) : _baseText = baseText,
+  }) : _baseSpan = baseSpan,
        _rubyText = rubyText,
        _baseStyle = baseStyle,
        _rubyStyle = rubyStyle,
        _rubyFontSize = rubyFontSize;
 
-  String _baseText;
-  String get baseText => _baseText;
-  set baseText(String value) {
-    if (_baseText != value) {
-      _baseText = value;
+  InlineSpan _baseSpan;
+  InlineSpan get baseSpan => _baseSpan;
+  set baseSpan(InlineSpan value) {
+    if (_baseSpan != value) {
+      _baseSpan = value;
       _basePainter = null;
       markNeedsLayout();
     }
@@ -1028,7 +1048,7 @@ class _RenderRubyText extends RenderBox {
 
   TextPainter _getBasePainter() {
     _basePainter ??= TextPainter(
-      text: TextSpan(text: _baseText, style: _baseStyle),
+      text: TextSpan(style: _baseStyle, children: [_baseSpan]),
       textDirection: TextDirection.ltr,
     );
     return _basePainter!;
