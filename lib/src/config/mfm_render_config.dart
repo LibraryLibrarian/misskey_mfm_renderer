@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import 'mfm_color_scheme.dart';
+
 /// MFMを含むコンテンツの投稿者情報。
 ///
 /// 本家Misskeyの`MkMfm`へ渡される`author`のうち、レンダリング時の
@@ -62,6 +64,8 @@ class MfmEmojiContext {
   /// x2/x3/x4/scale fnの累積倍率。tadaやsmallのサイズ変更は含まない。
   ///
   /// scale fnは描画時の変形なので、[fontSize]には反映されない。
+  /// advanced MFMが無効でもx2/x3/x4の公称倍率は伝播するが、
+  /// scale fnの倍率は伝播しない。
   final double scale;
 
   /// plain表示用の通常サイズを使うか。
@@ -122,13 +126,13 @@ class MfmRenderConfig {
     this.fontFamilyResolver,
     this.codeTheme,
     this.codeDarkTheme,
+    this.lightColorScheme,
+    this.darkColorScheme,
     this.brightness,
     this.showCodeBlockCopyButton,
     this.onCodeCopied,
     this.codeCopyTooltip,
     this.codeCopiedMessage,
-    this.inlineCodeBgColorLight,
-    this.inlineCodeBgColorDark,
   }) : searchButtonLabel = useLocaleSearchButtonLabel
            ? null
            : searchButtonLabel;
@@ -136,11 +140,16 @@ class MfmRenderConfig {
   /// ベースのテキストスタイル（指定しない場合はデフォルトを使用）
   final TextStyle? baseTextStyle;
 
-  /// advancedMfm（position等の高度な機能）を有効化
+  /// x2/x3/x4の視覚的サイズ変更、scale/position、MFMアニメーションを有効化。
+  ///
+  /// 無効時もx2/x3/x4の公称倍率は絵文字の描画文脈へ伝播する。
   final bool enableAdvancedMfm;
 
-  /// アニメーションを有効化（将来用）
+  /// [enableAdvancedMfm]が有効な場合のMFMアニメーションを有効化。
   final bool enableAnimation;
+
+  /// MFMアニメーションの実効的な有効判定。
+  bool get useAnimation => enableAdvancedMfm && enableAnimation;
 
   /// nyaize変換を有効化。
   ///
@@ -256,7 +265,19 @@ class MfmRenderConfig {
   /// nullの場合はcodeThemeを使用、それもnullならgithub-darkテーマを使用
   final Map<String, TextStyle>? codeDarkTheme;
 
-  /// 現在のテーマモード（内部使用、MfmTextが自動設定）
+  /// ライトモードで使用するMFM配色。
+  ///
+  /// nullの場合は継承設定を優先し、最終的に[MfmColorScheme.light]を使用する。
+  final MfmColorScheme? lightColorScheme;
+
+  /// ダークモードで使用するMFM配色。
+  ///
+  /// nullの場合は継承設定を優先し、最終的に[MfmColorScheme.dark]を使用する。
+  final MfmColorScheme? darkColorScheme;
+
+  /// 使用するテーマモード。
+  ///
+  /// nullの場合はMaterial、Cupertino、プラットフォームの順に周囲の設定から解決する。
   final Brightness? brightness;
 
   /// コードブロックのコピーボタンを表示するか
@@ -281,14 +302,6 @@ class MfmRenderConfig {
   /// nullの場合は現在のロケールが日本語なら「コードをコピーしました」、
   /// それ以外は"Copied to clipboard"を使用。[onCodeCopied]指定時は使用しない。
   final String? codeCopiedMessage;
-
-  /// インラインコードの背景色（ライトモード）
-  /// nullの場合は #F5F5F5 を使用（Misskey本家に準拠）
-  final Color? inlineCodeBgColorLight;
-
-  /// インラインコードの背景色（ダークモード）
-  /// nullの場合は #121212 を使用（Misskey本家に準拠）
-  final Color? inlineCodeBgColorDark;
 
   /// 設定をコピーして新しいインスタンスを作成。
   ///
@@ -322,13 +335,13 @@ class MfmRenderConfig {
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
     Map<String, TextStyle>? codeDarkTheme,
+    MfmColorScheme? lightColorScheme,
+    MfmColorScheme? darkColorScheme,
     Brightness? brightness,
     bool? showCodeBlockCopyButton,
     void Function(String code)? onCodeCopied,
     String? codeCopyTooltip,
     String? codeCopiedMessage,
-    Color? inlineCodeBgColorLight,
-    Color? inlineCodeBgColorDark,
   }) {
     if (clearAuthor && author != null) {
       throw ArgumentError.value(
@@ -379,16 +392,14 @@ class MfmRenderConfig {
       fontFamilyResolver: fontFamilyResolver ?? this.fontFamilyResolver,
       codeTheme: codeTheme ?? this.codeTheme,
       codeDarkTheme: codeDarkTheme ?? this.codeDarkTheme,
+      lightColorScheme: lightColorScheme ?? this.lightColorScheme,
+      darkColorScheme: darkColorScheme ?? this.darkColorScheme,
       brightness: brightness ?? this.brightness,
       showCodeBlockCopyButton:
           showCodeBlockCopyButton ?? this.showCodeBlockCopyButton,
       onCodeCopied: onCodeCopied ?? this.onCodeCopied,
       codeCopyTooltip: codeCopyTooltip ?? this.codeCopyTooltip,
       codeCopiedMessage: codeCopiedMessage ?? this.codeCopiedMessage,
-      inlineCodeBgColorLight:
-          inlineCodeBgColorLight ?? this.inlineCodeBgColorLight,
-      inlineCodeBgColorDark:
-          inlineCodeBgColorDark ?? this.inlineCodeBgColorDark,
     );
   }
 }

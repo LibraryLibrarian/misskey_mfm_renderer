@@ -148,14 +148,9 @@ void main() {
   });
 
   group('MfmText 引用の文字色と罫線色', () {
-    for (final colorCase in [
-      (name: '明示色', color: const Color(0xFF123456)),
-      (name: '明るい色', color: const Color(0xFFC7D1D8)),
-      (name: '半透明色', color: const Color(0x80123456)),
-      (name: '色未指定', color: null),
-    ]) {
+    for (final brightness in Brightness.values) {
       for (final small in [false, true]) {
-        testWidgets('${colorCase.name}は未減光の色に累積opacityを1回適用する(small $small)', (
+        testWidgets('${brightness.name}のfgに累積opacityを1回適用する(small $small)', (
           tester,
         ) async {
           const quote = QuoteNode([TextNode('quote')]);
@@ -166,12 +161,8 @@ void main() {
                   if (small) const SmallNode([quote]) else quote,
                 ],
                 config: MfmRenderConfig(
-                  baseTextStyle: TextStyle(
-                    fontFamily: 'Ahem',
-                    fontSize: 14,
-                    height: 1,
-                    color: colorCase.color,
-                  ),
+                  baseTextStyle: _baseStyle,
+                  brightness: brightness,
                 ),
               ),
             ),
@@ -179,12 +170,11 @@ void main() {
 
           final container = tester.widget<Container>(_quotes());
           final color = _leftBorder(container).color;
-          final baseColor = colorCase.color ?? const Color(0xFFFFFFFF);
-          expect(color.withValues(alpha: 1), baseColor.withValues(alpha: 1));
-          expect(
-            color.a,
-            closeTo(baseColor.a * (small ? 0.49 : 0.7), 0.000001),
-          );
+          final baseColor = brightness == Brightness.dark
+              ? const MfmColorScheme.dark().fg
+              : const MfmColorScheme.light().fg;
+          expect(color.withValues(alpha: 1), baseColor);
+          expect(color.a, closeTo(small ? 0.49 : 0.7, 0.000001));
           final richText = tester.widget<RichText>(
             find.descendant(of: _quotes(), matching: find.byType(RichText)),
           );
@@ -193,6 +183,39 @@ void main() {
         });
       }
     }
+
+    testWidgets('半透明のカスタムfgにもquoteとsmallのopacityを乗算する', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const MfmText(
+            parsedNodes: [
+              SmallNode([
+                QuoteNode([TextNode('quote')]),
+              ]),
+            ],
+            config: MfmRenderConfig(
+              baseTextStyle: _baseStyle,
+              lightColorScheme: MfmColorScheme.light(
+                fg: Color(0x80123456),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final color = _leftBorder(tester.widget<Container>(_quotes())).color;
+      expect(color.withValues(alpha: 1), const Color(0xFF123456));
+      expect(
+        color.a,
+        closeTo(const Color(0x80123456).a * 0.49, 0.000001),
+      );
+      final richText = tester.widget<RichText>(
+        find.descendant(of: _quotes(), matching: find.byType(RichText)),
+      );
+      expect(richText.text.style!.color, color);
+    });
 
     testWidgets('ネストした引用もルート色から減光して兄弟には漏らさない', (tester) async {
       await tester.pumpWidget(
@@ -214,7 +237,10 @@ void main() {
       final containers = tester.widgetList<Container>(_quotes()).toList();
       for (var i = 0; i < containers.length; i++) {
         final color = _leftBorder(containers[i]).color;
-        expect(color.withValues(alpha: 1), _baseStyle.color);
+        expect(
+          color.withValues(alpha: 1),
+          const MfmColorScheme.light().fg,
+        );
         expect(color.a, closeTo(i == 0 ? 0.7 : 0.49, 0.000001));
         final richText = tester.widget<RichText>(
           find
@@ -230,7 +256,7 @@ void main() {
       expect(find.byType(Opacity), findsNothing);
     });
 
-    testWidgets('fg内の引用は実効色ではなくルートの未減光色に戻す', (tester) async {
+    testWidgets('fg内の引用は実効色ではなくschemeのfgに戻す', (tester) async {
       await tester.pumpWidget(
         _host(
           const MfmText(
@@ -251,7 +277,7 @@ void main() {
       );
 
       final color = _leftBorder(tester.widget<Container>(_quotes())).color;
-      expect(color.withValues(alpha: 1), _baseStyle.color);
+      expect(color.withValues(alpha: 1), const MfmColorScheme.light().fg);
       expect(color.a, closeTo(0.49, 0.000001));
       final richText = tester.widget<RichText>(
         find.descendant(of: _quotes(), matching: find.byType(RichText)),
@@ -259,11 +285,11 @@ void main() {
       expect(richText.text.style!.color, color);
     });
 
-    testWidgets('baseTextStyle未指定ではDefaultTextStyleの色を使う', (tester) async {
+    testWidgets('baseTextStyle未指定でもschemeのfgを使う', (tester) async {
       await tester.pumpWidget(_host(const MfmText(text: '> quote')));
 
       final color = _leftBorder(tester.widget<Container>(_quotes())).color;
-      expect(color, _baseStyle.color!.withValues(alpha: 0.7));
+      expect(color, const MfmColorScheme.light().fg.withValues(alpha: 0.7));
       final richText = tester.widget<RichText>(
         find.descendant(of: _quotes(), matching: find.byType(RichText)),
       );

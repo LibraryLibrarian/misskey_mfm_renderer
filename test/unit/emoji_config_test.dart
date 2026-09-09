@@ -230,11 +230,15 @@ void main() {
     addTearDown(config.dispose);
 
     const author = MfmAuthorContext(host: 'remote.example');
+    const lightScheme = MfmColorScheme.light();
+    const darkScheme = MfmColorScheme.dark();
     final copied = config.copyWith(
       enableAnimation: false,
       author: author,
       localHost: 'local.example',
       searchButtonLabel: 'Find',
+      lightColorScheme: lightScheme,
+      darkColorScheme: darkScheme,
     );
 
     expect(copied, isA<MfmEmojiConfigHandle>());
@@ -243,8 +247,12 @@ void main() {
     expect(identical(copied.author, author), isTrue);
     expect(copied.localHost, 'local.example');
     expect(copied.searchButtonLabel, 'Find');
+    expect(copied.lightColorScheme, lightScheme);
+    expect(copied.darkColorScheme, darkScheme);
     expect(config.enableAnimation, isTrue);
     expect(config.searchButtonLabel, isNull);
+    expect(config.lightColorScheme, isNull);
+    expect(config.darkColorScheme, isNull);
 
     final replaced = copied.copyWith(
       emojiBuilder: (name, context) => copied.emojiBuilder!(name, context),
@@ -266,6 +274,15 @@ void main() {
     final preserved = copied.copyWith(enableNyaize: true);
     expect(identical(preserved.author, author), isTrue);
     expect(preserved.localHost, 'local.example');
+    expect(preserved.lightColorScheme, lightScheme);
+    expect(preserved.darkColorScheme, darkScheme);
+
+    final recolored = copied.copyWith(
+      lightColorScheme: darkScheme,
+      darkColorScheme: lightScheme,
+    );
+    expect(recolored.lightColorScheme, darkScheme);
+    expect(recolored.darkColorScheme, lightScheme);
 
     final preservedWithNull = preserved.copyWith(
       // ignore: avoid_redundant_argument_values

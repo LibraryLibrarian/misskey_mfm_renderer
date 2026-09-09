@@ -49,12 +49,12 @@ integration work.
 
 ### Additional Notes
 
-**Inline code**: Inherits the surrounding text size, color, and weight, uses monospace fonts, and scales its padding (0.1em) and border radius (0.3em) with the inherited font size.
+**Inline code**: Inherits the surrounding text size, color, and weight, uses monospace fonts, uses the active `MfmColorScheme.bg`, and scales its padding (0.1em) and border radius (0.3em) with the inherited font size.
 
 **Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
 Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg ...]`, link colors) and widgets such as emoji, so a child color override cannot cancel the dimming.
 
-**Quote**: `> quote` occupies a full line with an 8px margin on all sides, padding of 6px top/bottom and 12px left (0px right), and a 3px left border, matching Misskey's `QUOTE_STYLE`. Text and border use the undimmed root text color with cumulative opacity applied; each quote and `<small>` level multiplies the original alpha by 0.7. The root color comes from `baseTextStyle`, or `DefaultTextStyle` when no base style is provided. An explicit style without a color falls back to white, as Flutter text does.
+**Quote**: `> quote` occupies a full line with an 8px margin on all sides, padding of 6px top/bottom and 12px left (0px right), and a 3px left border, matching Misskey's `QUOTE_STYLE`. Text and border use the active `MfmColorScheme.fg` with cumulative opacity applied; each quote and `<small>` level multiplies the original alpha by 0.7. This quote color is independent of `baseTextStyle` and `DefaultTextStyle`.
 Block display requires a parent with bounded width (for example, `SizedBox(width: 300)` or `Expanded` in a `Row`). With unbounded width, such as a non-`Expanded` child of a `Row`, quotes use their natural width and are not guaranteed to occupy a separate line. No extra boundary newlines are inserted. CSS margin collapsing between adjacent quotes and the handling of extra newlines around blocks are not fully reproduced.
 
 **Literal fn fallback**: Unknown fn names, `font` without a valid family, and `position` with `enableAdvancedMfm: false` are displayed as `$[name content]` (arguments omitted), preserving child formatting, matching Misskey.
@@ -91,6 +91,11 @@ an explicit fixed height. The low-level `MfmCustomEmoji.size` default remains
 24px when constructed directly. Size functions, `tada`, and `<small>` adjust
 the effective font size; `scale` applies its existing paint transform without
 changing that font size (do not multiply the height by `context.scale` again).
+Visual x2/x3/x4 enlargement and `scale` effects require `enableAdvancedMfm: true`.
+When it is false, x2/x3/x4 keep the font size unchanged but still propagate
+nominal `context.scale` multipliers of 2/3/4; `scale` applies neither a transform
+nor a context multiplier. For example, `$[x4 :emoji:]` stays 28px high at a 14px
+base font, while its context is `(fontSize: 14, scale: 4)`.
 
 Custom emojis use their natural width by default. To cap very wide emojis,
 pass `emojiMaxWidth` to `MfmEmojiConfig` or `maxWidth` to `MfmCustomEmoji`.
@@ -145,7 +150,14 @@ For `fg` / `bg`, use 3- or 6-digit RGB or 4-digit RGBA hexadecimal `color` value
 `tada` applies 150% of the parent's actual font size, including when animations
 are disabled. This enlarges the text's layout size, not just its painted size.
 
+Like Misskey, `twitch` and `shake` apply `ease` to each adjacent keyframe
+interval.
+
 ## Getting started
+
+This package requires Flutter 3.38.1 or later (Dart 3.10.0 or later). The
+`.fvmrc` development environment uses Flutter 3.38.7, while the package
+support floor remains Flutter 3.38.1.
 
 Add the dependency to your `pubspec.yaml`:
 
@@ -317,8 +329,13 @@ shown and `codeCopyTooltip` serves as the button's accessibility (semantics)
 label.
 
 Code blocks inherit `baseTextStyle.fontSize` (or the surrounding
-`DefaultTextStyle` when no base style is configured), retaining the `monospace`
-font family. If the size is unspecified, the highlighter's default is used.
+`DefaultTextStyle` when no base style is configured), use the Consolas / Monaco /
+Andale Mono / Ubuntu Mono / monospace fallback list, and apply that size as 1em
+padding. They use a 1px theme divider border and 8px radius. Blocks without a
+language use the selected MFM scheme's `bg` / `fg`; highlighted blocks retain
+the highlight theme root background, falling back to the scheme `bg` only when
+the theme has no root background. If the size is unspecified, the highlighter's
+default is used.
 
 For hostless mentions in remote posts, provide the author and local instance
 hosts. `onMentionTap` then receives the resolved full acct. When neither host
@@ -474,16 +491,21 @@ widget). The publicly exported immutable `MfmEmojiContext` contains:
   size functions, `tada` (150%), and `<small>` (80%).
 - `scale`: the cumulative x2/x3/x4/scale-function multiplier. `tada` and
   `<small>` do not change it. `MfmText.rootScale` supplies the initial value.
+  For a 14px base, x2 gives `(28, 2)`, x4 gives `(84, 4)`, `scale.x=3,y=3`
+  gives `(14, 3)`, and `tada` gives `(21, 1)` with advanced MFM enabled.
+  A non-uniform `scale` multiplies by `max(x, y)` for non-negative values,
+  matching Misskey, so `scale.x=3,y=1` also gives `(14, 3)`. With
+  `enableAdvancedMfm: false`, x2/x3/x4 instead give `(14, 2)` / `(14, 3)` /
+  `(14, 4)`, while `scale.x=3,y=3` gives `(14, 1)`.
 - `normal`: true only for custom emoji in `MfmText(plain: true)`. Builders can use
-  it to select Misskey's 1.25em `.normal` appearance. For a 14px base, x2 gives `(28, 2)`, x4 gives
-  `(84, 6)`, `scale.x=3,y=3` gives `(14, 3)`, and `tada` gives `(21, 1)`.
-  A non-uniform `scale` multiplies by `max(x, y)`, matching Misskey, so
-  `scale.x=3,y=1` also gives `(14, 3)`.
+  it to select Misskey's 1.25em `.normal` appearance.
 - `useOriginalSize`: `scale >= 2.5`, matching Misskey's original-image hint.
   `misskey_emoji` 2.0.0-beta.1 exposes only one `EmojiImage.url`, with no
   original/thumbnail distinction. Automatic original-URL switching requires
   support in that dependency; no `MfmCustomEmoji.useOriginalSize` option is
   provided yet. A custom builder with access to both URLs can use the hint.
+  Because x multipliers still propagate with advanced MFM disabled,
+  `$[x4 :emoji:]` can have `useOriginalSize: true` without enlarging the font.
 
 Both builder results use an alphabetic-baseline `WidgetSpan`. The renderer
 cannot infer an arbitrary widget's image height or descent; the builder must
@@ -562,39 +584,141 @@ MfmText(
 )
 ```
 
-### Color Customization
+### MFM Color Schemes
 
-Customize background colors for inline code only (math formulas have no background):
+`MfmColorScheme` controls the Misskey theme colors used by URL/link, mention,
+hashtag, quote, search borders, the border fn default, unixtime borders, and
+inline-code backgrounds. Ordinary body text continues to use `baseTextStyle`
+or `DefaultTextStyle`.
+
+The built-in presets contain resolved colors from Misskey's Mi Light and Mi
+Dark themes:
+
+| Role | Mi Light | Mi Dark |
+|------|----------|---------|
+| `accent` | `#86B300` | `#86B300` |
+| `link` | `#44A4C1` | `#86B300` |
+| `hashtag` | `#FF9156` | `#4CB8D4` |
+| `mention` | `#86B300` | `#DA6D35` |
+| `mentionMe` | `#00B346` | `#D44C4C` |
+| `fg` | `#676767` | `#C7D1D8` |
+| `bg` | `#F9F9F9` | `#232323` |
+| `divider` | `#E8E8E8` | `rgba(255, 255, 255, 0.14)` |
+| `panel` | `#FFFFFF` | `#2D2D2D` |
+
+Set one or both schemes on `MfmRenderConfig`. An omitted mode keeps its
+built-in preset:
 
 ```dart
 MfmText(
-  text: r'Inline `code` and math \(x^2\)',
-  config: MfmRenderConfig(
-    // Custom background color for light mode (default: #F5F5F5)
-    inlineCodeBgColorLight: const Color(0xFFF0F0F0),
-    // Custom background color for dark mode (default: #121212)
-    inlineCodeBgColorDark: const Color(0xFF1A1A1A),
+  text: '@user #flutter https://example.com and `code`',
+  config: const MfmRenderConfig(
+    lightColorScheme: MfmColorScheme.light(
+      link: Color(0xFF0066CC),
+      bg: Color(0xFFF0F0F0),
+    ),
+    darkColorScheme: MfmColorScheme.dark(
+      link: Color(0xFF80CBC4),
+      bg: Color(0xFF1A1A1A),
+    ),
   ),
 )
 ```
 
-The default colors are based on Misskey's official implementation:
-- Light mode: `Color(0xFFF5F5F5)` - Very light gray
-- Dark mode: `Color(0xFF121212)` - Very dark gray
+Each field is a resolved, independent color. For example, overriding `accent`
+does not automatically change `mention`, `link`, or any other field. Normal
+mentions currently use `mention`; `mentionMe` is available in the scheme but
+cannot be selected until the renderer has viewer identity information.
+
+The mode is resolved in this order:
+
+1. `MfmRenderConfig.brightness`
+2. the nearest Material `Theme`
+3. the nearest Cupertino theme
+4. `MediaQuery` platform brightness
+5. `Brightness.light`
+
+Ambient themes select the mode only; their colors are not mapped automatically.
+To opt into an application's Material colors, define that mapping explicitly:
+
+```dart
+MfmColorScheme mfmColorsFrom(ColorScheme material) => MfmColorScheme(
+  accent: material.primary,
+  link: material.primary,
+  hashtag: material.tertiary,
+  mention: material.secondary,
+  mentionMe: material.error,
+  fg: material.onSurface,
+  bg: material.surface,
+  divider: material.outlineVariant,
+  panel: material.surfaceContainer,
+);
+
+final config = MfmRenderConfig(
+  lightColorScheme: mfmColorsFrom(lightTheme.colorScheme),
+  darkColorScheme: mfmColorsFrom(darkTheme.colorScheme),
+);
+```
+
+The former `inlineCodeBgColorLight` / `inlineCodeBgColorDark` properties have
+been removed. Migrate them to the corresponding preset's `bg` override:
+
+```dart
+const MfmRenderConfig(
+  lightColorScheme: MfmColorScheme.light(bg: Color(0xFFF0F0F0)),
+  darkColorScheme: MfmColorScheme.dark(bg: Color(0xFF1A1A1A)),
+)
+```
+
+Math formulas remain unadorned and do not use `bg`.
 
 ### Advanced MFM Control
 
-Control advanced fn functions like `position` for security reasons:
+`enableAdvancedMfm` controls the visual enlargement of x2/x3/x4, `scale`,
+`position`, and all nine MFM animation functions. Animations run only when
+both flags are true: the read-only `config.useAnimation` getter is
+`enableAdvancedMfm && enableAnimation`. Both flags default to true.
 
 ```dart
 MfmText(
-  text: r'$[position.x=10 moved]',
+  text: r'$[x4 large] $[scale.x=3 scaled] $[position.x=10 moved] $[spin still]',
   config: MfmRenderConfig(
-    // Disable advanced features like position
+    // Suppress size/scale/position effects and MFM animations
     enableAdvancedMfm: false,
+    enableAnimation: true, // Advanced MFM takes precedence
   ),
 )
 ```
+
+With advanced MFM disabled, x2/x3/x4 preserve font size (but still propagate
+nominal emoji-context scale), `scale` applies neither a transform nor scale
+propagation, and `position` is rendered literally as `$[position children]`.
+`flip`, `rotate`, and other styling functions remain available.
+
+When either flag is false, `spin`, `jump`, `bounce`, `shake`, `twitch`, and
+`jelly` render their children without animation wrappers. `tada` retains its
+150% font size, `rainbow` uses a static gradient, and `sparkle` renders its
+children without a wrapper. Set only `enableAnimation: false` to stop MFM
+animations while keeping size, scale, and position effects.
+These flags control MFM animation functions, not playback of animated emoji
+images. They do not automatically follow the OS reduced-motion preference.
+
+### Rainbow animation and source colors
+
+Like Misskey, `rainbow` applies `hue-rotate` → `contrast(150%)` →
+`saturate(150%)`, rotating the hue **from the original text colors** rather
+than sweeping a gradient across the text. **Gray or black body text shows no
+hue change**: dark gray only becomes slightly darker, and black stays black.
+Colored `fg` text, links, and color emoji visibly cycle through rainbow hues:
+
+```dart
+MfmText(text: r'$[rainbow $[fg.color=ff0000 colorful]]')
+```
+
+The default cycle is 1 second with linear, infinite repetition. `speed` changes
+the cycle duration; a positive `delay` leaves the original child unfiltered
+until the animation starts. When `config.useAnimation` is false, the static
+fallback remains the familiar rainbow gradient (seven colors and seven stops).
 
 ### Localizing unixtime
 
@@ -619,8 +743,12 @@ void main() {
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `baseTextStyle` | `TextStyle?` | null | Base text style |
-| `enableAdvancedMfm` | `bool` | true | Enable advanced features like position |
-| `enableAnimation` | `bool` | true | Enable animations (for future use) |
+| `lightColorScheme` | `MfmColorScheme?` | Mi Light preset | MFM colors used in light mode |
+| `darkColorScheme` | `MfmColorScheme?` | Mi Dark preset | MFM colors used in dark mode |
+| `brightness` | `Brightness?` | ambient theme/platform | Explicitly select the active MFM color mode |
+| `enableAdvancedMfm` | `bool` | true | Enable visual x2/x3/x4 enlargement, scale/position effects, and MFM animations |
+| `enableAnimation` | `bool` | true | Enable MFM animations when advanced MFM is enabled |
+| `useAnimation` | `bool` (getter) | true (derived) | Read-only effective animation gate: `enableAdvancedMfm && enableAnimation` |
 | `enableNyaize` | `bool` | false | Legacy forced nyaize switch when `nyaizeMode` is null |
 | `nyaizeMode` | `MfmNyaizeMode?` | null | `disabled`, `enabled`, or `respectAuthor`; explicit value takes precedence |
 | `onHashtagTapDetails` | `void Function(MfmHashtagTapDetails)?` | null | Preferred hashtag callback with `tag`, `isNote`, and encoded route `path` |
@@ -653,16 +781,26 @@ This library prioritizes visual fidelity and does not support text selection aft
 ### Scale Limits
 
 The `scale` fn function is limited to a maximum of 5x. This is the same security limitation as Misskey's official implementation.
+With `enableAdvancedMfm: false`, it applies neither a paint transform nor a
+multiplier to `MfmEmojiContext.scale`; any scale inherited from an outer x
+function is preserved. Its static children use `TextSpan`, without reproducing
+the upstream empty `inline-block` span's line-layout boundary.
 
 ### Nested Size Functions
 
-The `x2`, `x3`, and `x4` functions share a nesting depth, including mixed combinations, matching Misskey's official behavior. All percentages are relative to the parent's effective font size:
+The `x2`, `x3`, and `x4` functions share a nesting depth, including mixed combinations, matching Misskey's official behavior. With advanced MFM enabled, all percentages are relative to the parent's effective font size:
 
 - First level: `x2` is 200%, `x3` is 400%, and `x4` is 600%.
 - Second level: `zoom / 2 + 50%`, using the inner function's zoom value (`x2`: 150%, `x3`: 250%, `x4`: 350%).
 - Third level and deeper: 100% (no further enlargement; the parent's font size is inherited).
 
 For a base font size of 14px, `$[x2 $[x2 A]]` renders the outer level at 28px and the inner level at 42px. `$[x2 $[x3 A]]` renders the inner level at 70px. Adding a third size function does not enlarge it further. Other nodes, such as bold, animation functions, and `scale`, preserve this nesting depth without increasing it.
+
+With `enableAdvancedMfm: false`, x2/x3/x4 do not change font size at any depth.
+Nesting depth and nominal scale multipliers (2/3/4) still propagate, even at the
+third level and deeper. These multipliers are separate from the CSS font-size
+percentages: `$[x2 $[x3 A]]` keeps a 14px base font but passes scale 6 to its
+children. Disabling only `enableAnimation` does not change size-function behavior.
 
 ## Additional information
 
