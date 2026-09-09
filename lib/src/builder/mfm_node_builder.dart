@@ -208,18 +208,21 @@ class MfmNodeBuilder {
     final children = quoteBuilder.buildNodes(node.children);
 
     return WidgetSpan(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.only(left: 12),
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(
-              color: quoteBuilder.applyOpacity(const Color(0xFF888888)),
-              width: 3,
+      child: LayoutBuilder(
+        builder: (context, constraints) => Container(
+          width: constraints.hasBoundedWidth ? double.infinity : null,
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.only(left: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: quoteBuilder.applyOpacity(const Color(0xFF888888)),
+                width: 3,
+              ),
             ),
           ),
+          child: quoteBuilder.buildInlineRichText(children),
         ),
-        child: quoteBuilder.buildInlineRichText(children),
       ),
     );
   }

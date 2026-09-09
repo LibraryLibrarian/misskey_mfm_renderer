@@ -483,9 +483,12 @@ void main() {
           ),
         );
 
-        final root = tester.widget<RichText>(find.byType(RichText).first);
-        final container =
-            _firstWidgetSpan(root.text as TextSpan)!.child as Container;
+        final container = tester.widget<Container>(
+          find.descendant(
+            of: find.byType(MfmText),
+            matching: find.byType(Container),
+          ),
+        );
         final border =
             (container.decoration! as BoxDecoration).border! as Border;
         expect(border.left.color.a, closeTo(expected, 0.000001));
