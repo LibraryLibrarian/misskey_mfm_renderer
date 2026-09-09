@@ -282,39 +282,6 @@ void main() {
       expect(details?.path, '/tags/tag');
     },
   );
-}
-
-TextSpan _spanForText(WidgetTester tester, String text) {
-  final root = tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
-  return _findSpan(root, text)!;
-}
-
-TextSpan? _findSpan(TextSpan span, String text) {
-  if (span.text == text) return span;
-  for (final child in span.children ?? const <InlineSpan>[]) {
-    if (child is TextSpan) {
-      final found = _findSpan(child, text);
-      if (found != null) return found;
-    }
-  }
-  return null;
-}
-
-Widget _emojiTextBuilder(String _, MfmEmojiContext context) =>
-    Text('inherited:${context.fontSize}:${context.scale}');
-
-Widget _emojiTextBuilderExplicit(String _, MfmEmojiContext context) =>
-    Text('explicit:${context.fontSize}:${context.scale}');
-
-TextSpan? _findSpanWithText(TextSpan span, String text) {
-  if (span.text == text) return span;
-  for (final child in span.children ?? <InlineSpan>[]) {
-    if (child is TextSpan) {
-      final found = _findSpanWithText(child, text);
-      if (found != null) return found;
-    }
-  }
-  return null;
 
   group('emojiUrls inheritance and default config detection', () {
     const inheritedUrls = {'Wave': 'https://remote.example/inherited.png'};
@@ -374,4 +341,37 @@ TextSpan? _findSpanWithText(TextSpan span, String text) {
       });
     }
   });
+}
+
+TextSpan _spanForText(WidgetTester tester, String text) {
+  final root = tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+  return _findSpan(root, text)!;
+}
+
+TextSpan? _findSpan(TextSpan span, String text) {
+  if (span.text == text) return span;
+  for (final child in span.children ?? const <InlineSpan>[]) {
+    if (child is TextSpan) {
+      final found = _findSpan(child, text);
+      if (found != null) return found;
+    }
+  }
+  return null;
+}
+
+Widget _emojiTextBuilder(String _, MfmEmojiContext context) =>
+    Text('inherited:${context.fontSize}:${context.scale}');
+
+Widget _emojiTextBuilderExplicit(String _, MfmEmojiContext context) =>
+    Text('explicit:${context.fontSize}:${context.scale}');
+
+TextSpan? _findSpanWithText(TextSpan span, String text) {
+  if (span.text == text) return span;
+  for (final child in span.children ?? <InlineSpan>[]) {
+    if (child is TextSpan) {
+      final found = _findSpanWithText(child, text);
+      if (found != null) return found;
+    }
+  }
+  return null;
 }
