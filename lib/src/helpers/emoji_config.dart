@@ -49,6 +49,9 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          codeDarkTheme: config.codeDarkTheme,
          brightness: config.brightness,
          showCodeBlockCopyButton: config.showCodeBlockCopyButton,
+         onCodeCopied: config.onCodeCopied,
+         codeCopyTooltip: config.codeCopyTooltip,
+         codeCopiedMessage: config.codeCopiedMessage,
          inlineCodeBgColorLight: config.inlineCodeBgColorLight,
          inlineCodeBgColorDark: config.inlineCodeBgColorDark,
        );
@@ -93,6 +96,9 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     Map<String, TextStyle>? codeDarkTheme,
     Brightness? brightness,
     bool? showCodeBlockCopyButton,
+    void Function(String code)? onCodeCopied,
+    String? codeCopyTooltip,
+    String? codeCopiedMessage,
     Color? inlineCodeBgColorLight,
     Color? inlineCodeBgColorDark,
   }) {
@@ -119,6 +125,9 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       codeDarkTheme: codeDarkTheme,
       brightness: brightness,
       showCodeBlockCopyButton: showCodeBlockCopyButton,
+      onCodeCopied: onCodeCopied,
+      codeCopyTooltip: codeCopyTooltip,
+      codeCopiedMessage: codeCopiedMessage,
       inlineCodeBgColorLight: inlineCodeBgColorLight,
       inlineCodeBgColorDark: inlineCodeBgColorDark,
     );

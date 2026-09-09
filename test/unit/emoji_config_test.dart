@@ -120,6 +120,46 @@ void main() {
     expect(store.disposeCalls, 1);
   });
 
+  test('ハンドルのcopyWithがコードコピー設定を保持し上書きできる', () async {
+    final dir = await Directory.systemTemp.createTemp('mfm_emoji_code_copy');
+    addTearDown(() => dir.delete(recursive: true));
+    final store = _FakeEmojiStore();
+    final config = await MfmEmojiConfig.createDefault(
+      client: _createClient(),
+      storagePath: dir.path,
+      autoSync: false,
+      emojiStoreFactory:
+          ({required Uri serverUrl, required String directory}) => store,
+    );
+    addTearDown(config.dispose);
+    void onCopied(String _) {}
+    void onCopiedOverride(String _) {}
+
+    final copied = config.copyWith(
+      onCodeCopied: onCopied,
+      codeCopyTooltip: 'Copy source',
+      codeCopiedMessage: 'Source copied',
+    );
+    final preserved = copied.copyWith(enableAnimation: false);
+    for (final value in [copied, preserved]) {
+      expect(value, isA<MfmEmojiConfigHandle>());
+      expect(value.onCodeCopied, same(onCopied));
+      expect(value.codeCopyTooltip, 'Copy source');
+      expect(value.codeCopiedMessage, 'Source copied');
+    }
+    final overridden = copied.copyWith(
+      onCodeCopied: onCopiedOverride,
+      codeCopyTooltip: '別のツールチップ',
+      codeCopiedMessage: '別のメッセージ',
+    );
+    expect(overridden.onCodeCopied, same(onCopiedOverride));
+    expect(overridden.codeCopyTooltip, '別のツールチップ');
+    expect(overridden.codeCopiedMessage, '別のメッセージ');
+    expect(config.onCodeCopied, isNull);
+    expect(config.codeCopyTooltip, isNull);
+    expect(config.codeCopiedMessage, isNull);
+  });
+
   test('copyWith preserves shared lifecycle ownership', () async {
     final dir = await Directory.systemTemp.createTemp('mfm_emoji_copy');
     final store = _FakeEmojiStore();
