@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
@@ -197,32 +198,35 @@ void main() {
     expect(find.text('Inherited search'), findsNothing);
   });
 
-  testWidgets('inherited nyaizeMode and hashtag details merge with explicit config', (tester) async {
-    MfmHashtagTapDetails? details;
-    await tester.pumpWidget(
-      MfmConfig(
-        config: MfmRenderConfig(
-          nyaizeMode: MfmNyaizeMode.respectAuthor,
-          author: const MfmAuthorContext(isCat: true),
-          onHashtagTapDetails: (value) => details = value,
-        ),
-        child: MaterialApp(
-          home: Scaffold(
-            body: MfmText(
-              text: 'なに #tag',
-              config: MfmRenderConfig(onLinkTap: (_) {}),
+  testWidgets(
+    'inherited nyaizeMode and hashtag details merge with explicit config',
+    (tester) async {
+      MfmHashtagTapDetails? details;
+      await tester.pumpWidget(
+        MfmConfig(
+          config: MfmRenderConfig(
+            nyaizeMode: MfmNyaizeMode.respectAuthor,
+            author: const MfmAuthorContext(isCat: true),
+            onHashtagTapDetails: (value) => details = value,
+          ),
+          child: MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: 'なに #tag',
+                config: MfmRenderConfig(onLinkTap: (_) {}),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    final root = tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
-    expect(_findSpanWithText(root, 'にゃに '), isNotNull);
-    final hashtag = _findSpanWithText(root, '#tag')!;
-    (hashtag.recognizer! as TapGestureRecognizer).onTap!.call();
-    expect(details?.path, '/tags/tag');
-  });
-
+      );
+      final root =
+          tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+      expect(_findSpanWithText(root, 'にゃに '), isNotNull);
+      final hashtag = _findSpanWithText(root, '#tag')!;
+      (hashtag.recognizer! as TapGestureRecognizer).onTap!.call();
+      expect(details?.path, '/tags/tag');
+    },
+  );
 }
 
 Widget _emojiTextBuilder(String _, MfmEmojiContext context) =>
@@ -230,7 +234,6 @@ Widget _emojiTextBuilder(String _, MfmEmojiContext context) =>
 
 Widget _emojiTextBuilderExplicit(String _, MfmEmojiContext context) =>
     Text('explicit:${context.fontSize}:${context.scale}');
-
 
 TextSpan? _findSpanWithText(TextSpan span, String text) {
   if (span.text == text) return span;

@@ -133,10 +133,9 @@ class MfmNodeBuilder {
 
   /// 現在の文脈で nyaize 変換を適用すべきか
   bool get shouldNyaize {
-    final mode = config.nyaizeMode ??
-        (config.enableNyaize
-            ? MfmNyaizeMode.enabled
-            : MfmNyaizeMode.disabled);
+    final mode =
+        config.nyaizeMode ??
+        (config.enableNyaize ? MfmNyaizeMode.enabled : MfmNyaizeMode.disabled);
     return !disableNyaize &&
         switch (mode) {
           MfmNyaizeMode.disabled => false,

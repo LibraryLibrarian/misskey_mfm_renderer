@@ -13,9 +13,15 @@ void main() {
       );
       expect(context, isNot(const MfmEmojiContext(fontSize: 28, scale: 1)));
       expect(context, isNot(const MfmEmojiContext(fontSize: 14, scale: 2)));
-      expect(context, isNot(const MfmEmojiContext(fontSize: 14, scale: 1, normal: true)));
+      expect(
+        context,
+        isNot(const MfmEmojiContext(fontSize: 14, scale: 1, normal: true)),
+      );
       expect(context, isNot('context'));
-      expect(context.toString(), 'MfmEmojiContext(fontSize: 14.0, scale: 1.0, normal: false)');
+      expect(
+        context.toString(),
+        'MfmEmojiContext(fontSize: 14.0, scale: 1.0, normal: false)',
+      );
     });
 
     test('original size threshold depends only on scale', () {
@@ -172,28 +178,9 @@ void main() {
           body: MfmText(
             text: ':emoji:',
             plain: true,
-            config: MfmRenderConfig(emojiBuilder: (_, context) {
-              received = context;
-              return const SizedBox.shrink();
-            }),
-          ),
-        ),
-      ),
-    );
-    expect(received?.normal, isTrue);
-  });
-
-  testWidgets('rootScale is included in emoji context and accumulates with x2', (tester) async {
-    final contexts = <MfmEmojiContext>[];
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MfmText(
-            text: r':root: $[x2 :nested:]',
-            rootScale: 3,
             config: MfmRenderConfig(
               emojiBuilder: (_, context) {
-                contexts.add(context);
+                received = context;
                 return const SizedBox.shrink();
               },
             ),
@@ -201,8 +188,32 @@ void main() {
         ),
       ),
     );
-    expect(contexts.map((context) => context.scale), [3.0, 6.0]);
+    expect(received?.normal, isTrue);
   });
+
+  testWidgets(
+    'rootScale is included in emoji context and accumulates with x2',
+    (tester) async {
+      final contexts = <MfmEmojiContext>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r':root: $[x2 :nested:]',
+              rootScale: 3,
+              config: MfmRenderConfig(
+                emojiBuilder: (_, context) {
+                  contexts.add(context);
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(contexts.map((context) => context.scale), [3.0, 6.0]);
+    },
+  );
 
   testWidgets('font size is completed before constructing emoji context', (
     tester,

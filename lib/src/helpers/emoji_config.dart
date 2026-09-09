@@ -296,8 +296,7 @@ class MfmEmojiConfig {
     fallbackBuilder,
   }) {
     return (name, context) {
-      final size = emojiSize ??
-          context.fontSize * (context.normal ? 1.25 : 2);
+      final size = emojiSize ?? context.fontSize * (context.normal ? 1.25 : 2);
       return MfmCustomEmoji(
         name: name,
         resolver: resolver,

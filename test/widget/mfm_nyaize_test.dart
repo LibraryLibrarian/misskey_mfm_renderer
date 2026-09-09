@@ -107,7 +107,7 @@ void main() {
     for (final mode in MfmNyaizeMode.values) {
       for (final author in <MfmAuthorContext?>[
         null,
-        const MfmAuthorContext(isCat: false),
+        const MfmAuthorContext(),
         const MfmAuthorContext(isCat: true),
       ]) {
         testWidgets('${mode.name} / author: ${author?.isCat}', (tester) async {
@@ -121,7 +121,8 @@ void main() {
               ),
             ),
           );
-          final shouldTransform = mode == MfmNyaizeMode.enabled ||
+          final shouldTransform =
+              mode == MfmNyaizeMode.enabled ||
               (mode == MfmNyaizeMode.respectAuthor && author?.isCat == true);
           expect(
             _findSpanWithText(
@@ -151,7 +152,9 @@ void main() {
       expect(_findSpanWithText(_rootSpan(tester), 'なにぬ'), isNotNull);
     });
 
-    testWidgets('legacy enableNyaize=true continues forced transformation', (tester) async {
+    testWidgets('legacy enableNyaize=true continues forced transformation', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -165,7 +168,6 @@ void main() {
       expect(_findSpanWithText(_rootSpan(tester), 'にゃにぬ'), isNotNull);
     });
   });
-
 }
 
 TextSpan _rootSpan(WidgetTester tester) {

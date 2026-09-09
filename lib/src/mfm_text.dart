@@ -16,7 +16,7 @@ class MfmText extends StatelessWidget {
     this.plain = false,
     this.rootScale = 1.0,
     this.isNote = true,
-  }) : assert(rootScale.isFinite && rootScale > 0),
+  }) : assert(rootScale > 0 && rootScale < double.infinity),
        assert(
          text != null || parsedNodes != null,
          'Either text or parsedNodes must be provided',
