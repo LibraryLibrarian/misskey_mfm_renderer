@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `twitch` と `shake` の `ease` をアニメーション全体ではなく、本家Misskeyと同じく隣接する各キーフレーム区間へ適用するよう修正（#42）。
+
 ### Changed
 - `enableAdvancedMfm` の効果範囲をx2/x3/x4の視覚的拡大、scale/position、全9種類のMFMアニメーションへ拡大。`MfmRenderConfig.useAnimation`（`enableAdvancedMfm && enableAnimation`）を追加し、advanced無効時はアニメーションも停止する。既定値は両フラグともtrueを維持する（#37）。
-
-### Fixed
-+- `twitch` と `shake` の `ease` をアニメーション全体ではなく、本家Misskeyと同じく隣接する各キーフレーム区間へ適用するよう修正（#42）。
 - advanced無効時もx2/x3/x4の公称倍率2/3/4は絵文字の描画文脈へ伝播するが、scale fnの変形・倍率伝播は停止する。アニメーション無効時は専用アニメーションwidgetを生成せず、tadaの150%フォントサイズ、rainbowの静的グラデーション、sparkleの素の子要素を維持する（#37）。
 - **Breaking:** `emojiBuilder` / `unicodeEmojiBuilder` を `Widget Function(String, MfmEmojiContext)` に変更し、実効フォントサイズと累積スケールを渡すようにした（#47、#57）。
 - **Breaking:** `MfmEmojiConfig.createDefault` / `fromResolver` の `emojiSize` の既定値を24px固定から実効フォントサイズの2倍（2em、引数はnull）に変更。固定サイズを維持する場合は `emojiSize: 24` を明示する（#47）。
