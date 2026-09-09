@@ -38,6 +38,9 @@ class MfmRenderConfig {
     this.codeDarkTheme,
     this.brightness,
     this.showCodeBlockCopyButton,
+    this.onCodeCopied,
+    this.codeCopyTooltip,
+    this.codeCopiedMessage,
     this.inlineCodeBgColorLight,
     this.inlineCodeBgColorDark,
   }) : searchButtonLabel = useLocaleSearchButtonLabel
@@ -141,6 +144,25 @@ class MfmRenderConfig {
   /// デフォルトはtrue
   final bool? showCodeBlockCopyButton;
 
+  /// コードをクリップボードへコピーした後のコールバック。
+  ///
+  /// codeにはコピーしたコード全文が渡される。指定時は既定のSnackBarを表示しない。
+  /// nullの場合はScaffoldMessengerが存在するときだけSnackBarを表示する。
+  final void Function(String code)? onCodeCopied;
+
+  /// コードブロックのコピーボタンのアクセシビリティラベル。
+  ///
+  /// コピーボタンはMaterial依存を避けるためツールチップを表示せず、
+  /// この文言はSemanticsのラベルとして機能する。
+  /// nullの場合は現在のロケールが日本語なら「コピー」、それ以外は"Copy"を使用。
+  final String? codeCopyTooltip;
+
+  /// コードコピー完了時の既定のSnackBarメッセージ。
+  ///
+  /// nullの場合は現在のロケールが日本語なら「コードをコピーしました」、
+  /// それ以外は"Copied to clipboard"を使用。[onCodeCopied]指定時は使用しない。
+  final String? codeCopiedMessage;
+
   /// インラインコードの背景色（ライトモード）
   /// nullの場合は #F5F5F5 を使用（Misskey本家に準拠）
   final Color? inlineCodeBgColorLight;
@@ -179,6 +201,9 @@ class MfmRenderConfig {
     Map<String, TextStyle>? codeDarkTheme,
     Brightness? brightness,
     bool? showCodeBlockCopyButton,
+    void Function(String code)? onCodeCopied,
+    String? codeCopyTooltip,
+    String? codeCopiedMessage,
     Color? inlineCodeBgColorLight,
     Color? inlineCodeBgColorDark,
   }) {
@@ -224,6 +249,9 @@ class MfmRenderConfig {
       brightness: brightness ?? this.brightness,
       showCodeBlockCopyButton:
           showCodeBlockCopyButton ?? this.showCodeBlockCopyButton,
+      onCodeCopied: onCodeCopied ?? this.onCodeCopied,
+      codeCopyTooltip: codeCopyTooltip ?? this.codeCopyTooltip,
+      codeCopiedMessage: codeCopiedMessage ?? this.codeCopiedMessage,
       inlineCodeBgColorLight:
           inlineCodeBgColorLight ?? this.inlineCodeBgColorLight,
       inlineCodeBgColorDark:

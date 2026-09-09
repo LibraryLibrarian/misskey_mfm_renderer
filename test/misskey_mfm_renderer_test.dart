@@ -13,6 +13,9 @@ void main() {
       expect(config.localHost, null);
       expect(config.searchButtonLabel, null);
       expect(config.useLocaleSearchButtonLabel, false);
+      expect(config.onCodeCopied, isNull);
+      expect(config.codeCopyTooltip, isNull);
+      expect(config.codeCopiedMessage, isNull);
 
       const localized = MfmRenderConfig(
         searchButtonLabel: 'Ignored',
@@ -50,6 +53,33 @@ void main() {
       );
       expect(overriddenAgain.searchButtonLabel, 'Search again');
       expect(overriddenAgain.useLocaleSearchButtonLabel, isFalse);
+    });
+
+    test('copyWithがコードコピー設定を保持し上書きできる', () {
+      void onCopied(String _) {}
+      void onCopiedOverride(String _) {}
+      final config = MfmRenderConfig(
+        onCodeCopied: onCopied,
+        codeCopyTooltip: 'Copy source',
+        codeCopiedMessage: 'Source copied',
+      );
+
+      final preserved = config.copyWith(enableAnimation: false);
+      expect(preserved.onCodeCopied, same(onCopied));
+      expect(preserved.codeCopyTooltip, 'Copy source');
+      expect(preserved.codeCopiedMessage, 'Source copied');
+
+      final overridden = config.copyWith(
+        onCodeCopied: onCopiedOverride,
+        codeCopyTooltip: '別のツールチップ',
+        codeCopiedMessage: '別のメッセージ',
+      );
+      expect(overridden.onCodeCopied, same(onCopiedOverride));
+      expect(overridden.codeCopyTooltip, '別のツールチップ');
+      expect(overridden.codeCopiedMessage, '別のメッセージ');
+      expect(config.onCodeCopied, same(onCopied));
+      expect(config.codeCopyTooltip, 'Copy source');
+      expect(config.codeCopiedMessage, 'Source copied');
     });
 
     test('copyWith preserves and overrides mention context', () {
