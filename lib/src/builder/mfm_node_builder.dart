@@ -20,6 +20,8 @@ class MfmNodeBuilder {
     this.sizeDepth = 0,
     this.opacity = 1.0,
     this.disableNyaize = false,
+    this.plain = false,
+    this.isNote = true,
   });
 
   /// レンダリング設定
@@ -44,12 +46,20 @@ class MfmNodeBuilder {
   /// link / quote / plain など、原文を保ちたいノード配下では true となる
   final bool disableNyaize;
 
+  /// 本家MkMfmのplain表示を使うか。
+  final bool plain;
+
+  /// ハッシュタグをノート用の遷移先へ向けるか。
+  final bool isNote;
+
   MfmNodeBuilder _copyWith({
     TextStyle? effectiveStyle,
     double? scale,
     int? sizeDepth,
     double? opacity,
     bool? disableNyaize,
+    bool? plain,
+    bool? isNote,
   }) {
     return MfmNodeBuilder(
       config: config,
@@ -59,6 +69,8 @@ class MfmNodeBuilder {
       sizeDepth: sizeDepth ?? this.sizeDepth,
       opacity: opacity ?? this.opacity,
       disableNyaize: disableNyaize ?? this.disableNyaize,
+      plain: plain ?? this.plain,
+      isNote: isNote ?? this.isNote,
     );
   }
 
@@ -123,7 +135,17 @@ class MfmNodeBuilder {
   }
 
   /// 現在の文脈で nyaize 変換を適用すべきか
-  bool get shouldNyaize => config.enableNyaize && !disableNyaize;
+  bool get shouldNyaize {
+    final mode =
+        config.nyaizeMode ??
+        (config.enableNyaize ? MfmNyaizeMode.enabled : MfmNyaizeMode.disabled);
+    return !disableNyaize &&
+        switch (mode) {
+          MfmNyaizeMode.disabled => false,
+          MfmNyaizeMode.enabled => true,
+          MfmNyaizeMode.respectAuthor => config.author?.isCat == true,
+        };
+  }
 
   /// ノードリストをWidgetリストに変換
   List<InlineSpan> buildNodes(List<MfmNode> nodes) {
@@ -159,8 +181,11 @@ class MfmNodeBuilder {
   InlineSpan _buildText(TextNode node) {
     // styleをnullにして親のスタイルを継承
     // ルートのTextSpanでbaseTextStyleが設定されているため、ここで再設定する必要はない
-    final text = shouldNyaize ? nyaize(node.text) : node.text;
-    return TextSpan(text: text);
+    final normalized = plain
+        ? node.text.replaceAll(RegExp(r'\r\n|\r|\n'), '\n')
+        : node.text;
+    final nyaized = shouldNyaize ? nyaize(normalized) : normalized;
+    return TextSpan(text: plain ? nyaized.replaceAll('\n', ' ') : nyaized);
   }
 
   InlineSpan _buildBold(BoldNode node) {
@@ -381,12 +406,29 @@ class MfmNodeBuilder {
 
   InlineSpan _buildHashtag(HashtagNode node) {
     final onHashtagTap = config.onHashtagTap;
+    final onHashtagTapDetails = config.onHashtagTapDetails;
     return TextSpan(
       text: '#${node.hashtag}',
-      style: TextStyle(color: applyOpacity(colorScheme.hashtag)),
-      recognizer: onHashtagTap == null
+      style: TextStyle(
+        color: applyOpacity(colorScheme.hashtag),
+      ),
+      recognizer: onHashtagTapDetails == null && onHashtagTap == null
           ? null
-          : (TapGestureRecognizer()..onTap = () => onHashtagTap(node.hashtag)),
+          : (TapGestureRecognizer()
+              ..onTap = () {
+                if (onHashtagTapDetails != null) {
+                  final pathPrefix = isNote ? '/tags/' : '/user-tags/';
+                  onHashtagTapDetails(
+                    MfmHashtagTapDetails(
+                      tag: node.hashtag,
+                      isNote: isNote,
+                      path: '$pathPrefix${Uri.encodeComponent(node.hashtag)}',
+                    ),
+                  );
+                } else {
+                  onHashtagTap!(node.hashtag);
+                }
+              }),
     );
   }
 
@@ -458,7 +500,11 @@ class MfmNodeBuilder {
         child: wrapOpacity(
           emojiBuilder(
             node.name,
-            MfmEmojiContext(fontSize: effectiveStyle.fontSize!, scale: scale),
+            MfmEmojiContext(
+              fontSize: effectiveStyle.fontSize!,
+              scale: scale,
+              normal: plain,
+            ),
           ),
         ),
       );
@@ -476,7 +522,10 @@ class MfmNodeBuilder {
         child: wrapOpacity(
           unicodeEmojiBuilder(
             node.emoji,
-            MfmEmojiContext(fontSize: effectiveStyle.fontSize!, scale: scale),
+            MfmEmojiContext(
+              fontSize: effectiveStyle.fontSize!,
+              scale: scale,
+            ),
           ),
         ),
       );
