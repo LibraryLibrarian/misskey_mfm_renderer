@@ -236,13 +236,14 @@ MfmText(
 
 ### MkMfm互換の文書単位props
 
-`plain`、`rootScale`、`isNote` は設定全体ではなく描画する文書ごとの値なので、
+`plain`、`nowrap`、`rootScale`、`isNote` は設定全体ではなく描画する文書ごとの値なので、
 `MfmText` の引数です。
 
 ```dart
 MfmText(
   text: 'one\ntwo :wave:',
   plain: true, // simple parserを使い、改行を半角スペースにする
+  nowrap: true, // タイムラインのプレビューなどで1行を省略表示する
   rootScale: 3, // 子孫のMFM関数へ渡す初期累積スケール
   isNote: false, // hashtag detailsのpathを /user-tags/... にする
 )
@@ -254,6 +255,11 @@ CRLF/CR/LFを正規化してからLFを半角スペースに置換し、`parsedN
 渡した場合にも適用します。またカスタム絵文字ビルダーへ
 `MfmEmojiContext.normal: true` を渡します。`MfmEmojiConfig` はこれを本家
 `.normal` classと同じ1.25em・0.25emの下降量で描画します。
+
+`nowrap` は外側の `RichText` を `TextOverflow.ellipsis` と `softWrap: false` の
+1行表示にするため、タイムラインのプレビューに利用できます。引用はmargin・左罫線・
+opacityを維持しますが、プレビューの1行に収めるため全幅化せず自然なインライン幅で
+表示します。
 
 `rootScale` は有限の正値でなければなりません。これはtraversalの初期scaleだけを
 設定し、ルートのfontSizeやTransformを変更しません。
