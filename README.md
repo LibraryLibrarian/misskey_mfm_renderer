@@ -88,6 +88,11 @@ an explicit fixed height. The low-level `MfmCustomEmoji.size` default remains
 24px when constructed directly. Size functions, `tada`, and `<small>` adjust
 the effective font size; `scale` applies its existing paint transform without
 changing that font size (do not multiply the height by `context.scale` again).
+Visual x2/x3/x4 enlargement and `scale` effects require `enableAdvancedMfm: true`.
+When it is false, x2/x3/x4 keep the font size unchanged but still propagate
+nominal `context.scale` multipliers of 2/3/4; `scale` applies neither a transform
+nor a context multiplier. For example, `$[x4 :emoji:]` stays 28px high at a 14px
+base font, while its context is `(fontSize: 14, scale: 4)`.
 
 Custom emojis use their natural width by default. To cap very wide emojis,
 pass `emojiMaxWidth` to `MfmEmojiConfig` or `maxWidth` to `MfmCustomEmoji`.
@@ -406,14 +411,18 @@ widget). The publicly exported immutable `MfmEmojiContext` contains:
   size functions, `tada` (150%), and `<small>` (80%).
 - `scale`: the cumulative x2/x3/x4/scale-function multiplier. `tada` and
   `<small>` do not change it. For a 14px base, x2 gives `(28, 2)`, x4 gives
-  `(84, 6)`, `scale.x=3,y=3` gives `(14, 3)`, and `tada` gives `(21, 1)`.
-  A non-uniform `scale` multiplies by `max(x, y)`, matching Misskey, so
-  `scale.x=3,y=1` also gives `(14, 3)`.
+  `(84, 4)`, `scale.x=3,y=3` gives `(14, 3)`, and `tada` gives `(21, 1)`
+  with advanced MFM enabled. A non-uniform `scale` multiplies by `max(x, y)`
+  for non-negative values, matching Misskey, so `scale.x=3,y=1` also gives
+  `(14, 3)`. With `enableAdvancedMfm: false`, x2/x3/x4 instead give
+  `(14, 2)` / `(14, 3)` / `(14, 4)`, while `scale.x=3,y=3` gives `(14, 1)`.
 - `useOriginalSize`: `scale >= 2.5`, matching Misskey's original-image hint.
   `misskey_emoji` 2.0.0-beta.1 exposes only one `EmojiImage.url`, with no
   original/thumbnail distinction. Automatic original-URL switching requires
   support in that dependency; no `MfmCustomEmoji.useOriginalSize` option is
   provided yet. A custom builder with access to both URLs can use the hint.
+  Because x multipliers still propagate with advanced MFM disabled,
+  `$[x4 :emoji:]` can have `useOriginalSize: true` without enlarging the font.
 
 Both builder results use an alphabetic-baseline `WidgetSpan`. The renderer
 cannot infer an arbitrary widget's image height or descent; the builder must
@@ -514,17 +523,34 @@ The default colors are based on Misskey's official implementation:
 
 ### Advanced MFM Control
 
-Control advanced fn functions like `position` for security reasons:
+`enableAdvancedMfm` controls the visual enlargement of x2/x3/x4, `scale`,
+`position`, and all nine MFM animation functions. Animations run only when
+both flags are true: the read-only `config.useAnimation` getter is
+`enableAdvancedMfm && enableAnimation`. Both flags default to true.
 
 ```dart
 MfmText(
-  text: r'$[position.x=10 moved]',
+  text: r'$[x4 large] $[scale.x=3 scaled] $[position.x=10 moved] $[spin still]',
   config: MfmRenderConfig(
-    // Disable advanced features like position
+    // Suppress size/scale/position effects and MFM animations
     enableAdvancedMfm: false,
+    enableAnimation: true, // Advanced MFM takes precedence
   ),
 )
 ```
+
+With advanced MFM disabled, x2/x3/x4 preserve font size (but still propagate
+nominal emoji-context scale), `scale` applies neither a transform nor scale
+propagation, and `position` is rendered literally as `$[position children]`.
+`flip`, `rotate`, and other styling functions remain available.
+
+When either flag is false, `spin`, `jump`, `bounce`, `shake`, `twitch`, and
+`jelly` render their children without animation wrappers. `tada` retains its
+150% font size, `rainbow` uses a static gradient, and `sparkle` renders its
+children without a wrapper. Set only `enableAnimation: false` to stop MFM
+animations while keeping size, scale, and position effects.
+These flags control MFM animation functions, not playback of animated emoji
+images. They do not automatically follow the OS reduced-motion preference.
 
 ### Localizing unixtime
 
@@ -549,8 +575,9 @@ void main() {
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `baseTextStyle` | `TextStyle?` | null | Base text style |
-| `enableAdvancedMfm` | `bool` | true | Enable advanced features like position |
-| `enableAnimation` | `bool` | true | Enable animations (for future use) |
+| `enableAdvancedMfm` | `bool` | true | Enable visual x2/x3/x4 enlargement, scale/position effects, and MFM animations |
+| `enableAnimation` | `bool` | true | Enable MFM animations when advanced MFM is enabled |
+| `useAnimation` | `bool` (getter) | true (derived) | Read-only effective animation gate: `enableAdvancedMfm && enableAnimation` |
 | `enableNyaize` | `bool` | false | Enable nyaize (cat-speak) transformation on text nodes |
 | `emojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Custom emoji builder |
 | `unicodeEmojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Unicode emoji builder |
@@ -581,16 +608,26 @@ This library prioritizes visual fidelity and does not support text selection aft
 ### Scale Limits
 
 The `scale` fn function is limited to a maximum of 5x. This is the same security limitation as Misskey's official implementation.
+With `enableAdvancedMfm: false`, it applies neither a paint transform nor a
+multiplier to `MfmEmojiContext.scale`; any scale inherited from an outer x
+function is preserved. Its static children use `TextSpan`, without reproducing
+the upstream empty `inline-block` span's line-layout boundary.
 
 ### Nested Size Functions
 
-The `x2`, `x3`, and `x4` functions share a nesting depth, including mixed combinations, matching Misskey's official behavior. All percentages are relative to the parent's effective font size:
+The `x2`, `x3`, and `x4` functions share a nesting depth, including mixed combinations, matching Misskey's official behavior. With advanced MFM enabled, all percentages are relative to the parent's effective font size:
 
 - First level: `x2` is 200%, `x3` is 400%, and `x4` is 600%.
 - Second level: `zoom / 2 + 50%`, using the inner function's zoom value (`x2`: 150%, `x3`: 250%, `x4`: 350%).
 - Third level and deeper: 100% (no further enlargement; the parent's font size is inherited).
 
 For a base font size of 14px, `$[x2 $[x2 A]]` renders the outer level at 28px and the inner level at 42px. `$[x2 $[x3 A]]` renders the inner level at 70px. Adding a third size function does not enlarge it further. Other nodes, such as bold, animation functions, and `scale`, preserve this nesting depth without increasing it.
+
+With `enableAdvancedMfm: false`, x2/x3/x4 do not change font size at any depth.
+Nesting depth and nominal scale multipliers (2/3/4) still propagate, even at the
+third level and deeper. These multipliers are separate from the CSS font-size
+percentages: `$[x2 $[x3 A]]` keeps a 14px base font but passes scale 6 to its
+children. Disabling only `enableAnimation` does not change size-function behavior.
 
 ## Additional information
 
