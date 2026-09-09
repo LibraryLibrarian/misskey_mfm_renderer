@@ -733,18 +733,13 @@ $[x2 大きな文字]も$[fg.color=ff0000 色付き文字]も！
           syntax: 'メンション・タグ・URL・引用・コード・絵文字・fnを含む投稿',
           mfm: r'''@alice こんにちは、#MFM の確認です。
 https://example.org/notes/abcdef?from=timeline#reply
-
 > $[fg.color=0af 引用内の色付きテキスト]
 > 2行目の引用です。
-
 `inline code` と :ai_smile_misskeyio: を並べます。
-
 ```dart
 final message = 'hello';
 ```
-
-$[x2 $[rainbow 完了！]]
-?[関連リンク](https://example.org/docs)''',
+$[x2 $[rainbow 完了！]] ?[関連リンク](https://example.org/docs)''',
           description: '本家のノートに近い複数要素の組み合わせです',
         ),
       ],
