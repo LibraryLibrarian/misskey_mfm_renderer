@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import 'mfm_color_scheme.dart';
+
 /// MFMを含むコンテンツの投稿者情報。
 ///
 /// 本家Misskeyの`MkMfm`へ渡される`author`のうち、レンダリング時の
@@ -69,13 +71,13 @@ class MfmRenderConfig {
     this.fontFamilyResolver,
     this.codeTheme,
     this.codeDarkTheme,
+    this.lightColorScheme,
+    this.darkColorScheme,
     this.brightness,
     this.showCodeBlockCopyButton,
     this.onCodeCopied,
     this.codeCopyTooltip,
     this.codeCopiedMessage,
-    this.inlineCodeBgColorLight,
-    this.inlineCodeBgColorDark,
   }) : searchButtonLabel = useLocaleSearchButtonLabel
            ? null
            : searchButtonLabel;
@@ -181,7 +183,19 @@ class MfmRenderConfig {
   /// nullの場合はcodeThemeを使用、それもnullならgithub-darkテーマを使用
   final Map<String, TextStyle>? codeDarkTheme;
 
-  /// 現在のテーマモード（内部使用、MfmTextが自動設定）
+  /// ライトモードで使用するMFM配色。
+  ///
+  /// nullの場合は継承設定を優先し、最終的に[MfmColorScheme.light]を使用する。
+  final MfmColorScheme? lightColorScheme;
+
+  /// ダークモードで使用するMFM配色。
+  ///
+  /// nullの場合は継承設定を優先し、最終的に[MfmColorScheme.dark]を使用する。
+  final MfmColorScheme? darkColorScheme;
+
+  /// 使用するテーマモード。
+  ///
+  /// nullの場合はMaterial、Cupertino、プラットフォームの順に周囲の設定から解決する。
   final Brightness? brightness;
 
   /// コードブロックのコピーボタンを表示するか
@@ -206,14 +220,6 @@ class MfmRenderConfig {
   /// nullの場合は現在のロケールが日本語なら「コードをコピーしました」、
   /// それ以外は"Copied to clipboard"を使用。[onCodeCopied]指定時は使用しない。
   final String? codeCopiedMessage;
-
-  /// インラインコードの背景色（ライトモード）
-  /// nullの場合は #F5F5F5 を使用（Misskey本家に準拠）
-  final Color? inlineCodeBgColorLight;
-
-  /// インラインコードの背景色（ダークモード）
-  /// nullの場合は #121212 を使用（Misskey本家に準拠）
-  final Color? inlineCodeBgColorDark;
 
   /// 設定をコピーして新しいインスタンスを作成。
   ///
@@ -243,13 +249,13 @@ class MfmRenderConfig {
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
     Map<String, TextStyle>? codeDarkTheme,
+    MfmColorScheme? lightColorScheme,
+    MfmColorScheme? darkColorScheme,
     Brightness? brightness,
     bool? showCodeBlockCopyButton,
     void Function(String code)? onCodeCopied,
     String? codeCopyTooltip,
     String? codeCopiedMessage,
-    Color? inlineCodeBgColorLight,
-    Color? inlineCodeBgColorDark,
   }) {
     if (clearAuthor && author != null) {
       throw ArgumentError.value(
@@ -290,16 +296,14 @@ class MfmRenderConfig {
       fontFamilyResolver: fontFamilyResolver ?? this.fontFamilyResolver,
       codeTheme: codeTheme ?? this.codeTheme,
       codeDarkTheme: codeDarkTheme ?? this.codeDarkTheme,
+      lightColorScheme: lightColorScheme ?? this.lightColorScheme,
+      darkColorScheme: darkColorScheme ?? this.darkColorScheme,
       brightness: brightness ?? this.brightness,
       showCodeBlockCopyButton:
           showCodeBlockCopyButton ?? this.showCodeBlockCopyButton,
       onCodeCopied: onCodeCopied ?? this.onCodeCopied,
       codeCopyTooltip: codeCopyTooltip ?? this.codeCopyTooltip,
       codeCopiedMessage: codeCopiedMessage ?? this.codeCopiedMessage,
-      inlineCodeBgColorLight:
-          inlineCodeBgColorLight ?? this.inlineCodeBgColorLight,
-      inlineCodeBgColorDark:
-          inlineCodeBgColorDark ?? this.inlineCodeBgColorDark,
     );
   }
 }

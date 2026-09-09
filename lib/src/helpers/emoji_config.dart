@@ -6,6 +6,7 @@ import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../config/mfm_color_scheme.dart';
 import '../config/mfm_render_config.dart';
 import '../widgets/mfm_custom_emoji.dart';
 
@@ -47,13 +48,13 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          fontFamilyResolver: config.fontFamilyResolver,
          codeTheme: config.codeTheme,
          codeDarkTheme: config.codeDarkTheme,
+         lightColorScheme: config.lightColorScheme,
+         darkColorScheme: config.darkColorScheme,
          brightness: config.brightness,
          showCodeBlockCopyButton: config.showCodeBlockCopyButton,
          onCodeCopied: config.onCodeCopied,
          codeCopyTooltip: config.codeCopyTooltip,
          codeCopiedMessage: config.codeCopiedMessage,
-         inlineCodeBgColorLight: config.inlineCodeBgColorLight,
-         inlineCodeBgColorDark: config.inlineCodeBgColorDark,
        );
 
   final _MfmEmojiConfigLifecycle _lifecycle;
@@ -94,13 +95,13 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
     Map<String, TextStyle>? codeDarkTheme,
+    MfmColorScheme? lightColorScheme,
+    MfmColorScheme? darkColorScheme,
     Brightness? brightness,
     bool? showCodeBlockCopyButton,
     void Function(String code)? onCodeCopied,
     String? codeCopyTooltip,
     String? codeCopiedMessage,
-    Color? inlineCodeBgColorLight,
-    Color? inlineCodeBgColorDark,
   }) {
     final config = super.copyWith(
       baseTextStyle: baseTextStyle,
@@ -123,13 +124,13 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       fontFamilyResolver: fontFamilyResolver,
       codeTheme: codeTheme,
       codeDarkTheme: codeDarkTheme,
+      lightColorScheme: lightColorScheme,
+      darkColorScheme: darkColorScheme,
       brightness: brightness,
       showCodeBlockCopyButton: showCodeBlockCopyButton,
       onCodeCopied: onCodeCopied,
       codeCopyTooltip: codeCopyTooltip,
       codeCopiedMessage: codeCopiedMessage,
-      inlineCodeBgColorLight: inlineCodeBgColorLight,
-      inlineCodeBgColorDark: inlineCodeBgColorDark,
     );
     return MfmEmojiConfigHandle._(config: config, lifecycle: _lifecycle);
   }
