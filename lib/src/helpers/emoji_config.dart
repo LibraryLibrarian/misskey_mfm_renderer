@@ -78,8 +78,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     bool? enableAdvancedMfm,
     bool? enableAnimation,
     bool? enableNyaize,
-    Widget Function(String name)? emojiBuilder,
-    Widget Function(String emoji)? unicodeEmojiBuilder,
+    Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
+    Widget Function(String emoji, MfmEmojiContext context)? unicodeEmojiBuilder,
     void Function(String url)? onLinkTap,
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
@@ -178,13 +178,16 @@ class MfmEmojiConfig {
   ///
   /// 接続先は[client]から導出され、サーバーごとに永続ストアが分離される。
   /// [client]の所有権は呼び出し元にあり、返されたハンドルの破棄対象には含まれない。
-  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
+  /// [emojiSize]は表示上の高さ。省略時（null）は現在の実効フォントサイズの
+  /// 2倍（2em）、指定時はその固定値を使う。[emojiMaxWidth]は任意の最大幅。
+  /// 絵文字の縦位置は本家の`vertical-align: middle`相当（下端の下降量は
+  /// `size / 2 - フォントサイズ × 0.25`）に揃える。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
   static Future<MfmEmojiConfigHandle> createDefault({
     required MisskeyClient client,
     String? storagePath,
-    double emojiSize = 24.0,
+    double? emojiSize,
     double? emojiMaxWidth,
     Listenable? emojiRefreshListenable,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
@@ -252,11 +255,14 @@ class MfmEmojiConfig {
 
   /// 作成済みのResolverからConfigを構築
   ///
-  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
+  /// [emojiSize]は表示上の高さ。省略時（null）は現在の実効フォントサイズの
+  /// 2倍（2em）、指定時はその固定値を使う。[emojiMaxWidth]は任意の最大幅。
+  /// 絵文字の縦位置は本家の`vertical-align: middle`相当（下端の下降量は
+  /// `size / 2 - フォントサイズ × 0.25`）に揃える。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   static MfmRenderConfig fromResolver({
     required EmojiResolver resolver,
-    double emojiSize = 24.0,
+    double? emojiSize,
     double? emojiMaxWidth,
     Listenable? emojiRefreshListenable,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
@@ -273,34 +279,41 @@ class MfmEmojiConfig {
     );
   }
 
-  static Widget Function(String name) _createEmojiBuilder({
+  static Widget Function(String name, MfmEmojiContext context)
+  _createEmojiBuilder({
     required EmojiResolver resolver,
     required Object cacheScope,
-    required double emojiSize,
+    required double? emojiSize,
     required double? emojiMaxWidth,
     required Listenable? emojiRefreshListenable,
     required Widget Function(BuildContext context, String name)?
     fallbackBuilder,
   }) {
-    return (name) => MfmCustomEmoji(
-      name: name,
-      resolver: resolver,
-      cacheScope: cacheScope,
-      size: emojiSize,
-      maxWidth: emojiMaxWidth,
-      refreshListenable: emojiRefreshListenable,
-      fallbackBuilder: fallbackBuilder,
-    );
+    return (name, context) {
+      final size = emojiSize ?? context.fontSize * 2;
+      return MfmCustomEmoji(
+        name: name,
+        resolver: resolver,
+        cacheScope: cacheScope,
+        size: size,
+        // 本家のカスタム絵文字は`vertical-align: middle`。CSSのmiddleは
+        // ボックスの上下中心を`baseline + x-height/2`へ合わせる指定なので、
+        // x-heightを0.5emと近似して下端の下降量を求める。Flutterの
+        // PlaceholderAlignment.middleはテキストのascent/descentの中点基準で
+        // CSSのmiddleとは別物のため、baseline揃えのまま位置を計算する。
+        baselineOffset: size / 2 - context.fontSize * 0.25,
+        maxWidth: emojiMaxWidth,
+        refreshListenable: emojiRefreshListenable,
+        fallbackBuilder: fallbackBuilder,
+      );
+    };
   }
 
   static Future<EmojiStore> _createDefaultStore({
     required Uri serverUrl,
     required String directory,
   }) async {
-    final isar = await openEmojiIsarForServer(
-      serverUrl,
-      directory: directory,
-    );
+    final isar = await openEmojiIsarForServer(serverUrl, directory: directory);
     return IsarEmojiStore(isar, ownsIsar: true);
   }
 }

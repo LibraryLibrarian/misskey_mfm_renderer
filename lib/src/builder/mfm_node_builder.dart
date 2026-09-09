@@ -449,8 +449,14 @@ class MfmNodeBuilder {
     final emojiBuilder = config.emojiBuilder;
     if (emojiBuilder != null) {
       return WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: wrapOpacity(emojiBuilder(node.name)),
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        child: wrapOpacity(
+          emojiBuilder(
+            node.name,
+            MfmEmojiContext(fontSize: effectiveStyle.fontSize!, scale: scale),
+          ),
+        ),
       );
     }
 
@@ -461,8 +467,14 @@ class MfmNodeBuilder {
     final unicodeEmojiBuilder = config.unicodeEmojiBuilder;
     if (unicodeEmojiBuilder != null) {
       return WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: wrapOpacity(unicodeEmojiBuilder(node.emoji)),
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        child: wrapOpacity(
+          unicodeEmojiBuilder(
+            node.emoji,
+            MfmEmojiContext(fontSize: effectiveStyle.fontSize!, scale: scale),
+          ),
+        ),
       );
     }
     return TextSpan(text: node.emoji);

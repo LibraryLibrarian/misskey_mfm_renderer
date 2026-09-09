@@ -456,8 +456,10 @@ class MfmFnHandler {
       }
     }
 
-    // スケールを伝播
-    final newScale = builder.scale * ((scaleX.abs() + scaleY.abs()) / 2);
+    // スケールを伝播（本家と同じくx, yの大きい方を掛ける）
+    // 本家はabsを取らないため反転指定でscaleが負になるが、それは本家側の
+    // 不備なので、ここでは絶対値の大きい方を採用する。
+    final newScale = builder.scale * math.max(scaleX.abs(), scaleY.abs());
     final scaledBuilder = builder.withScale(newScale);
     final children = scaledBuilder.buildNodes(node.children);
 

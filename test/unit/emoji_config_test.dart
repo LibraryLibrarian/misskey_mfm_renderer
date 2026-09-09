@@ -26,14 +26,55 @@ void main() {
     );
 
     expect(config.emojiBuilder, isNotNull);
-    final widget = config.emojiBuilder!.call('test');
+    final widget = config.emojiBuilder!.call(
+      'test',
+      const MfmEmojiContext(fontSize: 14, scale: 1),
+    );
     expect(widget, isA<MfmCustomEmoji>());
     final custom = widget as MfmCustomEmoji;
     expect(custom.name, 'test');
     expect(custom.size, 20);
+    // vertical-align: middle相当（20 / 2 - 14 * 0.25）
+    expect(custom.baselineOffset, 6.5);
     expect(custom.maxWidth, 60);
     expect(custom.cacheScope, same(resolver));
     expect(custom.refreshListenable, same(refreshNotifier));
+  });
+
+  for (final fontSize in [14.0, 28.0, 84.0, 21.0, 11.2]) {
+    for (final fixedSize in [null, 24.0]) {
+      test('fromResolver uses 2em or fixed size: $fontSize / $fixedSize', () {
+        final config = MfmEmojiConfig.fromResolver(
+          resolver: (_) async => null,
+          emojiSize: fixedSize,
+        );
+        final custom =
+            config.emojiBuilder!(
+                  'emoji',
+                  MfmEmojiContext(fontSize: fontSize, scale: 1),
+                )
+                as MfmCustomEmoji;
+        final size = fixedSize ?? fontSize * 2;
+        expect(custom.size, size);
+        expect(custom.baselineOffset, size / 2 - fontSize * 0.25);
+      });
+    }
+  }
+
+  test('fromResolver keeps middle alignment for a fixed emojiSize', () {
+    final config = MfmEmojiConfig.fromResolver(
+      resolver: (_) async => null,
+      emojiSize: 24,
+    );
+    final custom =
+        config.emojiBuilder!(
+              'emoji',
+              const MfmEmojiContext(fontSize: 14, scale: 1),
+            )
+            as MfmCustomEmoji;
+    expect(custom.size, 24);
+    // 24 / 2 - 14 * 0.25 = 8.5
+    expect(custom.baselineOffset, 8.5);
   });
 
   test('createDefault derives the store scope from client.baseUrl', () async {
@@ -61,6 +102,16 @@ void main() {
     expect(config.emojiBuilder, isNotNull);
     expect(factoryServerUrl, Uri.parse('https://example.com'));
     expect(factoryDirectory, dir.path);
+    for (final fontSize in [14.0, 28.0, 84.0]) {
+      final emoji =
+          config.emojiBuilder!(
+                'emoji',
+                MfmEmojiContext(fontSize: fontSize, scale: 1),
+              )
+              as MfmCustomEmoji;
+      expect(emoji.size, fontSize * 2);
+      expect(emoji.baselineOffset, fontSize * 0.75);
+    }
 
     await config.dispose();
     await config.dispose();
@@ -135,11 +186,29 @@ void main() {
 
     expect(copied, isA<MfmEmojiConfigHandle>());
     expect(copied.enableAnimation, isFalse);
+    expect(copied.emojiBuilder, same(config.emojiBuilder));
     expect(identical(copied.author, author), isTrue);
     expect(copied.localHost, 'local.example');
     expect(copied.searchButtonLabel, 'Find');
     expect(config.enableAnimation, isTrue);
     expect(config.searchButtonLabel, isNull);
+
+    final replaced = copied.copyWith(
+      emojiBuilder: (name, context) => copied.emojiBuilder!(name, context),
+      unicodeEmojiBuilder: (emoji, context) =>
+          copied.emojiBuilder!(emoji, context),
+    );
+    for (final builder in [
+      replaced.emojiBuilder!,
+      replaced.unicodeEmojiBuilder!,
+    ]) {
+      final emoji =
+          builder('emoji', const MfmEmojiContext(fontSize: 28, scale: 2))
+              as MfmCustomEmoji;
+      expect(emoji.size, 56);
+      // 56 / 2 - 28 * 0.25 = 21
+      expect(emoji.baselineOffset, 21);
+    }
 
     final preserved = copied.copyWith(enableNyaize: true);
     expect(identical(preserved.author, author), isTrue);
@@ -159,17 +228,12 @@ void main() {
       throwsArgumentError,
     );
     expect(
-      () => preserved.copyWith(
-        localHost: 'other.example',
-        clearLocalHost: true,
-      ),
+      () =>
+          preserved.copyWith(localHost: 'other.example', clearLocalHost: true),
       throwsArgumentError,
     );
 
-    final cleared = preserved.copyWith(
-      clearAuthor: true,
-      clearLocalHost: true,
-    );
+    final cleared = preserved.copyWith(clearAuthor: true, clearLocalHost: true);
     expect(cleared, isA<MfmEmojiConfigHandle>());
     expect(cleared.author, isNull);
     expect(cleared.localHost, isNull);

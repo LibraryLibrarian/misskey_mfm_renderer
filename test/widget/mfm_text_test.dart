@@ -12,9 +12,7 @@ void main() {
     testWidgets('プレーンテキストをレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: 'Hello, World!'),
-          ),
+          home: Scaffold(body: MfmText(text: 'Hello, World!')),
         ),
       );
 
@@ -28,9 +26,7 @@ void main() {
     testWidgets('空のテキストでもエラーなくレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: ''),
-          ),
+          home: Scaffold(body: MfmText(text: '')),
         ),
       );
 
@@ -43,9 +39,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: MfmText(parsedNodes: nodes),
-          ),
+          home: Scaffold(body: MfmText(parsedNodes: nodes)),
         ),
       );
 
@@ -232,9 +226,7 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: '<small>abc</small>',
-              config: MfmRenderConfig(
-                baseTextStyle: TextStyle(fontSize: 14),
-              ),
+              config: MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 14)),
             ),
           ),
         ),
@@ -258,9 +250,9 @@ void main() {
                   text: text,
                   config: MfmRenderConfig(
                     baseTextStyle: baseStyle,
-                    emojiBuilder: (_) =>
+                    emojiBuilder: (_, _) =>
                         const SizedBox(key: emojiKey, width: 24, height: 24),
-                    unicodeEmojiBuilder: (_) =>
+                    unicodeEmojiBuilder: (_, _) =>
                         const SizedBox(key: emojiKey, width: 24, height: 24),
                   ),
                 ),
@@ -410,64 +402,56 @@ void main() {
     ]) {
       for (final brightness in Brightness.values) {
         for (final depth in [0, 1, 2]) {
-          testWidgets(
-            'インラインコードの${backgroundCase.name}は${brightness.name}でも'
-            'smallを$depth回分だけ文字と背景に個別適用する',
-            (tester) async {
-              tester.platformDispatcher.platformBrightnessTestValue =
-                  brightness;
-              addTearDown(
-                tester.platformDispatcher.clearPlatformBrightnessTestValue,
-              );
-              await tester.pumpWidget(
-                MaterialApp(
-                  theme: ThemeData(brightness: brightness),
-                  home: Scaffold(
-                    body: MfmText(
-                      text: '${'<small>' * depth}`code`${'</small>' * depth}',
-                      config: MfmRenderConfig(
-                        baseTextStyle: baseStyle,
-                        inlineCodeBgColorLight: backgroundCase.light,
-                        inlineCodeBgColorDark: backgroundCase.dark,
-                      ),
+          testWidgets('インラインコードの${backgroundCase.name}は${brightness.name}でも'
+              'smallを$depth回分だけ文字と背景に個別適用する', (tester) async {
+            tester.platformDispatcher.platformBrightnessTestValue = brightness;
+            addTearDown(
+              tester.platformDispatcher.clearPlatformBrightnessTestValue,
+            );
+            await tester.pumpWidget(
+              MaterialApp(
+                theme: ThemeData(brightness: brightness),
+                home: Scaffold(
+                  body: MfmText(
+                    text: '${'<small>' * depth}`code`${'</small>' * depth}',
+                    config: MfmRenderConfig(
+                      baseTextStyle: baseStyle,
+                      inlineCodeBgColorLight: backgroundCase.light,
+                      inlineCodeBgColorDark: backgroundCase.dark,
                     ),
                   ),
                 ),
-              );
+              ),
+            );
 
-              final alpha = [1.0, 0.7, 0.49][depth];
-              final style = tester.widget<Text>(find.text('code')).style!;
-              expect(
-                style.fontSize,
-                closeTo([14.0, 11.2, 8.96][depth], 0.000001),
-              );
-              expect(
-                style.color!.withValues(alpha: 1),
-                const Color(0xFF2196F3),
-              );
-              expect(style.color!.a, closeTo(alpha, 0.000001));
-              final container = tester.widget<Container>(
-                find.ancestor(
-                  of: find.text('code'),
-                  matching: find.byType(Container),
-                ),
-              );
-              final background =
-                  (container.decoration! as BoxDecoration).color!;
-              final originalBackground = brightness == Brightness.dark
-                  ? (backgroundCase.dark ?? const Color(0xFF121212))
-                  : (backgroundCase.light ?? const Color(0xFFF5F5F5));
-              expect(
-                background.a,
-                closeTo(originalBackground.a * alpha, 0.000001),
-              );
-              expect(
-                background.withValues(alpha: 1),
-                originalBackground.withValues(alpha: 1),
-              );
-              expect(find.byType(Opacity), findsNothing);
-            },
-          );
+            final alpha = [1.0, 0.7, 0.49][depth];
+            final style = tester.widget<Text>(find.text('code')).style!;
+            expect(
+              style.fontSize,
+              closeTo([14.0, 11.2, 8.96][depth], 0.000001),
+            );
+            expect(style.color!.withValues(alpha: 1), const Color(0xFF2196F3));
+            expect(style.color!.a, closeTo(alpha, 0.000001));
+            final container = tester.widget<Container>(
+              find.ancestor(
+                of: find.text('code'),
+                matching: find.byType(Container),
+              ),
+            );
+            final background = (container.decoration! as BoxDecoration).color!;
+            final originalBackground = brightness == Brightness.dark
+                ? (backgroundCase.dark ?? const Color(0xFF121212))
+                : (backgroundCase.light ?? const Color(0xFFF5F5F5));
+            expect(
+              background.a,
+              closeTo(originalBackground.a * alpha, 0.000001),
+            );
+            expect(
+              background.withValues(alpha: 1),
+              originalBackground.withValues(alpha: 1),
+            );
+            expect(find.byType(Opacity), findsNothing);
+          });
         }
       }
     }
@@ -491,7 +475,7 @@ void main() {
                 parsedNodes: nodes,
                 config: MfmRenderConfig(
                   baseTextStyle: baseStyle,
-                  emojiBuilder: (_) =>
+                  emojiBuilder: (_, _) =>
                       const SizedBox(key: emojiKey, width: 24, height: 24),
                 ),
               ),
@@ -539,7 +523,7 @@ void main() {
                   r'<small>**$[scale.x=2 $[x2 $[spin <small>abc :inner:</small>]]]**</small> :sibling:',
               config: MfmRenderConfig(
                 baseTextStyle: baseStyle,
-                emojiBuilder: (name) =>
+                emojiBuilder: (name, _) =>
                     SizedBox(key: Key(name), width: 24, height: 24),
               ),
             ),
@@ -617,9 +601,7 @@ void main() {
     testWidgets('太字テキストをレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '**bold**'),
-          ),
+          home: Scaffold(body: MfmText(text: '**bold**')),
         ),
       );
 
@@ -637,9 +619,7 @@ void main() {
     testWidgets('斜体テキストをレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '<i>italic</i>'),
-          ),
+          home: Scaffold(body: MfmText(text: '<i>italic</i>')),
         ),
       );
 
@@ -656,9 +636,7 @@ void main() {
     testWidgets('取り消し線テキストをレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '~~strike~~'),
-          ),
+          home: Scaffold(body: MfmText(text: '~~strike~~')),
         ),
       );
 
@@ -678,9 +656,7 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: '<small>small</small>',
-              config: MfmRenderConfig(
-                baseTextStyle: TextStyle(fontSize: 14),
-              ),
+              config: MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 14)),
             ),
           ),
         ),
@@ -789,9 +765,7 @@ void main() {
     testWidgets('URLをリンク色でレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: 'https://example.com'),
-          ),
+          home: Scaffold(body: MfmText(text: 'https://example.com')),
         ),
       );
 
@@ -808,9 +782,7 @@ void main() {
     testWidgets('メンションをリンク色でレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '@user'),
-          ),
+          home: Scaffold(body: MfmText(text: '@user')),
         ),
       );
 
@@ -824,9 +796,7 @@ void main() {
     testWidgets('ハッシュタグを#付きでレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '#misskey'),
-          ),
+          home: Scaffold(body: MfmText(text: '#misskey')),
         ),
       );
 
@@ -844,7 +814,7 @@ void main() {
             body: MfmText(
               text: ':custom:',
               config: MfmRenderConfig(
-                emojiBuilder: (name) => Container(
+                emojiBuilder: (name, _) => Container(
                   key: Key('emoji-$name'),
                   width: 24,
                   height: 24,
@@ -869,7 +839,7 @@ void main() {
             body: MfmText(
               text: 'Hello :custom: World',
               config: MfmRenderConfig(
-                emojiBuilder: (name) {
+                emojiBuilder: (name, _) {
                   builderCalled = true;
                   receivedName = name;
                   return Container(
@@ -893,9 +863,7 @@ void main() {
     testWidgets('ビルダーがない場合、カスタム絵文字をテキストとしてレンダリングする', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: ':custom:'),
-          ),
+          home: Scaffold(body: MfmText(text: ':custom:')),
         ),
       );
 
@@ -909,9 +877,7 @@ void main() {
     testWidgets('Unicode絵文字をレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '😀'),
-          ),
+          home: Scaffold(body: MfmText(text: '😀')),
         ),
       );
 
@@ -929,7 +895,7 @@ void main() {
             body: MfmText(
               text: '😀',
               config: MfmRenderConfig(
-                unicodeEmojiBuilder: (emoji) => Container(
+                unicodeEmojiBuilder: (emoji, _) => Container(
                   key: Key('unicode-$emoji'),
                   width: 24,
                   height: 24,
@@ -947,9 +913,7 @@ void main() {
     testWidgets('plainブロック内ではMFMがパースされない', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '<plain>**not bold**</plain>'),
-          ),
+          home: Scaffold(body: MfmText(text: '<plain>**not bold**</plain>')),
         ),
       );
 
@@ -969,9 +933,7 @@ void main() {
     testWidgets('引用ブロックを左ボーダー付きでレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '> quote'),
-          ),
+          home: Scaffold(body: MfmText(text: '> quote')),
         ),
       );
 
@@ -982,9 +944,7 @@ void main() {
     testWidgets('中央寄せブロックをレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '<center>centered</center>'),
-          ),
+          home: Scaffold(body: MfmText(text: '<center>centered</center>')),
         ),
       );
 
@@ -997,9 +957,7 @@ void main() {
     testWidgets('コードブロックをコード内容付きでレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '```\ncode block\n```'),
-          ),
+          home: Scaffold(body: MfmText(text: '```\ncode block\n```')),
         ),
       );
 
@@ -1011,9 +969,7 @@ void main() {
     testWidgets('コードブロックが言語指定付きでシンタックスハイライトされる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '```dart\nvoid main() {}\n```'),
-          ),
+          home: Scaffold(body: MfmText(text: '```dart\nvoid main() {}\n```')),
         ),
       );
 
@@ -1026,9 +982,7 @@ void main() {
     testWidgets('言語指定なしのコードブロックがプレーンテキストで表示される', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '```\nplain text code\n```'),
-          ),
+          home: Scaffold(body: MfmText(text: '```\nplain text code\n```')),
         ),
       );
 
@@ -1044,9 +998,7 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: '```dart\nvar x = 1;\n```',
-              config: MfmRenderConfig(
-                codeTheme: draculaTheme,
-              ),
+              config: MfmRenderConfig(codeTheme: draculaTheme),
             ),
           ),
         ),
@@ -1062,9 +1014,7 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: '```dart\ncode\n```',
-              config: MfmRenderConfig(
-                showCodeBlockCopyButton: false,
-              ),
+              config: MfmRenderConfig(showCodeBlockCopyButton: false),
             ),
           ),
         ),
@@ -1199,9 +1149,7 @@ void main() {
     testWidgets('検索ブロックをボタン付きでレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: 'test query 検索'),
-          ),
+          home: Scaffold(body: MfmText(text: 'test query 検索')),
         ),
       );
 
@@ -1219,9 +1167,7 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: 'https://example.com',
-              config: MfmRenderConfig(
-                onLinkTap: (url) => tappedUrl = url,
-              ),
+              config: MfmRenderConfig(onLinkTap: (url) => tappedUrl = url),
             ),
           ),
         ),
@@ -1295,9 +1241,7 @@ void main() {
       expect(tappedMention, '@alice@remote.example');
     });
 
-    testWidgets('ローカル投稿者ではlocalHostで省略メンションを解決する', (
-      tester,
-    ) async {
+    testWidgets('ローカル投稿者ではlocalHostで省略メンションを解決する', (tester) async {
       String? tappedMention;
 
       await tester.pumpWidget(
@@ -1319,9 +1263,7 @@ void main() {
       expect(tappedMention, '@alice@local.example');
     });
 
-    testWidgets('投稿者情報がなくてもlocalHostで省略メンションを解決する', (
-      tester,
-    ) async {
+    testWidgets('投稿者情報がなくてもlocalHostで省略メンションを解決する', (tester) async {
       String? tappedMention;
 
       await tester.pumpWidget(
@@ -1342,9 +1284,7 @@ void main() {
       expect(tappedMention, '@alice@local.example');
     });
 
-    testWidgets('明示されたメンションホストを投稿者ホストより優先する', (
-      tester,
-    ) async {
+    testWidgets('明示されたメンションホストを投稿者ホストより優先する', (tester) async {
       String? tappedMention;
 
       await tester.pumpWidget(
@@ -1366,9 +1306,7 @@ void main() {
       expect(tappedMention, '@alice@explicit.example');
     });
 
-    testWidgets('Inherited configの投稿者ホストを明示コールバックと結合する', (
-      tester,
-    ) async {
+    testWidgets('Inherited configの投稿者ホストを明示コールバックと結合する', (tester) async {
       String? tappedMention;
 
       await tester.pumpWidget(
@@ -1394,9 +1332,7 @@ void main() {
       expect(tappedMention, '@alice@remote.example');
     });
 
-    testWidgets('解決コンテキストがなければ省略メンションをそのまま渡す', (
-      tester,
-    ) async {
+    testWidgets('解決コンテキストがなければ省略メンションをそのまま渡す', (tester) async {
       String? tappedMention;
 
       await tester.pumpWidget(
@@ -1440,9 +1376,7 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: '#flutter',
-              config: MfmRenderConfig(
-                onHashtagTap: (tag) => tappedTag = tag,
-              ),
+              config: MfmRenderConfig(onHashtagTap: (tag) => tappedTag = tag),
             ),
           ),
         ),
@@ -1581,9 +1515,7 @@ void main() {
       // パーサーがサポートする明示的なネスト構文を使用
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '**<i>bold and italic</i>**'),
-          ),
+          home: Scaffold(body: MfmText(text: '**<i>bold and italic</i>**')),
         ),
       );
 

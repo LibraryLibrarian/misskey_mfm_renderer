@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
 
 class MfmCustomEmoji extends StatefulWidget {
@@ -12,6 +13,7 @@ class MfmCustomEmoji extends StatefulWidget {
     required this.name,
     required this.resolver,
     this.size = 24.0,
+    this.baselineOffset,
     this.maxWidth,
     this.aspectRatio,
     this.cacheScope,
@@ -20,6 +22,11 @@ class MfmCustomEmoji extends StatefulWidget {
     this.errorBuilder,
     this.loadingBuilder,
   }) : assert(size > 0),
+       assert(
+         baselineOffset == null ||
+             (baselineOffset > double.negativeInfinity &&
+                 baselineOffset < double.infinity),
+       ),
        assert(maxWidth == null || maxWidth > 0),
        assert(
          aspectRatio == null ||
@@ -31,6 +38,19 @@ class MfmCustomEmoji extends StatefulWidget {
 
   /// The displayed height of the emoji in logical pixels.
   final double size;
+
+  /// Distance in logical pixels from the baseline down to the emoji box bottom.
+  ///
+  /// Misskey aligns a custom emoji with `vertical-align: middle`, so pass
+  /// `size / 2 - context.fontSize * 0.25` from a custom emoji builder. For a
+  /// Unicode emoji image, Misskey uses a 1.25em height with
+  /// `vertical-align: -0.25em`, so pass `context.fontSize * 0.25` instead.
+  ///
+  /// Negative values are allowed and place the box bottom above the baseline,
+  /// which happens with a small fixed [size] and a large font size. When
+  /// omitted, the child's natural baseline is used. MfmEmojiConfig supplies the
+  /// custom emoji value automatically, even with a fixed emojiSize.
+  final double? baselineOffset;
 
   /// The optional maximum displayed width of the emoji in logical pixels.
   ///
@@ -150,7 +170,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<EmojiImage?>(
+    final child = FutureBuilder<EmojiImage?>(
       future: _emojiFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
@@ -197,6 +217,10 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
         return _loadingWidget(context, _knownAspectRatio);
       },
     );
+    final baselineOffset = widget.baselineOffset;
+    return baselineOffset == null
+        ? child
+        : _EmojiBaseline(offset: baselineOffset, child: child);
   }
 
   _EmojiCacheKey get _cacheKey => _EmojiCacheKey(
@@ -305,6 +329,58 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     return widget.errorBuilder?.call(context, widget.name, error) ??
         _fallbackWidget(context);
   }
+}
+
+// Baseline shifts its child to an existing baseline; it does not assign an
+// image a baseline above its bottom. Report a baseline without moving or
+// resizing the box, so the paragraph reserves the descent as well as ascent.
+class _EmojiBaseline extends SingleChildRenderObjectWidget {
+  const _EmojiBaseline({required this.offset, required super.child});
+
+  final double offset;
+
+  @override
+  _RenderEmojiBaseline createRenderObject(BuildContext context) =>
+      _RenderEmojiBaseline(offset);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderEmojiBaseline renderObject,
+  ) {
+    renderObject.offset = offset;
+  }
+}
+
+class _RenderEmojiBaseline extends RenderProxyBox {
+  _RenderEmojiBaseline(this._offset);
+
+  double _offset;
+
+  double get offset => _offset;
+
+  set offset(double value) {
+    if (_offset == value) return;
+    _offset = value;
+    markNeedsLayout();
+  }
+
+  late double _baseline;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    _baseline = size.height - _offset;
+  }
+
+  @override
+  double computeDistanceToActualBaseline(TextBaseline baseline) => _baseline;
+
+  @override
+  double computeDryBaseline(
+    BoxConstraints constraints,
+    TextBaseline baseline,
+  ) => getDryLayout(constraints).height - _offset;
 }
 
 class _EmojiCacheKey {
