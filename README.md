@@ -144,6 +144,10 @@ are disabled. This enlarges the text's layout size, not just its painted size.
 
 ## Getting started
 
+This package requires Flutter 3.38.1 or later (Dart 3.10.0 or later). The
+`.fvmrc` development environment uses Flutter 3.38.7, while the package
+support floor remains Flutter 3.38.1.
+
 Add the dependency to your `pubspec.yaml`:
 
 ```yaml
