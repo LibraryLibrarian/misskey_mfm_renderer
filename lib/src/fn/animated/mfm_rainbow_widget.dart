@@ -26,28 +26,6 @@ class MfmRainbowWidget extends StatelessWidget {
     Color(0xFFFF00FF),
   ];
 
-  static const _rainbowColors = <Color>[
-    Color(0xFFFF0000),
-    Color(0xFFFFA500),
-    Color(0xFFFFFF00),
-    Color(0xFF00FF00),
-    Color(0xFF00FFFF),
-    Color(0xFF0000FF),
-    Color(0xFFFF00FF),
-    Color(0xFFFF0000),
-  ];
-
-  static const _staticStops = <double>[
-    0,
-    0.17,
-    0.33,
-    0.5,
-    0.67,
-    0.83,
-    1,
-    1,
-  ];
-
   static const _animatedStops = <double>[
     0,
     0.14,
@@ -101,7 +79,7 @@ class MfmRainbowWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!enabled) {
-      return _buildShaderMask(child, _rainbowColors, _staticStops);
+      return MfmStaticRainbowWidget(child: child);
     }
 
     return MfmAnimatedWrapper(
@@ -113,6 +91,47 @@ class MfmRainbowWidget extends StatelessWidget {
         final colors = _buildShiftedColors(progress.value);
         return _buildShaderMask(child, colors, _animatedStops);
       },
+    );
+  }
+}
+
+class MfmStaticRainbowWidget extends StatelessWidget {
+  const MfmStaticRainbowWidget({super.key, required this.child});
+
+  final Widget child;
+
+  // 本家の_mfm_rainbow_fallback_と同じ色と停止位置。
+  static const _rainbowColors = <Color>[
+    Color(0xFFFF0000),
+    Color(0xFFFFA500),
+    Color(0xFFFFFF00),
+    Color(0xFF00FF00),
+    Color(0xFF00FFFF),
+    Color(0xFF0000FF),
+    Color(0xFFFF00FF),
+    Color(0xFFFF0000),
+  ];
+
+  static const _staticStops = <double>[
+    0,
+    0.17,
+    0.33,
+    0.5,
+    0.67,
+    0.83,
+    1,
+    1,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (bounds) => const LinearGradient(
+        colors: _rainbowColors,
+        stops: _staticStops,
+      ).createShader(bounds),
+      child: child,
     );
   }
 }
