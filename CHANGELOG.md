@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Added macOS, Linux, and Windows desktop support to the example app and platform notes to the READMEs.
+- exampleアプリをmacOS / Linux / Windowsに対応させ、READMEにプラットフォームごとの注記（Web非対応、macOSのentitlement、Linux/Windowsの要件）を追加。
 - Mi Light / Mi Dark準拠の `MfmColorScheme` と `MfmRenderConfig.lightColorScheme` / `darkColorScheme` を追加し、リンク、メンション、ハッシュタグ、引用、検索、border fn、unixtime、インラインコードの色をlight/dark別に設定可能にした（#50）。
 - `MfmAuthorContext.isCat` と `MfmNyaizeMode`（`disabled` / `enabled` / `respectAuthor`）を追加。`nyaizeMode` が未指定の場合は既存の `enableNyaize` を後方互換で解釈し、`respectAuthor` は投稿者の `isCat` に従う（#39）。
 - `MfmText.plain`、`rootScale`、`isNote` を追加。plainは本家MkMfmと同様にsimple parser、TextNodeの改行の半角スペース化、カスタム絵文字のnormal表示を適用し、rootScaleは子孫の累積scaleを初期化する（#39）。
