@@ -9,7 +9,10 @@ void main() {
       const config = MfmRenderConfig();
       expect(config.enableAdvancedMfm, true);
       expect(config.enableAnimation, true);
+      expect(config.useAnimation, true);
       expect(config.enableNyaize, false);
+      expect(config.nyaizeMode, isNull);
+      expect(config.onHashtagTapDetails, isNull);
       expect(config.baseTextStyle, null);
       expect(config.author, null);
       expect(config.localHost, null);
@@ -28,6 +31,27 @@ void main() {
       expect(localized.searchButtonLabel, isNull);
       expect(localized.useLocaleSearchButtonLabel, isTrue);
     });
+
+    for (final advanced in [false, true]) {
+      for (final animation in [false, true]) {
+        test('useAnimation is the AND of $advanced and $animation', () {
+          final config = MfmRenderConfig(
+            enableAdvancedMfm: advanced,
+            enableAnimation: animation,
+          );
+          expect(config.useAnimation, advanced && animation);
+          expect(config.copyWith().useAnimation, advanced && animation);
+          expect(
+            config.copyWith(enableAdvancedMfm: !advanced).useAnimation,
+            !advanced && animation,
+          );
+          expect(
+            config.copyWith(enableAnimation: !animation).useAnimation,
+            advanced && !animation,
+          );
+        });
+      }
+    }
 
     test('copyWith works correctly', () {
       const config = MfmRenderConfig();
@@ -159,6 +183,22 @@ void main() {
           clearLocalHost: true,
         ),
         throwsArgumentError,
+      );
+    });
+  });
+
+  group('MfmAuthorContext', () {
+    test('value equality, hashCode and toString include host and isCat', () {
+      const cat = MfmAuthorContext(host: 'remote.example', isCat: true);
+      expect(cat, const MfmAuthorContext(host: 'remote.example', isCat: true));
+      expect(
+        cat.hashCode,
+        const MfmAuthorContext(host: 'remote.example', isCat: true).hashCode,
+      );
+      expect(cat, isNot(const MfmAuthorContext(host: 'remote.example')));
+      expect(
+        cat.toString(),
+        'MfmAuthorContext(host: remote.example, isCat: true)',
       );
     });
   });
