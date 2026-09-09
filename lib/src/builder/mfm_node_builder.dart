@@ -193,17 +193,21 @@ class MfmNodeBuilder {
     );
   }
 
+  Color _resolveQuoteBaseColor() {
+    // smallやfgの実効色ではなくルートの未減光色を使う。
+    // 色未指定時はTextStyleの既定描画色と同じ白に揃える。
+    return config.baseTextStyle?.color ?? const Color(0xFFFFFFFF);
+  }
+
   InlineSpan _buildQuote(QuoteNode node) {
-    final baseColor = config.baseTextStyle?.color;
+    final baseColor = _resolveQuoteBaseColor();
     // 本家のQUOTE_STYLEもopacity: 0.7を要素全体に掛けるため、
     // 累積不透明度を0.7倍して配下のウィジェットまで減光する。
     final quoted = _withDisableNyaize()._copyWith(opacity: opacity * 0.7);
     // 引用は独自の色で上書きするため、累積不透明度を色のalphaに反映し直す。
     // Container全体を減光すると内側の文字や絵文字が二重に薄くなる。
     final quoteBuilder = quoted.withStyle(
-      TextStyle(
-        color: baseColor?.withValues(alpha: baseColor.a * quoted.opacity),
-      ),
+      TextStyle(color: quoted.applyOpacity(baseColor)),
     );
     final children = quoteBuilder.buildNodes(node.children);
 
@@ -211,12 +215,12 @@ class MfmNodeBuilder {
       child: LayoutBuilder(
         builder: (context, constraints) => Container(
           width: constraints.hasBoundedWidth ? double.infinity : null,
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.only(left: 12),
+          margin: const EdgeInsets.all(8),
+          padding: const EdgeInsets.fromLTRB(12, 6, 0, 6),
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(
-                color: quoteBuilder.applyOpacity(const Color(0xFF888888)),
+                color: quoteBuilder.applyOpacity(baseColor),
                 width: 3,
               ),
             ),
