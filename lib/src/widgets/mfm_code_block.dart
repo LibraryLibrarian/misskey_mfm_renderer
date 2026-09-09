@@ -57,7 +57,8 @@ class MfmCodeBlock extends StatelessWidget {
         Localizations.maybeLocaleOf(context)?.languageCode == 'ja';
     final effectiveFontSize =
         fontSize ?? DefaultTextStyle.of(context).style.fontSize ?? 14.0;
-    final backgroundColor = _getBackgroundColor();
+    final resolvedTheme = _resolveTheme();
+    final backgroundColor = resolvedTheme['root']!.backgroundColor!;
     final isHighlighted = language != null;
 
     return Container(
@@ -80,7 +81,7 @@ class MfmCodeBlock extends StatelessWidget {
             child: HighlightView(
               code,
               language: language ?? 'plaintext',
-              theme: theme,
+              theme: resolvedTheme,
               padding: EdgeInsets.zero,
               textStyle: TextStyle(
                 fontFamily: 'Consolas',
@@ -113,13 +114,18 @@ class MfmCodeBlock extends StatelessWidget {
     );
   }
 
-  /// テーマから背景色を取得
-  Color _getBackgroundColor() {
-    final rootStyle = theme['root'];
-    if (rootStyle?.backgroundColor != null) {
-      return rootStyle!.backgroundColor!;
-    }
-    return const Color(0xFFF5F5F5);
+  Map<String, TextStyle> _resolveTheme() {
+    final rootStyle = theme['root'] ?? const TextStyle();
+    final resolvedRootStyle = language == null
+        ? rootStyle.copyWith(
+            color: colorScheme.fg,
+            backgroundColor: colorScheme.bg,
+          )
+        : rootStyle.copyWith(
+            backgroundColor: rootStyle.backgroundColor ?? colorScheme.bg,
+          );
+
+    return {...theme, 'root': resolvedRootStyle};
   }
 }
 
