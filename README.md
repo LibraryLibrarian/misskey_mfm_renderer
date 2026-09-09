@@ -45,9 +45,11 @@ integration work.
 | **Emoji** | Custom Emoji | `:emoji_name:` | ✅ |
 | | Unicode Emoji | `😀` | ✅ |
 
-*Math formulas are currently displayed as plain text. Math rendering support is planned for future releases.
+*Both math syntaxes display formulas as unadorned monospace text, matching upstream Misskey's plain `<code>` output rather than rendering LaTeX. They inherit the surrounding text style without a background, padding, or forced block layout; line breaks in parsed text nodes are preserved. The current parser consumes the newline immediately after a math block, and the renderer does not insert a replacement.
 
 ### Additional Notes
+
+**Inline code**: Inherits the surrounding text size, color, and weight, uses monospace fonts, and scales its padding (0.1em) and border radius (0.3em) with the inherited font size.
 
 **Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
 Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg ...]`, link colors) and widgets such as emoji, so a child color override cannot cancel the dimming.
@@ -57,7 +59,6 @@ Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg
 **Literal fn fallback**: Unknown fn names, `font` without a valid family, and `position` with `enableAdvancedMfm: false` are displayed as `$[name content]` (arguments omitted), preserving child formatting, matching Misskey.
 
 **Not Yet Implemented:**
-- **Math Rendering**: LaTeX formulas are displayed as plain text. Full math rendering with KaTeX or similar library is planned for future releases.
 - **Font Limitations**: Some font types in `$[font.xxx]` syntax (specifically `emoji` and `math`) fall back to default fonts due to platform limitations.
 
 **Nyaize (Cat-speak transformation)**: Text transformation feature is supported via `enableNyaize`.
@@ -424,11 +425,11 @@ MfmText(
 
 ### Color Customization
 
-Customize background colors for inline code and math formulas:
+Customize background colors for inline code only (math formulas have no background):
 
 ```dart
 MfmText(
-  text: 'Inline `code` and math $x^2$',
+  text: r'Inline `code` and math \(x^2\)',
   config: MfmRenderConfig(
     // Custom background color for light mode (default: #F5F5F5)
     inlineCodeBgColorLight: const Color(0xFFF0F0F0),

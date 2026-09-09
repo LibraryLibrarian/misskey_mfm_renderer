@@ -286,10 +286,68 @@ void main() {
       }
     }
 
+    for (final testCase in [
+      (name: 'インライン数式', source: r'\(x\)'),
+      (name: 'ブロック数式', source: r'\[x\]'),
+    ]) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('${testCase.name}はsmallを$depth回分だけ文字色のalphaで減光する', (
+          tester,
+        ) async {
+          // ブロック数式の構文制約と分離して、両ノードの継承を検証する。
+          var nodes = MfmParser().build().parse(testCase.source).value;
+          for (var i = 0; i < depth; i++) {
+            nodes = [SmallNode(nodes)];
+          }
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  parsedNodes: nodes,
+                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                ),
+              ),
+            ),
+          );
+
+          final root =
+              tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+          final formula = _findSpanWithStyle(
+            root,
+            (style) => style?.fontFamily == 'monospace',
+          );
+          expect(formula?.text, 'x');
+          final style = _effectiveStyleForText(root, 'x')!;
+          expect(style.fontSize, closeTo([14.0, 11.2, 8.96][depth], 0.000001));
+          expect(style.color!.a, closeTo([1.0, 0.7, 0.49][depth], 0.000001));
+          expect(_firstWidgetSpan(root), isNull);
+          expect(find.byType(Container), findsNothing);
+          expect(find.byType(Opacity), findsNothing);
+        });
+      }
+    }
+
+    testWidgets('small内のインライン数式構文は文字色のalphaが0.7になる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'<small>\(x\)</small>',
+              config: MfmRenderConfig(baseTextStyle: baseStyle),
+            ),
+          ),
+        ),
+      );
+
+      final root =
+          tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+      final style = _effectiveStyleForText(root, 'x')!;
+      expect(style.fontFamily, 'monospace');
+      expect(style.color!.a, closeTo(0.7, 0.000001));
+      expect(find.byType(Opacity), findsNothing);
+    });
+
     final widgetCases = [
-      (name: 'インラインコード', source: '`code`'),
-      (name: 'インライン数式', source: r'\( x + y \)'),
-      (name: 'ブロック数式', source: r'\[ x + y \]'),
       (name: 'コードブロック', source: '```\ncode\n```'),
       (name: '検索', source: 'keyword Search'),
       (name: '日時', source: r'$[unixtime 1700000000]'),
@@ -342,28 +400,77 @@ void main() {
       }
     }
 
-    testWidgets('インラインコードの構文でもContainer全体を一度だけ減光する', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(
-              text: '<small>`code`</small>',
-              config: MfmRenderConfig(baseTextStyle: baseStyle),
-            ),
-          ),
-        ),
-      );
+    for (final backgroundCase in [
+      (name: '標準背景', light: null, dark: null),
+      (
+        name: '半透明のカスタム背景',
+        light: const Color(0x80667788),
+        dark: const Color(0x80443322),
+      ),
+    ]) {
+      for (final brightness in Brightness.values) {
+        for (final depth in [0, 1, 2]) {
+          testWidgets(
+            'インラインコードの${backgroundCase.name}は${brightness.name}でも'
+            'smallを$depth回分だけ文字と背景に個別適用する',
+            (tester) async {
+              tester.platformDispatcher.platformBrightnessTestValue =
+                  brightness;
+              addTearDown(
+                tester.platformDispatcher.clearPlatformBrightnessTestValue,
+              );
+              await tester.pumpWidget(
+                MaterialApp(
+                  theme: ThemeData(brightness: brightness),
+                  home: Scaffold(
+                    body: MfmText(
+                      text: '${'<small>' * depth}`code`${'</small>' * depth}',
+                      config: MfmRenderConfig(
+                        baseTextStyle: baseStyle,
+                        inlineCodeBgColorLight: backgroundCase.light,
+                        inlineCodeBgColorDark: backgroundCase.dark,
+                      ),
+                    ),
+                  ),
+                ),
+              );
 
-      final opacityFinder = find.ancestor(
-        of: find.text('code'),
-        matching: find.byType(Opacity),
-      );
-      expect(opacityFinder, findsOneWidget);
-      final opacity = tester.widget<Opacity>(opacityFinder);
-      expect(opacity.opacity, closeTo(0.7, 0.000001));
-      expect(opacity.child, isA<Container>());
-      expect(tester.widget<Text>(find.text('code')).style!.color, Colors.blue);
-    });
+              final alpha = [1.0, 0.7, 0.49][depth];
+              final style = tester.widget<Text>(find.text('code')).style!;
+              expect(
+                style.fontSize,
+                closeTo([14.0, 11.2, 8.96][depth], 0.000001),
+              );
+              expect(
+                style.color!.withValues(alpha: 1),
+                const Color(0xFF2196F3),
+              );
+              expect(style.color!.a, closeTo(alpha, 0.000001));
+              final container = tester.widget<Container>(
+                find.ancestor(
+                  of: find.text('code'),
+                  matching: find.byType(Container),
+                ),
+              );
+              final background =
+                  (container.decoration! as BoxDecoration).color!;
+              final originalBackground = brightness == Brightness.dark
+                  ? (backgroundCase.dark ?? const Color(0xFF121212))
+                  : (backgroundCase.light ?? const Color(0xFFF5F5F5));
+              expect(
+                background.a,
+                closeTo(originalBackground.a * alpha, 0.000001),
+              );
+              expect(
+                background.withValues(alpha: 1),
+                originalBackground.withValues(alpha: 1),
+              );
+              expect(find.byType(Opacity), findsNothing);
+            },
+          );
+        }
+      }
+    }
 
     for (final depth in [0, 1]) {
       testWidgets('引用の罫線と文字を別々に減光し絵文字を二重に減光しない(small $depth回)', (
@@ -589,16 +696,94 @@ void main() {
       expect(smallSpan, isNotNull);
     });
 
-    testWidgets('インラインコードを等幅フォントでレンダリングできる', (tester) async {
+    for (final testCase in [
+      (name: '単独', source: '`code`', size: 14.0, padding: 1.4, radius: 4.2),
+      (
+        name: 'サイズ関数の内側',
+        source: r'$[x2 `code`]',
+        size: 28.0,
+        padding: 2.8,
+        radius: 8.4,
+      ),
+    ]) {
+      testWidgets('${testCase.name}のインラインコードは継承サイズとem相対の装飾を使う', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: testCase.source,
+                config: const MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final text = tester.widget<Text>(find.text('code'));
+        expect(text.style!.fontSize, testCase.size);
+        expect(text.style!.color, Colors.blue);
+        expect(text.style!.fontFamily, 'Consolas');
+        expect(text.style!.fontFamilyFallback, [
+          'Monaco',
+          'Andale Mono',
+          'Ubuntu Mono',
+          'monospace',
+        ]);
+        final container = tester.widget<Container>(
+          find.ancestor(
+            of: find.text('code'),
+            matching: find.byType(Container),
+          ),
+        );
+        final padding = container.padding! as EdgeInsets;
+        for (final inset in [
+          padding.left,
+          padding.top,
+          padding.right,
+          padding.bottom,
+        ]) {
+          expect(inset, closeTo(testCase.padding, 0.000001));
+        }
+        final decoration = container.decoration! as BoxDecoration;
+        final radius = decoration.borderRadius! as BorderRadius;
+        for (final corner in [
+          radius.topLeft,
+          radius.topRight,
+          radius.bottomLeft,
+          radius.bottomRight,
+        ]) {
+          expect(corner.x, closeTo(testCase.radius, 0.000001));
+          expect(corner.y, closeTo(testCase.radius, 0.000001));
+        }
+        expect(decoration.color, const Color(0xFFF5F5F5));
+        final root = tester.widget<RichText>(find.byType(RichText).first);
+        final span = _firstWidgetSpan(root.text as TextSpan)!;
+        expect(span.alignment, PlaceholderAlignment.baseline);
+        expect(span.baseline, TextBaseline.alphabetic);
+      });
+    }
+
+    testWidgets('インラインコードは親の太字と前景色を継承する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: '`code`'),
+            body: MfmText(
+              text: r'**`code`** **$[fg.color=f00 `colored`]**',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+              ),
+            ),
           ),
         ),
       );
 
-      expect(find.text('code'), findsOneWidget);
+      final codeStyle = tester.widget<Text>(find.text('code')).style!;
+      expect(codeStyle.fontWeight, FontWeight.bold);
+      expect(codeStyle.fontSize, 14);
+      final coloredStyle = tester.widget<Text>(find.text('colored')).style!;
+      expect(coloredStyle.fontWeight, FontWeight.bold);
+      expect(coloredStyle.color, const Color(0xFFFF0000));
     });
 
     testWidgets('URLをリンク色でレンダリングできる', (tester) async {
@@ -894,29 +1079,122 @@ void main() {
       );
     });
 
-    testWidgets('数式ブロックを数式付きでレンダリングできる', (tester) async {
+    for (final testCase in [
+      (name: 'ブロック数式', source: r'\[x^2\]'),
+      (name: 'インライン数式', source: r'\(x^2\)'),
+    ]) {
+      for (final brightness in Brightness.values) {
+        testWidgets('${testCase.name}は${brightness.name}でも装飾のない等幅TextSpanになる', (
+          tester,
+        ) async {
+          tester.platformDispatcher.platformBrightnessTestValue = brightness;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: ThemeData(brightness: brightness),
+              home: Scaffold(
+                body: MfmText(
+                  text: testCase.source,
+                  config: const MfmRenderConfig(
+                    baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+                    inlineCodeBgColorLight: Colors.red,
+                    inlineCodeBgColorDark: Colors.green,
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          final richText = tester.widget<RichText>(find.byType(RichText));
+          final root = richText.text as TextSpan;
+          final formula = _findSpanWithStyle(
+            root,
+            (style) => style?.fontFamily == 'monospace',
+          );
+          expect(formula?.text, 'x^2');
+          expect(formula!.style!.fontSize, isNull);
+          expect(formula.style!.color, isNull);
+          final style = _effectiveStyleForText(root, 'x^2')!;
+          expect(style.fontSize, 14);
+          expect(style.color, Colors.blue);
+          expect(style.backgroundColor, isNull);
+          expect(_firstWidgetSpan(root), isNull);
+          expect(richText.textAlign, TextAlign.start);
+          expect(find.byType(Container), findsNothing);
+          expect(find.byType(Opacity), findsNothing);
+          expect(
+            find.descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(SizedBox),
+            ),
+            findsNothing,
+          );
+        });
+      }
+    }
+
+    testWidgets('サイズ関数内の数式は親の28pxを継承する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: r'\[x = y\]'),
+            body: MfmText(
+              text: r'$[x2 \(x^2\)]',
+              config: MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 14)),
+            ),
           ),
         ),
       );
 
-      expect(find.text('x = y'), findsOneWidget);
-    });
-
-    testWidgets('インライン数式を数式付きでレンダリングできる', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: r'\(a + b\)'),
-          ),
-        ),
+      final root =
+          tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+      final formula = _findSpanWithStyle(
+        root,
+        (style) => style?.fontFamily == 'monospace',
       );
-
-      expect(find.text('a + b'), findsOneWidget);
+      expect(formula?.text, 'x^2');
+      expect(formula!.style!.fontSize, isNull);
+      expect(_effectiveStyleForText(root, formula.text!)!.fontSize, 28);
+      expect(_firstWidgetSpan(root), isNull);
     });
+
+    for (final testCase in [
+      (name: '改行あり', separator: '\n'),
+      (name: '改行なし', separator: ''),
+    ]) {
+      testWidgets('数式ブロックは${testCase.name}のTextNodeを保持し改行を追加しない', (
+        tester,
+      ) async {
+        final nodes = [
+          TextNode('before${testCase.separator}'),
+          ...MfmParser().build().parse(r'\[x^2\]').value,
+          TextNode('${testCase.separator}after'),
+        ];
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                parsedNodes: nodes,
+                config: const MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final root =
+            tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        expect(_findSpanWithText(root, 'x^2')!.style!.fontFamily, 'monospace');
+        expect(
+          root.toPlainText(),
+          'before${testCase.separator}x^2${testCase.separator}after',
+        );
+        expect(_firstWidgetSpan(root), isNull);
+        expect(find.byType(Container), findsNothing);
+      });
+    }
 
     testWidgets('検索ブロックをボタン付きでレンダリングできる', (tester) async {
       await tester.pumpWidget(

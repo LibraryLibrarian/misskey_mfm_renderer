@@ -163,11 +163,11 @@ class MfmRenderConfig {
   /// それ以外は"Copied to clipboard"を使用。[onCodeCopied]指定時は使用しない。
   final String? codeCopiedMessage;
 
-  /// インラインコード・数式の背景色（ライトモード）
+  /// インラインコードの背景色（ライトモード）
   /// nullの場合は #F5F5F5 を使用（Misskey本家に準拠）
   final Color? inlineCodeBgColorLight;
 
-  /// インラインコード・数式の背景色（ダークモード）
+  /// インラインコードの背景色（ダークモード）
   /// nullの場合は #121212 を使用（Misskey本家に準拠）
   final Color? inlineCodeBgColorDark;
 
