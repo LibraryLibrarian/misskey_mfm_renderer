@@ -237,9 +237,32 @@ MfmText(
     },
     // Optional: override the localized search button label
     searchButtonLabel: 'Find',
+    // After a code block is copied (replaces the default SnackBar)
+    onCodeCopied: (code) {
+      showCopyConfirmation(code);
+    },
+    // Optional: override the localized code copy labels
+    // (codeCopyTooltip is the copy button's accessibility label)
+    codeCopyTooltip: 'Copy source',
+    codeCopiedMessage: 'Source copied',
   ),
 )
 ```
+
+`onCodeCopied` receives the full code after the clipboard write completes and
+replaces the built-in notification. If omitted, a SnackBar is shown only when a
+`ScaffoldMessenger` ancestor is available; otherwise copying completes silently.
+`codeCopiedMessage` is used only by that built-in SnackBar. When no override is
+provided, `codeCopyTooltip` / `codeCopiedMessage` use `コピー` /
+`コードをコピーしました` for Japanese and `Copy` / `Copied to clipboard` for
+other or unavailable locales. The copy button is built without Material
+widgets so it also works under `CupertinoApp` / `WidgetsApp`; no tooltip is
+shown and `codeCopyTooltip` serves as the button's accessibility (semantics)
+label.
+
+Code blocks inherit `baseTextStyle.fontSize` (or the surrounding
+`DefaultTextStyle` when no base style is configured), retaining the `monospace`
+font family. If the size is unspecified, the highlighter's default is used.
 
 For hostless mentions in remote posts, provide the author and local instance
 hosts. `onMentionTap` then receives the resolved full acct. When neither host
@@ -458,6 +481,9 @@ void main() {
 | `onMentionTap` | `void Function(String)?` | null | Mention tap callback |
 | `onHashtagTap` | `void Function(String)?` | null | Hashtag tap callback |
 | `onSearchTap` | `void Function(String)?` | null | Search tap callback |
+| `onCodeCopied` | `void Function(String)?` | null | Code copy completion callback; replaces the default SnackBar, which requires a ScaffoldMessenger ancestor |
+| `codeCopyTooltip` | `String?` | current locale | Code copy button accessibility label override (`コピー` for Japanese, `Copy` otherwise) |
+| `codeCopiedMessage` | `String?` | current locale | Default copy SnackBar message override (`コードをコピーしました` for Japanese, `Copied to clipboard` otherwise) |
 | `author` | `MfmAuthorContext?` | null | Author context used for host-dependent rendering |
 | `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback |
 | `searchButtonLabel` | `String?` | current locale | Search button label override (`検索` for Japanese, `Search` otherwise) |
