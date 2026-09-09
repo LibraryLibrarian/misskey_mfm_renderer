@@ -320,7 +320,11 @@ SnackBarを表示し、ない場合は通知せずにコピーを完了します
 アクセシビリティ（Semantics）ラベルとして機能します。
 
 コードブロックは `baseTextStyle.fontSize`（ベーススタイル未設定時は周囲の
-`DefaultTextStyle`）を継承し、フォントファミリーは `monospace` を維持します。
+`DefaultTextStyle`）を継承し、Consolas / Monaco / Andale Mono / Ubuntu Mono /
+monospace のフォールバック列を使用して、そのサイズと同じ1emのpaddingを適用します。
+テーマのdividerによる1px枠線と8px角丸を使用します。言語なしのブロックは選択中の
+MFM schemeの `bg` / `fg` を使用し、ハイライト済みブロックはハイライトテーマrootの
+背景を維持します。テーマrootに背景がない場合だけschemeの `bg` にフォールバックします。
 サイズ未指定時はシンタックスハイライターの既定値を使用します。
 
 リモート投稿内のホスト省略メンションを解決するには、投稿者とローカル

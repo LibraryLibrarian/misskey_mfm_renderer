@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 
+import '../config/mfm_color_scheme.dart';
+
 /// MFMコードブロックウィジェット
 ///
 /// シンタックスハイライト、横スクロール、コピーボタンを備えたコードブロック表示
@@ -10,6 +12,7 @@ class MfmCodeBlock extends StatelessWidget {
     required this.code,
     this.language,
     required this.theme,
+    required this.colorScheme,
     this.showCopyButton = true,
     this.onCodeCopied,
     this.copyTooltip,
@@ -26,6 +29,9 @@ class MfmCodeBlock extends StatelessWidget {
 
   /// シンタックスハイライトテーマ
   final Map<String, TextStyle> theme;
+
+  /// コードブロックの配色
+  final MfmColorScheme colorScheme;
 
   /// コピーボタンを表示するか
   final bool showCopyButton;
@@ -49,26 +55,42 @@ class MfmCodeBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final isJapanese =
         Localizations.maybeLocaleOf(context)?.languageCode == 'ja';
+    final effectiveFontSize =
+        fontSize ?? DefaultTextStyle.of(context).style.fontSize ?? 14.0;
+    final resolvedTheme = _resolveTheme();
+    final backgroundColor = resolvedTheme['root']!.backgroundColor!;
+    final isHighlighted = language != null;
+
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: EdgeInsets.symmetric(
+        vertical: isHighlighted ? 0 : effectiveFontSize * 0.5,
+      ),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: _getBackgroundColor(),
-        borderRadius: BorderRadius.circular(4),
+        color: backgroundColor,
+        border: Border.all(color: colorScheme.divider),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Stack(
         children: [
           // コードブロック本体（横スクロール対応）
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(effectiveFontSize),
             child: HighlightView(
               code,
               language: language ?? 'plaintext',
-              theme: theme,
+              theme: resolvedTheme,
               padding: EdgeInsets.zero,
               textStyle: TextStyle(
-                fontFamily: 'monospace',
+                fontFamily: 'Consolas',
+                fontFamilyFallback: const [
+                  'Monaco',
+                  'Andale Mono',
+                  'Ubuntu Mono',
+                  'monospace',
+                ],
                 fontSize: fontSize,
               ),
             ),
@@ -92,15 +114,18 @@ class MfmCodeBlock extends StatelessWidget {
     );
   }
 
-  /// テーマから背景色を取得
-  Color _getBackgroundColor() {
-    // themeから背景色を取得、またはデフォルト色を返す
-    final rootStyle = theme['root'];
-    if (rootStyle?.backgroundColor != null) {
-      return rootStyle!.backgroundColor!;
-    }
-    // デフォルト色（ライトグレー）
-    return const Color(0xFFF5F5F5);
+  Map<String, TextStyle> _resolveTheme() {
+    final rootStyle = theme['root'] ?? const TextStyle();
+    final resolvedRootStyle = language == null
+        ? rootStyle.copyWith(
+            color: colorScheme.fg,
+            backgroundColor: colorScheme.bg,
+          )
+        : rootStyle.copyWith(
+            backgroundColor: rootStyle.backgroundColor ?? colorScheme.bg,
+          );
+
+    return {...theme, 'root': resolvedRootStyle};
   }
 }
 
@@ -146,9 +171,7 @@ class _CopyButtonState extends State<_CopyButton> {
             child: const SizedBox(
               width: 32,
               height: 32,
-              child: Center(
-                child: Icon(Icons.content_copy, size: 18),
-              ),
+              child: Center(child: Icon(Icons.content_copy, size: 18)),
             ),
           ),
         ),
