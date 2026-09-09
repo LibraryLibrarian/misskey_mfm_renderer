@@ -63,9 +63,10 @@ void main() {
           _host(MfmText(text: text, nowrap: true), width: 100),
         );
 
-        final richText = tester.widget<RichText>(find.byType(RichText));
-        expect(richText.softWrap, isFalse);
-        expect(tester.getSize(find.byType(RichText)).height, 14);
+        // URLの外部リンクiconもRichTextを持つため、ルートだけを見る。
+        final root = find.byType(RichText).first;
+        expect(tester.widget<RichText>(root).softWrap, isFalse);
+        expect(tester.getSize(root).height, 14);
         expect(tester.takeException(), isNull);
       }
     });
