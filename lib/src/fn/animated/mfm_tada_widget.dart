@@ -59,11 +59,7 @@ class MfmTadaWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!enabled) {
-      return Transform(
-        alignment: Alignment.center,
-        transform: Matrix4.identity()..scaleByDouble(1.5, 1.5, 1, 1),
-        child: child,
-      );
+      return child;
     }
 
     return MfmAnimatedWrapper(
@@ -74,7 +70,7 @@ class MfmTadaWidget extends StatelessWidget {
       builder: (context, child, controller, progress) {
         final kf = _resolveKeyframe(progress.value);
         final radians = kf.rotateDeg * math.pi / 180;
-        final totalScale = 1.5 * kf.scale;
+        final totalScale = kf.scale;
 
         return Transform(
           alignment: Alignment.center,

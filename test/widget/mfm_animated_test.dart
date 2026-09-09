@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_tada_widget.dart';
 
 void main() {
   group('MfmText spin アニメーション', () {
@@ -455,14 +456,173 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: r'$[tada 🎉]',
-              config: MfmRenderConfig(enableAnimation: false),
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+                enableAnimation: false,
+              ),
             ),
           ),
         ),
       );
 
-      // Transformが適用される（静的な150%スケール）
-      expect(find.byType(Transform), findsWidgets);
+      final tada = find.byType(MfmTadaWidget);
+      final richText = tester.widget<RichText>(
+        find.descendant(of: tada, matching: find.byType(RichText)),
+      );
+      expect(richText.text.style?.fontSize, 21);
+      expect(
+        find.descendant(of: tada, matching: find.byType(Transform)),
+        findsNothing,
+      );
+    });
+
+    testWidgets('tadaは描画だけでなくレイアウトの高さも150%に拡大する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 400,
+              child: Column(
+                children: [
+                  MfmText(
+                    key: ValueKey('plain'),
+                    text: 'A',
+                    config: MfmRenderConfig(
+                      baseTextStyle: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  MfmText(
+                    text: r'$[tada A]B',
+                    config: MfmRenderConfig(
+                      baseTextStyle: TextStyle(fontSize: 14),
+                      enableAnimation: false,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final plainHeight = tester
+          .getSize(
+            find.descendant(
+              of: find.byKey(const ValueKey('plain')),
+              matching: find.byType(RichText),
+            ),
+          )
+          .height;
+      // getSizeはTransformの描画倍率ではなくRenderBoxのレイアウトサイズ。
+      final tadaHeight = tester.getSize(find.byType(MfmTadaWidget)).height;
+      expect(tadaHeight, greaterThan(plainHeight));
+      expect(tadaHeight, closeTo(plainHeight * 1.5, 0.1));
+    });
+
+    testWidgets('x2内のtadaは親相対で42pxになる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'$[x2 $[tada A]]',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+                enableAnimation: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmTadaWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(richText.text.style?.fontSize, 42);
+    });
+
+    testWidgets('tadaの子WidgetSpanにも150%の実効フォントサイズが伝わる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'$[tada $[flip A]]',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+                enableAnimation: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final richTexts = tester.widgetList<RichText>(
+        find.descendant(
+          of: find.byType(MfmTadaWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(richTexts, hasLength(2));
+      for (final richText in richTexts) {
+        expect(richText.text.style?.fontSize, 21);
+      }
+    });
+
+    testWidgets('tadaのTransformは150%を重ねずキーフレームの倍率だけを適用する', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'$[tada A]',
+              // enableAnimationはデフォルトのtrueで検証する。
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final tada = find.byType(MfmTadaWidget);
+      final richText = tester.widget<RichText>(
+        find.descendant(of: tada, matching: find.byType(RichText)),
+      );
+      expect(richText.text.style?.fontSize, 21);
+
+      // 0〜100%を100msずつ進め、収縮・拡大・周期末を検証する。
+      const scales = [
+        1.0,
+        0.91,
+        0.91,
+        1.09,
+        1.09,
+        1.09,
+        1.09,
+        1.09,
+        1.09,
+        1.09,
+        1.0,
+      ];
+      for (var i = 0; i < scales.length; i++) {
+        if (i > 0) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        final transform = tester
+            .widget<Transform>(
+              find.descendant(of: tada, matching: find.byType(Transform)),
+            )
+            .transform;
+        // 回転成分を除くため、X/Y列ベクトルの長さから倍率を取り出す。
+        for (final axis in [0, 1]) {
+          final scale = transform.getColumn(axis).length;
+          expect(scale, inInclusiveRange(0.91 - 0.000001, 1.09 + 0.000001));
+          expect(scale, closeTo(scales[i], 0.000001));
+        }
+      }
     });
 
     testWidgets('tada.speed=2sでカスタム速度を設定できる', (tester) async {

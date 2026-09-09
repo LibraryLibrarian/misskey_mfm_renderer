@@ -130,6 +130,9 @@ for setup instructions.
 
 For `fg` / `bg`, use 3- or 6-digit RGB or 4-digit RGBA hexadecimal `color` values without `#`. Missing or invalid values fall back to red (`f00`), matching Misskey. Five-digit values pass Misskey's regex but are invalid CSS colors that browsers drop, so no color is applied here either.
 
+`tada` applies 150% of the parent's actual font size, including when animations
+are disabled. This enlarges the text's layout size, not just its painted size.
+
 ## Getting started
 
 Add the dependency to your `pubspec.yaml`:
