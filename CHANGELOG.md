@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- 引用を有限幅の親では行全幅のブロックとして表示し、前後のテキストと分離。幅が無制約の場合は自然幅にフォールバックする（#32）。
+- 引用の余白を本家の `QUOTE_STYLE`（四辺margin 8px、padding 上下6px・左12px・右0px）に合わせ、幅3pxの左罫線と文字にルートの未減光文字色から累積opacityを適用するよう修正。色未指定時も文字と罫線に同じ既定色を使用する（#52）。
+
 ### Changed
 - **Breaking:** `emojiBuilder` / `unicodeEmojiBuilder` を `Widget Function(String, MfmEmojiContext)` に変更し、実効フォントサイズと累積スケールを渡すようにした（#47、#57）。
 - **Breaking:** `MfmEmojiConfig.createDefault` / `fromResolver` の `emojiSize` の既定値を24px固定から実効フォントサイズの2倍（2em、引数はnull）に変更。固定サイズを維持する場合は `emojiSize: 24` を明示する（#47）。
