@@ -282,8 +282,13 @@ shown and `codeCopyTooltip` serves as the button's accessibility (semantics)
 label.
 
 Code blocks inherit `baseTextStyle.fontSize` (or the surrounding
-`DefaultTextStyle` when no base style is configured), retaining the `monospace`
-font family. If the size is unspecified, the highlighter's default is used.
+`DefaultTextStyle` when no base style is configured), use the Consolas / Monaco /
+Andale Mono / Ubuntu Mono / monospace fallback list, and apply that size as 1em
+padding. They use a 1px theme divider border and 8px radius. Blocks without a
+language use the selected MFM scheme's `bg` / `fg`; highlighted blocks retain
+the highlight theme root background, falling back to the scheme `bg` only when
+the theme has no root background. If the size is unspecified, the highlighter's
+default is used.
 
 For hostless mentions in remote posts, provide the author and local instance
 hosts. `onMentionTap` then receives the resolved full acct. When neither host
