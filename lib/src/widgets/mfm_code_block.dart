@@ -171,9 +171,7 @@ class _CopyButtonState extends State<_CopyButton> {
             child: const SizedBox(
               width: 32,
               height: 32,
-              child: Center(
-                child: Icon(Icons.content_copy, size: 18),
-              ),
+              child: Center(child: Icon(Icons.content_copy, size: 18)),
             ),
           ),
         ),

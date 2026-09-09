@@ -352,9 +352,7 @@ class MfmNodeBuilder {
     final resolvedAcct = _resolveMentionAcct(node);
     return TextSpan(
       text: node.acct,
-      style: TextStyle(
-        color: applyOpacity(colorScheme.mention),
-      ),
+      style: TextStyle(color: applyOpacity(colorScheme.mention)),
       recognizer: onMentionTap == null
           ? null
           : (TapGestureRecognizer()..onTap = () => onMentionTap(resolvedAcct)),
@@ -385,9 +383,7 @@ class MfmNodeBuilder {
     final onHashtagTap = config.onHashtagTap;
     return TextSpan(
       text: '#${node.hashtag}',
-      style: TextStyle(
-        color: applyOpacity(colorScheme.hashtag),
-      ),
+      style: TextStyle(color: applyOpacity(colorScheme.hashtag)),
       recognizer: onHashtagTap == null
           ? null
           : (TapGestureRecognizer()..onTap = () => onHashtagTap(node.hashtag)),
