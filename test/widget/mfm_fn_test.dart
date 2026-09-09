@@ -24,7 +24,7 @@ void main() {
         patch: const TextStyle(decoration: TextDecoration.lineThrough),
       ),
       (
-        name: 'smallのルート基準サイズとalpha',
+        name: 'smallの継承サイズとalpha',
         text: r'<small>$[spin abc]</small>',
         patch: TextStyle(
           fontSize: 14 * 0.8,

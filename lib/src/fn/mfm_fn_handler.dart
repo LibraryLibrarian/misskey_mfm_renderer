@@ -548,7 +548,12 @@ class MfmFnHandler {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    return builder.buildStyledSpan(TextStyle(color: color), node.children);
+    // 本家のopacityは子孫の色指定では上書きできないため、
+    // 前景色にもsmallなどの累積不透明度を反映する。
+    return builder.buildStyledSpan(
+      TextStyle(color: builder.applyOpacity(color)),
+      node.children,
+    );
   }
 
   static InlineSpan _buildBg(FnNode node, MfmNodeBuilder builder) {
@@ -561,7 +566,8 @@ class MfmFnHandler {
 
     return WidgetSpan(
       child: ColoredBox(
-        color: color,
+        // 内側の文字は減光済みなので、背景色だけにsmallを反映する。
+        color: builder.applyOpacity(color),
         child: builder.buildInlineRichText(children),
       ),
     );
@@ -614,7 +620,8 @@ class MfmFnHandler {
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(
-            color: color,
+            // RichText全体を包まず、罫線だけを減光する。
+            color: builder.applyOpacity(color),
             width: width,
             style: style,
           ),
@@ -755,12 +762,14 @@ class MfmFnHandler {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: _RubyTextWidget(
-        baseSpan: baseSpan,
-        rubyText: rubyText,
-        baseStyle: baseStyle,
-        rubyStyle: rubyStyle,
-        rubyFontSize: rubyFontSize,
+      child: builder.wrapOpacity(
+        _RubyTextWidget(
+          baseSpan: baseSpan,
+          rubyText: rubyText,
+          baseStyle: baseStyle,
+          rubyStyle: rubyStyle,
+          rubyFontSize: rubyFontSize,
+        ),
       ),
     );
   }
@@ -793,23 +802,25 @@ class MfmFnHandler {
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.middle,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
-        decoration: BoxDecoration(
-          border: Border.all(color: borderColor),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              const IconData(0xe8b5, fontFamily: 'MaterialIcons'),
-              size: fontSize,
-              color: textStyle.color,
-            ),
-            const SizedBox(width: 4),
-            Text(formattedTime, style: textStyle),
-          ],
+      child: builder.wrapOpacity(
+        Container(
+          padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+          decoration: BoxDecoration(
+            border: Border.all(color: borderColor),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                const IconData(0xe8b5, fontFamily: 'MaterialIcons'),
+                size: fontSize,
+                color: textStyle.color,
+              ),
+              const SizedBox(width: 4),
+              Text(formattedTime, style: textStyle),
+            ],
+          ),
         ),
       ),
     );

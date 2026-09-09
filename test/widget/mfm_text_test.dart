@@ -4,6 +4,7 @@ import 'package:flutter_highlight/themes/dracula.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_spin_widget.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
 
 void main() {
@@ -74,6 +75,435 @@ void main() {
       expect(textSpan.style?.fontSize, 20);
       expect(textSpan.style?.color, Colors.red);
     });
+  });
+
+  group('MfmText smallの親相対サイズと減光', () {
+    const baseStyle = TextStyle(fontSize: 14, color: Colors.blue);
+    final textCases = [
+      (name: '単独', text: '<small>abc</small>', size: 11.2, alpha: 0.7),
+      (
+        name: 'サイズ関数の内側',
+        text: r'$[x2 <small>abc</small>]',
+        size: 22.4,
+        alpha: 0.7,
+      ),
+      (
+        name: '二重のsmall',
+        text: '<small><small>abc</small></small>',
+        size: 8.96,
+        alpha: 0.49,
+      ),
+      (
+        name: 'サイズ関数を挟む二重のsmall',
+        text: r'<small>$[x2 <small>abc</small>]</small>',
+        size: 17.92,
+        alpha: 0.49,
+      ),
+    ];
+    for (final testCase in textCases) {
+      testWidgets('${testCase.name}は継承サイズと色のalphaに倍率を掛ける', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: testCase.text,
+                config: const MfmRenderConfig(baseTextStyle: baseStyle),
+              ),
+            ),
+          ),
+        );
+
+        final richText = tester.widget<RichText>(find.byType(RichText));
+        final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
+        expect(style, isNotNull);
+        expect(style!.fontSize, closeTo(testCase.size, 0.000001));
+        expect(style.color!.a, closeTo(testCase.alpha, 0.000001));
+        expect(find.byType(Opacity), findsNothing);
+      });
+    }
+
+    testWidgets('半透明の継承色のalphaを置換せず乗算する', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '<small>abc</small>',
+              config: MfmRenderConfig(
+                baseTextStyle: baseStyle.copyWith(
+                  color: Colors.blue.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(find.byType(RichText));
+      final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
+      expect(style!.color!.a, closeTo(0.35, 0.000001));
+    });
+
+    for (final depth in [0, 1, 2]) {
+      testWidgets('前景色指定にもsmallを$depth回分だけ適用する', (tester) async {
+        final text =
+            '${'<small>' * depth}'
+            r'$[fg.color=f00 abc]'
+            '${'</small>' * depth}';
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: text,
+                config: const MfmRenderConfig(baseTextStyle: baseStyle),
+              ),
+            ),
+          ),
+        );
+
+        final richText = tester.widget<RichText>(find.byType(RichText));
+        final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
+        // 本家のopacityはスタッキングコンテキストを作るため、
+        // 子のfgでも減光を上書きできない。
+        expect(style!.color!.withValues(alpha: 1), const Color(0xFFFF0000));
+        expect(
+          style.color!.a,
+          closeTo(
+            depth == 0
+                ? 1.0
+                : depth == 1
+                ? 0.7
+                : 0.49,
+            0.000001,
+          ),
+        );
+      });
+    }
+
+    final linkCases = [
+      (name: 'リンク', text: '[link](https://example.com)', label: 'link'),
+      (name: 'URL', text: 'https://example.com', label: 'https://example.com'),
+      (name: 'メンション', text: '@user', label: '@user'),
+      (name: 'ハッシュタグ', text: '#tag', label: '#tag'),
+    ];
+    for (final testCase in linkCases) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('${testCase.name}色にもsmallを$depth回分だけ適用する', (tester) async {
+          final text =
+              '${'<small>' * depth}${testCase.text}${'</small>' * depth}';
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: text,
+                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                ),
+              ),
+            ),
+          );
+
+          final richText = tester.widget<RichText>(find.byType(RichText));
+          final style = _effectiveStyleForText(
+            richText.text as TextSpan,
+            testCase.label,
+          );
+          expect(style, isNotNull);
+          expect(
+            style!.color!.withValues(alpha: 1),
+            const Color(0xFF0066CC),
+          );
+          expect(
+            style.color!.a,
+            closeTo(
+              depth == 0
+                  ? 1.0
+                  : depth == 1
+                  ? 0.7
+                  : 0.49,
+              0.000001,
+            ),
+          );
+        });
+      }
+    }
+
+    testWidgets('継承色が未指定なら色patchを追加しない', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '<small>abc</small>',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(find.byType(RichText));
+      final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
+      expect(style!.fontSize, closeTo(11.2, 0.000001));
+      expect(style.color, isNull);
+    });
+
+    for (final emoji in [':emoji:', '😀']) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('$emojiのビルダー結果にsmallを$depth回分だけ適用する', (tester) async {
+          const emojiKey = Key('small-emoji');
+          final text = '${'<small>' * depth}$emoji${'</small>' * depth}';
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: text,
+                  config: MfmRenderConfig(
+                    baseTextStyle: baseStyle,
+                    emojiBuilder: (_) =>
+                        const SizedBox(key: emojiKey, width: 24, height: 24),
+                    unicodeEmojiBuilder: (_) =>
+                        const SizedBox(key: emojiKey, width: 24, height: 24),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          final emojiFinder = find.byKey(emojiKey);
+          expect(emojiFinder, findsOneWidget);
+          final opacityFinder = find.ancestor(
+            of: emojiFinder,
+            matching: find.byType(Opacity),
+          );
+          if (depth == 0) {
+            expect(opacityFinder, findsNothing);
+          } else {
+            expect(opacityFinder, findsOneWidget);
+            final opacity = tester.widget<Opacity>(opacityFinder);
+            expect(opacity.opacity, closeTo(depth == 1 ? 0.7 : 0.49, 0.000001));
+            expect(opacity.child, same(tester.widget(emojiFinder)));
+          }
+        });
+      }
+    }
+
+    final widgetCases = [
+      (name: 'インラインコード', source: '`code`'),
+      (name: 'インライン数式', source: r'\( x + y \)'),
+      (name: 'ブロック数式', source: r'\[ x + y \]'),
+      (name: 'コードブロック', source: '```\ncode\n```'),
+      (name: '検索', source: 'keyword Search'),
+      (name: '日時', source: r'$[unixtime 1700000000]'),
+      (name: 'ルビ', source: r'$[ruby 漢字 かんじ]'),
+    ];
+    for (final testCase in widgetCases) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('${testCase.name}の独自描画にsmallを$depth回分だけ適用する', (
+          tester,
+        ) async {
+          // ブロック要素も含め、small配下の描画をパーサーの構文制約と分離して検証。
+          var nodes = MfmParser().build().parse(testCase.source).value;
+          for (var i = 0; i < depth; i++) {
+            nodes = [SmallNode(nodes)];
+          }
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  parsedNodes: nodes,
+                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                ),
+              ),
+            ),
+          );
+
+          final root = tester.widget<RichText>(find.byType(RichText).first);
+          final widgetSpan = _firstWidgetSpan(root.text as TextSpan);
+          expect(widgetSpan, isNotNull);
+          final child = widgetSpan!.child;
+          final opacityFinder = find.ancestor(
+            of: find.byWidget(child is Opacity ? child.child! : child),
+            matching: find.byType(Opacity),
+          );
+          if (depth == 0) {
+            // コードブロックのコピーボタン内にあるOpacityは対象外。
+            expect(child, isNot(isA<Opacity>()));
+            expect(opacityFinder, findsNothing);
+          } else {
+            expect(child, isA<Opacity>());
+            expect(opacityFinder, findsOneWidget);
+            final opacity = child as Opacity;
+            expect(opacity.opacity, closeTo(depth == 1 ? 0.7 : 0.49, 0.000001));
+            if (testCase.name != 'コードブロック' && testCase.name != 'ルビ') {
+              expect(opacity.child, isA<Container>());
+            }
+          }
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
+
+    testWidgets('インラインコードの構文でもContainer全体を一度だけ減光する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '<small>`code`</small>',
+              config: MfmRenderConfig(baseTextStyle: baseStyle),
+            ),
+          ),
+        ),
+      );
+
+      final opacityFinder = find.ancestor(
+        of: find.text('code'),
+        matching: find.byType(Opacity),
+      );
+      expect(opacityFinder, findsOneWidget);
+      final opacity = tester.widget<Opacity>(opacityFinder);
+      expect(opacity.opacity, closeTo(0.7, 0.000001));
+      expect(opacity.child, isA<Container>());
+      expect(tester.widget<Text>(find.text('code')).style!.color, Colors.blue);
+    });
+
+    for (final depth in [0, 1]) {
+      testWidgets('引用の罫線と文字を別々に減光し絵文字を二重に減光しない(small $depth回)', (
+        tester,
+      ) async {
+        const emojiKey = Key('quoted-emoji');
+        var nodes = MfmParser().build().parse('> abc :emoji:').value;
+        for (var i = 0; i < depth; i++) {
+          nodes = [SmallNode(nodes)];
+        }
+        // 引用は本家QUOTE_STYLEと同じく要素全体に0.7を掛けるため、
+        // smallの累積不透明度と乗算される。
+        final expected = depth == 0 ? 0.7 : 0.49;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                parsedNodes: nodes,
+                config: MfmRenderConfig(
+                  baseTextStyle: baseStyle,
+                  emojiBuilder: (_) =>
+                      const SizedBox(key: emojiKey, width: 24, height: 24),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final root = tester.widget<RichText>(find.byType(RichText).first);
+        final container =
+            _firstWidgetSpan(root.text as TextSpan)!.child as Container;
+        final border =
+            (container.decoration! as BoxDecoration).border! as Border;
+        expect(border.left.color.a, closeTo(expected, 0.000001));
+        final innerText = container.child! as RichText;
+        expect(
+          innerText.text.style!.fontSize,
+          closeTo(depth == 0 ? 14 : 11.2, 0.000001),
+        );
+        expect(innerText.text.style!.color!.a, closeTo(expected, 0.000001));
+        expect(
+          find.ancestor(
+            of: find.byWidget(container),
+            matching: find.byType(Opacity),
+          ),
+          findsNothing,
+        );
+        final opacityFinder = find.ancestor(
+          of: find.byKey(emojiKey),
+          matching: find.byType(Opacity),
+        );
+        expect(opacityFinder, findsOneWidget);
+        expect(
+          tester.widget<Opacity>(opacityFinder).opacity,
+          closeTo(expected, 0.000001),
+        );
+      });
+    }
+
+    testWidgets('変形とアニメーションを越えて減光を維持し兄弟へ漏らさない', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text:
+                  r'<small>**$[scale.x=2 $[x2 $[spin <small>abc :inner:</small>]]]**</small> :sibling:',
+              config: MfmRenderConfig(
+                baseTextStyle: baseStyle,
+                emojiBuilder: (name) =>
+                    SizedBox(key: Key(name), width: 24, height: 24),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final richTextFinder = find.descendant(
+        of: find.byType(MfmSpinWidget),
+        matching: find.byType(RichText),
+      );
+      expect(richTextFinder, findsOneWidget);
+      final richText = tester.widget<RichText>(richTextFinder);
+      final style = _effectiveStyleForText(richText.text as TextSpan, 'abc ');
+      expect(style!.fontSize, closeTo(17.92, 0.000001));
+      expect(style.color!.a, closeTo(0.49, 0.000001));
+      expect(
+        find.ancestor(of: richTextFinder, matching: find.byType(Opacity)),
+        findsNothing,
+      );
+      final innerOpacity = find.ancestor(
+        of: find.byKey(const Key('inner')),
+        matching: find.byType(Opacity),
+      );
+      expect(innerOpacity, findsOneWidget);
+      expect(
+        tester.widget<Opacity>(innerOpacity).opacity,
+        closeTo(0.49, 0.000001),
+      );
+      expect(
+        find.ancestor(
+          of: find.byKey(const Key('sibling')),
+          matching: find.byType(Opacity),
+        ),
+        findsNothing,
+      );
+    });
+
+    for (final function in ['bg.color=f00', 'border.color=f00']) {
+      testWidgets('$functionの装飾色だけを減光し文字を二重に減光しない', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '<small>\$[$function abc]</small>',
+                config: const MfmRenderConfig(baseTextStyle: baseStyle),
+              ),
+            ),
+          ),
+        );
+
+        final root = tester.widget<RichText>(find.byType(RichText).first);
+        final child = _firstWidgetSpan(root.text as TextSpan)!.child;
+        final Color decorationColor;
+        final RichText innerText;
+        if (child is ColoredBox) {
+          decorationColor = child.color;
+          innerText = child.child! as RichText;
+        } else {
+          final container = child as Container;
+          final border =
+              (container.decoration! as BoxDecoration).border! as Border;
+          decorationColor = border.top.color;
+          innerText = container.child! as RichText;
+        }
+        expect(decorationColor.a, closeTo(0.7, 0.000001));
+        expect(innerText.text.style!.color!.a, closeTo(0.7, 0.000001));
+        expect(find.byType(Opacity), findsNothing);
+      });
+    }
   });
 
   group('MfmText インライン要素', () {
@@ -944,6 +1374,34 @@ void main() {
       expect(boldSpan, isNull);
     });
   });
+}
+
+/// TextSpanの祖先から差分をマージして、対象テキストの実効スタイルを得る。
+TextStyle? _effectiveStyleForText(
+  TextSpan span,
+  String text, [
+  TextStyle inherited = const TextStyle(),
+]) {
+  final style = inherited.merge(span.style);
+  if (span.text == text) return style;
+  for (final child in span.children ?? <InlineSpan>[]) {
+    if (child is TextSpan) {
+      final found = _effectiveStyleForText(child, text, style);
+      if (found != null) return found;
+    }
+  }
+  return null;
+}
+
+WidgetSpan? _firstWidgetSpan(TextSpan span) {
+  for (final child in span.children ?? <InlineSpan>[]) {
+    if (child is WidgetSpan) return child;
+    if (child is TextSpan) {
+      final found = _firstWidgetSpan(child);
+      if (found != null) return found;
+    }
+  }
+  return null;
 }
 
 /// 特定のスタイルを持つTextSpanを検索するヘルパー関数

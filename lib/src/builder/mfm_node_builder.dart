@@ -16,8 +16,12 @@ class MfmNodeBuilder {
     required this.effectiveStyle,
     this.scale = 1.0,
     this.sizeDepth = 0,
+    this.opacity = 1.0,
     this.disableNyaize = false,
   });
+
+  /// リンク・URL・メンション・ハッシュタグに共通のリンク色
+  static const _linkColor = Color(0xFF0066CC);
 
   /// レンダリング設定
   final MfmRenderConfig config;
@@ -31,6 +35,9 @@ class MfmNodeBuilder {
   /// x2/x3/x4に共通のネスト深さ（他のノードでは増やさない）
   final int sizeDepth;
 
+  /// smallの累積不透明度。実効スタイルの色が届かない描画にのみ適用する
+  final double opacity;
+
   /// 現在のサブツリーで nyaize 変換を抑止するか
   /// link / quote / plain など、原文を保ちたいノード配下では true となる
   final bool disableNyaize;
@@ -39,6 +46,7 @@ class MfmNodeBuilder {
     TextStyle? effectiveStyle,
     double? scale,
     int? sizeDepth,
+    double? opacity,
     bool? disableNyaize,
   }) {
     return MfmNodeBuilder(
@@ -46,6 +54,7 @@ class MfmNodeBuilder {
       effectiveStyle: effectiveStyle ?? this.effectiveStyle,
       scale: scale ?? this.scale,
       sizeDepth: sizeDepth ?? this.sizeDepth,
+      opacity: opacity ?? this.opacity,
       disableNyaize: disableNyaize ?? this.disableNyaize,
     );
   }
@@ -85,7 +94,21 @@ class MfmNodeBuilder {
     );
   }
 
+  /// 実効スタイルの色が届かないウィジェットだけを減光する
+  Widget wrapOpacity(Widget child) {
+    return opacity < 1.0 ? Opacity(opacity: opacity, child: child) : child;
+  }
+
+  /// 継承色を使わず固定色を指定する描画に、累積不透明度を反映する
+  /// 本家CSSのopacityはスタッキングコンテキストを作るため、
+  /// 子孫の色指定でも減光を上書きできない
+  Color applyOpacity(Color color) {
+    if (opacity >= 1.0) return color;
+    return color.withValues(alpha: color.a * opacity);
+  }
+
   /// WidgetSpan内で子ノードを描画するRichTextを、現在の実効スタイルで組む
+  /// 色のalphaにsmallを反映済みなので、全体をwrapOpacityで二重に減光しない
   Widget buildInlineRichText(
     List<InlineSpan> children, {
     TextAlign textAlign = TextAlign.start,
@@ -159,13 +182,12 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildSmall(SmallNode node) {
-    final baseFontSize = config.baseTextStyle?.fontSize ?? 14;
-    final baseColor = config.baseTextStyle?.color;
+    final color = effectiveStyle.color;
 
-    return buildStyledSpan(
+    return _copyWith(opacity: opacity * 0.7).buildStyledSpan(
       TextStyle(
-        fontSize: baseFontSize * 0.8,
-        color: baseColor?.withValues(alpha: 0.7),
+        fontSize: effectiveStyle.fontSize! * 0.8,
+        color: color?.withValues(alpha: color.a * 0.7),
       ),
       node.children,
     );
@@ -173,8 +195,15 @@ class MfmNodeBuilder {
 
   InlineSpan _buildQuote(QuoteNode node) {
     final baseColor = config.baseTextStyle?.color;
-    final quoteBuilder = _withDisableNyaize().withStyle(
-      TextStyle(color: baseColor?.withValues(alpha: 0.7)),
+    // 本家のQUOTE_STYLEもopacity: 0.7を要素全体に掛けるため、
+    // 累積不透明度を0.7倍して配下のウィジェットまで減光する。
+    final quoted = _withDisableNyaize()._copyWith(opacity: opacity * 0.7);
+    // 引用は独自の色で上書きするため、累積不透明度を色のalphaに反映し直す。
+    // Container全体を減光すると内側の文字や絵文字が二重に薄くなる。
+    final quoteBuilder = quoted.withStyle(
+      TextStyle(
+        color: baseColor?.withValues(alpha: baseColor.a * quoted.opacity),
+      ),
     );
     final children = quoteBuilder.buildNodes(node.children);
 
@@ -182,10 +211,10 @@ class MfmNodeBuilder {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.only(left: 12),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
             left: BorderSide(
-              color: Color(0xFF888888),
+              color: quoteBuilder.applyOpacity(const Color(0xFF888888)),
               width: 3,
             ),
           ),
@@ -207,15 +236,17 @@ class MfmNodeBuilder {
 
   InlineSpan _buildBlockCode(CodeBlockNode node) {
     return WidgetSpan(
-      child: MfmCodeBlock(
-        code: node.code,
-        language: node.language,
-        theme: _getCodeTheme(),
-        showCopyButton: config.showCodeBlockCopyButton ?? true,
-        onCodeCopied: config.onCodeCopied,
-        copyTooltip: config.codeCopyTooltip,
-        copiedMessage: config.codeCopiedMessage,
-        fontSize: config.baseTextStyle?.fontSize,
+      child: wrapOpacity(
+        MfmCodeBlock(
+          code: node.code,
+          language: node.language,
+          theme: _getCodeTheme(),
+          showCopyButton: config.showCodeBlockCopyButton ?? true,
+          onCodeCopied: config.onCodeCopied,
+          copyTooltip: config.codeCopyTooltip,
+          copiedMessage: config.codeCopiedMessage,
+          fontSize: config.baseTextStyle?.fontSize,
+        ),
       ),
     );
   }
@@ -232,18 +263,20 @@ class MfmNodeBuilder {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(3),
-        ),
-        child: Text(
-          node.code,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 13,
-            color: textColor,
+      child: wrapOpacity(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: Text(
+            node.code,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 13,
+              color: textColor,
+            ),
           ),
         ),
       ),
@@ -260,22 +293,24 @@ class MfmNodeBuilder {
         : (config.inlineCodeBgColorLight ?? const Color(0xFFF5F5F5));
 
     return WidgetSpan(
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          node.formula,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 14,
-            color: textColor,
+      child: wrapOpacity(
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(4),
           ),
-          textAlign: TextAlign.center,
+          child: Text(
+            node.formula,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 14,
+              color: textColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ),
       ),
     );
@@ -288,14 +323,16 @@ class MfmNodeBuilder {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Text(
-          node.formula,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 14,
-            color: textColor,
+      child: wrapOpacity(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            node.formula,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 14,
+              color: textColor,
+            ),
           ),
         ),
       ),
@@ -306,8 +343,8 @@ class MfmNodeBuilder {
     final onLinkTap = config.onLinkTap;
     return TextSpan(
       text: node.url,
-      style: const TextStyle(
-        color: Color(0xFF0066CC),
+      style: TextStyle(
+        color: applyOpacity(_linkColor),
         decoration: TextDecoration.underline,
       ),
       recognizer: onLinkTap == null
@@ -319,8 +356,8 @@ class MfmNodeBuilder {
   InlineSpan _buildLink(LinkNode node) {
     final onLinkTap = config.onLinkTap;
     return _withDisableNyaize().buildStyledSpan(
-      const TextStyle(
-        color: Color(0xFF0066CC),
+      TextStyle(
+        color: applyOpacity(_linkColor),
         decoration: TextDecoration.underline,
       ),
       node.children,
@@ -335,8 +372,8 @@ class MfmNodeBuilder {
     final resolvedAcct = _resolveMentionAcct(node);
     return TextSpan(
       text: node.acct,
-      style: const TextStyle(
-        color: Color(0xFF0066CC),
+      style: TextStyle(
+        color: applyOpacity(_linkColor),
       ),
       recognizer: onMentionTap == null
           ? null
@@ -368,8 +405,8 @@ class MfmNodeBuilder {
     final onHashtagTap = config.onHashtagTap;
     return TextSpan(
       text: '#${node.hashtag}',
-      style: const TextStyle(
-        color: Color(0xFF0066CC),
+      style: TextStyle(
+        color: applyOpacity(_linkColor),
       ),
       recognizer: onHashtagTap == null
           ? null
@@ -381,50 +418,49 @@ class MfmNodeBuilder {
     final baseStyle = config.baseTextStyle ?? const TextStyle(fontSize: 14);
 
     return WidgetSpan(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFCCCCCC)),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  node.query,
-                  style: baseStyle,
+      child: wrapOpacity(
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFCCCCCC)),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(node.query, style: baseStyle),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () {
-                config.onSearchTap?.call(node.query);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0066CC),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  config.searchButtonLabel ?? 'Search',
-                  style: const TextStyle(
-                    color: Color(0xFFFFFFFF),
-                    fontSize: 14,
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  config.onSearchTap?.call(node.query);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0066CC),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    config.searchButtonLabel ?? 'Search',
+                    style: const TextStyle(
+                      color: Color(0xFFFFFFFF),
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -435,7 +471,7 @@ class MfmNodeBuilder {
     if (emojiBuilder != null) {
       return WidgetSpan(
         alignment: PlaceholderAlignment.middle,
-        child: emojiBuilder(node.name),
+        child: wrapOpacity(emojiBuilder(node.name)),
       );
     }
 
@@ -447,7 +483,7 @@ class MfmNodeBuilder {
     if (unicodeEmojiBuilder != null) {
       return WidgetSpan(
         alignment: PlaceholderAlignment.middle,
-        child: unicodeEmojiBuilder(node.emoji),
+        child: wrapOpacity(unicodeEmojiBuilder(node.emoji)),
       );
     }
     return TextSpan(text: node.emoji);

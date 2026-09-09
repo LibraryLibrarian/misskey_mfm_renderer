@@ -29,7 +29,7 @@ integration work.
 | **Text Formatting** | Bold | `**bold**` | ✅ |
 | | Italic | `*italic*` / `<i>italic</i>` | ✅ |
 | | Strike | `~~strike~~` | ✅ |
-| | Small | `<small>small</small>` | ✅ |
+| | Small (0.8× inherited font size, 0.7× opacity) | `<small>small</small>` | ✅ |
 | | Plain | `<plain>text</plain>` | ✅ |
 | **Block Elements** | Quote | `> quote` | ✅ |
 | | Center | `<center>text</center>` | ✅ |
@@ -48,6 +48,11 @@ integration work.
 *Math formulas are currently displayed as plain text. Math rendering support is planned for future releases.
 
 ### Additional Notes
+
+**Small text**: Nested `<small>` tags multiply the inherited font size by 0.8 and dim content by 0.7 per level.
+Dimming applies to the inherited color's alpha as well as to fixed colors (`$[fg ...]`, link colors) and widgets such as emoji, so a child color override cannot cancel the dimming.
+
+**Quote**: `> quote` dims the whole quote block by 0.7, matching Misskey. Inside `<small>`, the factors are multiplied.
 
 **Literal fn fallback**: Unknown fn names, `font` without a valid family, and `position` with `enableAdvancedMfm: false` are displayed as `$[name content]` (arguments omitted), preserving child formatting, matching Misskey.
 
