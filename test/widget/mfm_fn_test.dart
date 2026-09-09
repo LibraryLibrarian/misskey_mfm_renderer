@@ -101,8 +101,8 @@ void main() {
       expect(richText.text.style?.fontWeight, FontWeight.bold);
       expect(richText.text.style?.color, const Color(0xFF0066CC));
       expect(richText.text.style?.decoration, TextDecoration.underline);
-      // scale=2の文脈でx2の倍率は1.5。ルート基準の計算式は変更しない。
-      expect(richText.text.style?.fontSize, 21);
+      // scaleはサイズ関数の深さを増やさないため、最初のx2は親サイズの2倍。
+      expect(richText.text.style?.fontSize, 28);
       expect(richText.text.toPlainText(), 'な');
     });
 
@@ -435,6 +435,167 @@ void main() {
         (style) => style?.fontSize != null && style!.fontSize! >= 84,
       );
       expect(sizedSpan, isNotNull);
+    });
+  });
+
+  group('MfmText fn size関数の入れ子', () {
+    const config = MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 14));
+    const sizeCases = [
+      (outer: 'x2', inner: 'x2', outerSize: 28.0, innerSize: 42.0),
+      (outer: 'x2', inner: 'x3', outerSize: 28.0, innerSize: 70.0),
+      (outer: 'x2', inner: 'x4', outerSize: 28.0, innerSize: 98.0),
+      (outer: 'x3', inner: 'x2', outerSize: 56.0, innerSize: 84.0),
+      (outer: 'x3', inner: 'x3', outerSize: 56.0, innerSize: 140.0),
+      (outer: 'x3', inner: 'x4', outerSize: 56.0, innerSize: 196.0),
+      (outer: 'x4', inner: 'x2', outerSize: 84.0, innerSize: 126.0),
+      (outer: 'x4', inner: 'x3', outerSize: 84.0, innerSize: 210.0),
+      (outer: 'x4', inner: 'x4', outerSize: 84.0, innerSize: 294.0),
+    ];
+    for (final sizeCase in sizeCases) {
+      testWidgets('${sizeCase.outer}内の${sizeCase.inner}は親相対のサイズになる', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '\$[${sizeCase.outer} \$[${sizeCase.inner} A]]',
+                config: config,
+              ),
+            ),
+          ),
+        );
+
+        final richText = tester.widget<RichText>(find.byType(RichText).first);
+        final root = richText.text as TextSpan;
+        final outer = root.children!.single as TextSpan;
+        final inner = outer.children!.single as TextSpan;
+        expect(outer.style?.fontSize, sizeCase.outerSize);
+        expect(inner.style?.fontSize, sizeCase.innerSize);
+        expect(inner.toPlainText(), 'A');
+      });
+    }
+
+    const depthCases = [
+      (
+        name: '同種の3階層目',
+        text: r'$[x2 $[x2 $[x2 A]]]',
+        sizes: <double?>[28, 42, null],
+        effectiveSize: 42.0,
+      ),
+      (
+        name: '異種の3階層目',
+        text: r'$[x4 $[x3 $[x2 A]]]',
+        sizes: <double?>[84, 210, null],
+        effectiveSize: 210.0,
+      ),
+      (
+        name: '4階層目以降',
+        text: r'$[x2 $[x2 $[x2 $[x4 A]]]]',
+        sizes: <double?>[28, 42, null, null],
+        effectiveSize: 42.0,
+      ),
+    ];
+    for (final depthCase in depthCases) {
+      testWidgets('${depthCase.name}はfontSizeの差分を付けず親サイズを継承する', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(text: depthCase.text, config: config),
+            ),
+          ),
+        );
+
+        final richText = tester.widget<RichText>(find.byType(RichText).first);
+        var span = richText.text as TextSpan;
+        var effectiveStyle = span.style!;
+        for (final fontSize in depthCase.sizes) {
+          span = span.children!.single as TextSpan;
+          expect(span.style?.fontSize, fontSize);
+          effectiveStyle = effectiveStyle.merge(span.style);
+        }
+        final text = span.children!.single as TextSpan;
+        expect(text.text, 'A');
+        expect(text.style?.fontSize, isNull);
+        expect(
+          effectiveStyle.merge(text.style).fontSize,
+          depthCase.effectiveSize,
+        );
+      });
+    }
+
+    testWidgets('太字を挟んでもサイズ関数の深さと親サイズを維持する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[x2 **$[x2 A]**]', config: config),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(find.byType(RichText).first);
+      final bold = _findSpanWithStyle(
+        richText.text as TextSpan,
+        (style) => style?.fontWeight == FontWeight.bold,
+      );
+      expect(bold, isNotNull);
+      final inner = bold!.children!.single as TextSpan;
+      expect(inner.style?.fontSize, 42);
+      expect(inner.toPlainText(), 'A');
+    });
+
+    testWidgets('shakeのWidgetSpanを越えてサイズ関数の深さと親サイズを維持する', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: r'$[x2 $[shake $[x2 A]]]', config: config),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmShakeWidget),
+          matching: find.byType(RichText),
+        ),
+      );
+      final root = richText.text as TextSpan;
+      expect(root.style?.fontSize, 28);
+      final inner = root.children!.single as TextSpan;
+      expect(inner.style?.fontSize, 42);
+      expect(inner.toPlainText(), 'A');
+    });
+
+    testWidgets('scaleはサイズ関数の深さを増やさず親サイズとともに引き継ぐ', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'$[x2 $[scale.x=2,y=2 $[x2 A]]]',
+              config: config,
+            ),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(Transform),
+          matching: find.byType(RichText),
+        ),
+      );
+      final root = richText.text as TextSpan;
+      expect(root.style?.fontSize, 28);
+      final inner = root.children!.single as TextSpan;
+      expect(inner.style?.fontSize, 42);
+      expect(inner.toPlainText(), 'A');
     });
   });
 

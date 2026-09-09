@@ -509,7 +509,13 @@ The `scale` fn function is limited to a maximum of 5x. This is the same security
 
 ### Nested Size Functions
 
-When `x2`, `x3`, `x4` are nested, the effect is halved, matching Misskey's official behavior.
+The `x2`, `x3`, and `x4` functions share a nesting depth, including mixed combinations, matching Misskey's official behavior. All percentages are relative to the parent's effective font size:
+
+- First level: `x2` is 200%, `x3` is 400%, and `x4` is 600%.
+- Second level: `zoom / 2 + 50%`, using the inner function's zoom value (`x2`: 150%, `x3`: 250%, `x4`: 350%).
+- Third level and deeper: 100% (no further enlargement; the parent's font size is inherited).
+
+For a base font size of 14px, `$[x2 $[x2 A]]` renders the outer level at 28px and the inner level at 42px. `$[x2 $[x3 A]]` renders the inner level at 70px. Adding a third size function does not enlarge it further. Other nodes, such as bold, animation functions, and `scale`, preserve this nesting depth without increasing it.
 
 ## Additional information
 

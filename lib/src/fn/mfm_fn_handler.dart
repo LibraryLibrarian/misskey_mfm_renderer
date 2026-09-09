@@ -101,27 +101,43 @@ class MfmFnHandler {
   // 各fn関数の実装（初期はプレースホルダー、後続タスクで実装）
 
   static InlineSpan _buildSize(FnNode node, MfmNodeBuilder builder) {
-    double sizeMultiplier;
+    // sizeMultiplierはCSSの--mfm-zoom-size（200/400/600%）、
+    // nominalScaleは本家がgenElへ渡すscale（x2:2, x3:3, x4:4）に対応する。
+    final double sizeMultiplier;
+    final double nominalScale;
     switch (node.name) {
       case 'x2':
         sizeMultiplier = 2.0;
+        nominalScale = 2.0;
       case 'x3':
         sizeMultiplier = 4.0;
+        nominalScale = 3.0;
       case 'x4':
         sizeMultiplier = 6.0;
+        nominalScale = 4.0;
       default:
         sizeMultiplier = 1.0;
+        nominalScale = 1.0;
     }
 
-    final effectiveMultiplier =
-        1.0 + (sizeMultiplier - 1.0) * (1.0 / builder.scale);
-    final newScale = builder.scale * effectiveMultiplier;
+    final depth = builder.sizeDepth;
+    // 本家CSSと同じ親相対倍率。3階層目以降は拡大を無効化する。
+    final factor = depth == 0
+        ? sizeMultiplier
+        : depth == 1
+        ? sizeMultiplier / 2 + 0.5
+        : 1.0;
+    // 本家はネスト深さに関係なく公称倍率でscaleを更新する
+    final sizedBuilder = builder
+        .withSizeDepth(depth + 1)
+        .withScale(builder.scale * nominalScale);
+    if (factor == 1.0) {
+      return TextSpan(children: sizedBuilder.buildNodes(node.children));
+    }
 
-    final scaledBuilder = builder.withScale(newScale);
-    final baseSize = builder.config.baseTextStyle?.fontSize ?? 14.0;
-
-    return scaledBuilder.buildStyledSpan(
-      TextStyle(fontSize: baseSize * effectiveMultiplier),
+    final fontSize = builder.effectiveStyle.fontSize! * factor;
+    return sizedBuilder.buildStyledSpan(
+      TextStyle(fontSize: fontSize),
       node.children,
     );
   }
