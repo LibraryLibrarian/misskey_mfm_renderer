@@ -61,7 +61,9 @@ class _MfmExampleAppState extends State<MfmExampleApp> {
           darkTheme: AppTheme.dark,
           themeMode: _settings.themeMode,
           scaffoldMessengerKey: _scaffoldMessengerKey,
-          home: const HomePage(),
+          home: HomePage(
+            emojiInitialized: widget.config is MfmEmojiConfigHandle,
+          ),
           debugShowCheckedModeBanner: false,
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
