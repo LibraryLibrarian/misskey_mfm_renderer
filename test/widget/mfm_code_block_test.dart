@@ -33,6 +33,18 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
+  Container codeBlockContainer(WidgetTester tester) {
+    final containers = find.descendant(
+      of: find.byType(MfmCodeBlock),
+      matching: find.byType(Container),
+    );
+    return tester.widget<Container>(containers.first);
+  }
+
+  BoxDecoration codeBlockDecoration(WidgetTester tester) {
+    return codeBlockContainer(tester).decoration! as BoxDecoration;
+  }
+
   testWidgets('ScaffoldMessengerなしでもコードをコピーできる', (tester) async {
     await tester.pumpWidget(
       const Directionality(
@@ -101,9 +113,7 @@ void main() {
   });
 
   testWidgets('CupertinoApp配下でもコピーボタンがタップできる', (tester) async {
-    await tester.pumpWidget(
-      const CupertinoApp(home: MfmText(text: source)),
-    );
+    await tester.pumpWidget(const CupertinoApp(home: MfmText(text: source)));
 
     expect(find.byType(Material), findsNothing);
     expect(tester.takeException(), isNull);
@@ -274,15 +284,19 @@ void main() {
     };
     for (final entry in cases.entries) {
       testWidgets('${entry.key}のサイズをコード本文に反映する', (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(home: Scaffold(body: entry.value)),
-        );
+        await tester.pumpWidget(MaterialApp(home: Scaffold(body: entry.value)));
 
         final highlight = tester.widget<HighlightView>(
           find.byType(HighlightView),
         );
         expect(highlight.textStyle?.fontSize, 24);
-        expect(highlight.textStyle?.fontFamily, 'monospace');
+        expect(highlight.textStyle?.fontFamily, 'Consolas');
+        expect(highlight.textStyle?.fontFamilyFallback, const [
+          'Monaco',
+          'Andale Mono',
+          'Ubuntu Mono',
+          'monospace',
+        ]);
         final richText = tester.widget<RichText>(
           find.descendant(
             of: find.byType(HighlightView),
@@ -290,7 +304,13 @@ void main() {
           ),
         );
         expect(richText.text.style?.fontSize, 24);
-        expect(richText.text.style?.fontFamily, 'monospace');
+        expect(richText.text.style?.fontFamily, 'Consolas');
+        expect(richText.text.style?.fontFamilyFallback, const [
+          'Monaco',
+          'Andale Mono',
+          'Ubuntu Mono',
+          'monospace',
+        ]);
       });
     }
 
@@ -298,7 +318,11 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmCodeBlock(code: code, theme: {}),
+            body: MfmCodeBlock(
+              code: code,
+              theme: {},
+              colorScheme: MfmColorScheme.light(),
+            ),
           ),
         ),
       );
@@ -307,7 +331,201 @@ void main() {
         find.byType(HighlightView),
       );
       expect(highlight.textStyle?.fontSize, isNull);
-      expect(highlight.textStyle?.fontFamily, 'monospace');
+      expect(highlight.textStyle?.fontFamily, 'Consolas');
+      expect(highlight.textStyle?.fontFamilyFallback, const [
+        'Monaco',
+        'Andale Mono',
+        'Ubuntu Mono',
+        'monospace',
+      ]);
+    });
+  });
+
+  group('コードブロックの本家MkCode外観', () {
+    for (final brightness in Brightness.values) {
+      testWidgets('${brightness.name}ではdividerの枠線、8px角丸、clipを使う', (
+        tester,
+      ) async {
+        final colorScheme = brightness == Brightness.dark
+            ? const MfmColorScheme.dark()
+            : const MfmColorScheme.light();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: source,
+                config: MfmRenderConfig(brightness: brightness),
+              ),
+            ),
+          ),
+        );
+
+        final container = codeBlockContainer(tester);
+        final decoration = codeBlockDecoration(tester);
+        final border = decoration.border! as Border;
+        expect(border.top.color, colorScheme.divider);
+        expect(border.top.width, 1);
+        expect(decoration.borderRadius, BorderRadius.circular(8));
+        expect(container.clipBehavior, Clip.antiAlias);
+      });
+    }
+
+    testWidgets('実効フォントサイズと同じ1emのpaddingを使う', (tester) async {
+      for (final fontSize in [14.0, 24.0]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: source,
+                config: MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: fontSize),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final scrollView = tester.widget<SingleChildScrollView>(
+          find.byType(SingleChildScrollView),
+        );
+        expect(scrollView.padding, EdgeInsets.all(fontSize));
+      }
+    });
+
+    testWidgets('言語なしでは選択中のschemeの背景色と文字色を使う', (tester) async {
+      const lightScheme = MfmColorScheme.light(
+        bg: Color(0xFF112233),
+        fg: Color(0xFF445566),
+      );
+      const darkScheme = MfmColorScheme.dark(
+        bg: Color(0xFF778899),
+        fg: Color(0xFFAABBCC),
+      );
+      for (final entry in <Brightness, MfmColorScheme>{
+        Brightness.light: lightScheme,
+        Brightness.dark: darkScheme,
+      }.entries) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '```\nplain code\n```',
+                config: MfmRenderConfig(
+                  brightness: entry.key,
+                  lightColorScheme: lightScheme,
+                  darkColorScheme: darkScheme,
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final rootStyle = tester
+            .widget<HighlightView>(find.byType(HighlightView))
+            .theme['root']!;
+        expect(codeBlockDecoration(tester).color, entry.value.bg);
+        expect(rootStyle.backgroundColor, entry.value.bg);
+        expect(rootStyle.color, entry.value.fg);
+      }
+    });
+
+    testWidgets('言語付きではハイライトテーマrootの背景を維持する', (tester) async {
+      const highlightBackground = Color(0xFF123456);
+      const schemeBackground = Color(0xFF654321);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: source,
+              config: MfmRenderConfig(
+                brightness: Brightness.light,
+                lightColorScheme: MfmColorScheme.light(bg: schemeBackground),
+                codeTheme: {
+                  'root': TextStyle(backgroundColor: highlightBackground),
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final rootStyle = tester
+          .widget<HighlightView>(find.byType(HighlightView))
+          .theme['root']!;
+      expect(codeBlockDecoration(tester).color, highlightBackground);
+      expect(rootStyle.backgroundColor, highlightBackground);
+    });
+
+    testWidgets('言語付きtheme rootに背景がない場合だけscheme背景へfallbackする', (tester) async {
+      const foreground = Color(0xFF123456);
+      const background = Color(0xFF654321);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: source,
+              config: MfmRenderConfig(
+                brightness: Brightness.light,
+                lightColorScheme: MfmColorScheme.light(bg: background),
+                codeTheme: {'root': TextStyle(color: foreground)},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final rootStyle = tester
+          .widget<HighlightView>(find.byType(HighlightView))
+          .theme['root']!;
+      expect(codeBlockDecoration(tester).color, background);
+      expect(rootStyle.backgroundColor, background);
+      expect(rootStyle.color, foreground);
+    });
+
+    testWidgets('言語なしだけ上下0.5emのmarginを持つ', (tester) async {
+      const fontSize = 24.0;
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '```\nplain code\n```',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: fontSize),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(
+        codeBlockContainer(tester).margin,
+        const EdgeInsets.symmetric(vertical: fontSize * 0.5),
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: source,
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: fontSize),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(codeBlockContainer(tester).margin, EdgeInsets.zero);
+    });
+
+    testWidgets('コピーボタンは8px insetを維持する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: MfmText(text: source)),
+        ),
+      );
+
+      final positioned = tester.widget<Positioned>(find.byType(Positioned));
+      expect(positioned.top, 8);
+      expect(positioned.right, 8);
     });
   });
 
@@ -319,7 +537,11 @@ void main() {
         home: Scaffold(
           body: ValueListenableBuilder<Locale>(
             valueListenable: locale,
-            child: const MfmCodeBlock(code: code, theme: {}),
+            child: const MfmCodeBlock(
+              code: code,
+              theme: {},
+              colorScheme: MfmColorScheme.light(),
+            ),
             builder: (context, currentLocale, child) => Localizations.override(
               context: context,
               locale: currentLocale,

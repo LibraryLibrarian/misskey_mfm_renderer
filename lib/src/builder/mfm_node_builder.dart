@@ -271,6 +271,7 @@ class MfmNodeBuilder {
           code: node.code,
           language: node.language,
           theme: _getCodeTheme(),
+          colorScheme: colorScheme,
           showCopyButton: config.showCodeBlockCopyButton ?? true,
           onCodeCopied: config.onCodeCopied,
           copyTooltip: config.codeCopyTooltip,
@@ -463,9 +464,7 @@ class MfmNodeBuilder {
     final resolvedAcct = _resolveMentionAcct(node);
     return TextSpan(
       text: node.acct,
-      style: TextStyle(
-        color: applyOpacity(colorScheme.mention),
-      ),
+      style: TextStyle(color: applyOpacity(colorScheme.mention)),
       recognizer: onMentionTap == null
           ? null
           : (TapGestureRecognizer()..onTap = () => onMentionTap(resolvedAcct)),

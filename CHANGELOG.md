@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 数式のカード表示・余白・中央寄せ・全幅化を廃止し、本家Misskeyと同じ装飾のない等幅テキストに変更（#51、見た目の変更）。
 - URLをscheme・Unicode host・port・decode済みpath/query/fragmentへ分解し、外部リンクiconと`localHost`に基づくself URL短縮を追加（#48、見た目の変更）。
 - URL hostのPunycode decodeのため、`punycoder ^0.3.0`を依存関係に追加。
+- コードブロックを本家MkCodeに合わせ、theme dividerの1px枠線、8px角丸、1em余白、等幅フォントのfallback列を適用。言語なしはMFM schemeの `bg` / `fg`、ハイライト済みはハイライトテーマ背景を使用するよう変更（#55、見た目の変更）。
 
 ## [0.6.0-beta.1] - 2026-08-15
 
