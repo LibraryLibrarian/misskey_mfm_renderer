@@ -779,9 +779,10 @@ corresponding clear flag in the same call throws `ArgumentError`.
 
 ### Platform notes
 
-The package works on Android, iOS, macOS, Linux, and Windows. On Web,
-`MfmEmojiConfig` cannot be used: `misskey_emoji` declares no Web platform, and
-its Isar generated code fails to compile with dart2js.
+The package works on Android, iOS, macOS, Linux, and Windows. Web builds are
+not supported in the current version: the package re-exports `misskey_emoji`,
+whose Isar generated code cannot be compiled by dart2js or dart2wasm, so even an
+app that only uses `MfmText` fails to build for Web.
 
 Apps using the macOS App Sandbox need the
 `com.apple.security.network.client` entitlement for `MfmEmojiConfig` and image

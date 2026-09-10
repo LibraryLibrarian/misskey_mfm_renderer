@@ -773,9 +773,10 @@ void main() {
 
 ### プラットフォームに関する注記
 
-パッケージ本体はAndroid、iOS、macOS、Linux、Windowsで動作します。Webでは
-`MfmEmojiConfig` は使用できません。`misskey_emoji` がWebプラットフォームを
-宣言しておらず、そのIsar生成コードがdart2jsでコンパイルに失敗するためです。
+パッケージ本体はAndroid、iOS、macOS、Linux、Windowsで動作します。現行バージョンは
+Webビルドに対応していません。パッケージが `misskey_emoji` を再exportしており、その
+Isar生成コードがdart2js / dart2wasmでコンパイルできないため、`MfmText` だけを使う
+アプリでもWeb向けのビルドに失敗します。
 
 macOSのApp Sandboxを使うアプリでは、`MfmEmojiConfig` と画像取得のために
 `com.apple.security.network.client` entitlementが必要です。Linuxはx86-64かつ

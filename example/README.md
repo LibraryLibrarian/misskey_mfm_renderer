@@ -23,8 +23,9 @@ through `MfmConfig`, so any `MfmText` widget renders custom emojis out of the bo
 
 ## Platform Notes
 
-Web is not supported for this example. The Isar generated code in `misskey_emoji`
-fails to compile with dart2js.
+Web is not supported. The package re-exports `misskey_emoji`, whose Isar
+generated code cannot be compiled by dart2js or dart2wasm, so the example does
+not build for Web.
 
 On macOS, the App Sandbox requires the
 `com.apple.security.network.client` entitlement for `MfmEmojiConfig` and image
