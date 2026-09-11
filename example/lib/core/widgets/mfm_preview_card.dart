@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
+import '../settings/example_settings.dart';
+
 /// MFMプレビューカード
 class MfmPreviewCard extends StatelessWidget {
   const MfmPreviewCard({
@@ -22,6 +24,7 @@ class MfmPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final settings = ExampleSettingsScope.of(context);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -82,6 +85,10 @@ class MfmPreviewCard extends StatelessWidget {
             MfmText(
               text: mfm,
               config: config ?? const MfmRenderConfig(),
+              plain: settings.plain,
+              nowrap: settings.nowrap,
+              rootScale: settings.rootScale,
+              isNote: settings.isNote,
             ),
           ],
         ),
