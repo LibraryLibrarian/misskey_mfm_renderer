@@ -771,6 +771,18 @@ void main() {
 
 ## 技術的な注意事項
 
+### プラットフォームに関する注記
+
+パッケージ本体はAndroid、iOS、macOS、Linux、Windowsで動作します。現行バージョンは
+Webビルドに対応していません。パッケージが `misskey_emoji` を再exportしており、その
+Isar生成コードがdart2js / dart2wasmでコンパイルできないため、`MfmText` だけを使う
+アプリでもWeb向けのビルドに失敗します。
+
+macOSのApp Sandboxを使うアプリでは、`MfmEmojiConfig` と画像取得のために
+`com.apple.security.network.client` entitlementが必要です。Linuxはx86-64かつ
+glibc 2.38以上でのみ対応します。Windowsはx64のみ対応し、Microsoft Visual C++
+Runtime（`VCRUNTIME140.dll`）が必要です。
+
 ### テキスト選択について
 
 本ライブラリは視覚的な再現性を優先している為、レンダリング後のテキスト選択には非対応です。  

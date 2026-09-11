@@ -777,6 +777,19 @@ corresponding clear flag in the same call throws `ArgumentError`.
 
 ## Technical Notes
 
+### Platform notes
+
+The package works on Android, iOS, macOS, Linux, and Windows. Web builds are
+not supported in the current version: the package re-exports `misskey_emoji`,
+whose Isar generated code cannot be compiled by dart2js or dart2wasm, so even an
+app that only uses `MfmText` fails to build for Web.
+
+Apps using the macOS App Sandbox need the
+`com.apple.security.network.client` entitlement for `MfmEmojiConfig` and image
+loading. Linux is supported only on x86-64 with glibc 2.38 or later. Windows is
+supported only on x64 and requires the Microsoft Visual C++ Runtime
+(`VCRUNTIME140.dll`).
+
 ### Text Selection
 
 This library prioritizes visual fidelity and does not support text selection after rendering. If you need copy functionality, implement it separately using the original MFM text (raw data) at the app level.

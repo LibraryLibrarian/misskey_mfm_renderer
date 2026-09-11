@@ -38,5 +38,8 @@ docs/
 /tool/
 /example/android/
 /example/ios/
+/example/linux/
+/example/macos/
 /example/test/
 /example/web/
+/example/windows/
