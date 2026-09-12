@@ -48,10 +48,22 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # リダイレクトを使うとdart runのビルドフック進捗がノートへ混入するため、
+      # 出力先はツールへ直接渡す
       - name: Extract release notes
         run: >-
           dart run tool/release_notes.dart "${GITHUB_REF_NAME#v}"
-          > "$RUNNER_TEMP/release-notes.md"
+          "$RUNNER_TEMP/release-notes.md"
+
+      # 想定外の出力が混入した場合はRelease作成前に止める
+      - name: Validate release notes
+        run: |
+          notes="$RUNNER_TEMP/release-notes.md"
+          if [[ ! -s "$notes" || "$(head -c 1 "$notes")" != "#" ]]; then
+            echo "::error::Release notes must start with a Markdown heading."
+            head -c 200 "$notes"
+            exit 1
+          fi
 
       - name: Create GitHub Release
         env:
