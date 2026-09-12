@@ -751,13 +751,18 @@ void main() {
 | `onHashtagTapDetails` | `void Function(MfmHashtagTapDetails)?` | null | `tag`、`isNote`、エンコード済み遷移先`path`を受け取る推奨コールバック |
 | `emojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | カスタム絵文字ビルダー |
 | `unicodeEmojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Unicode絵文字ビルダー |
+| `emojiUrls` | `Map<String, String>?` | null | カスタム絵文字名から直接画像URLへの辞書。リモート投稿でのみ使用し、Mapは不変として扱い更新時は新しいMapを渡す |
 | `onLinkTap` | `void Function(String)?` | null | リンクタップコールバック |
 | `onMentionTap` | `void Function(String)?` | null | メンションタップコールバック |
 | `onHashtagTap` | `void Function(String)?` | null | ハッシュタグタップコールバック |
 | `onSearchTap` | `void Function(String)?` | null | 検索タップコールバック |
+| `onClickableEvent` | `void Function(String)?` | null | `clickable` fn関数のイベントコールバック。`clickable.ev`引数の値を受け取る |
+| `showCodeBlockCopyButton` | `bool?` | true | コードブロックのコピーボタンを表示するか |
 | `onCodeCopied` | `void Function(String)?` | null | コードコピー完了コールバック。指定時は既定のSnackBarを置換し、未指定時はScaffoldMessengerの祖先がある場合のみ通知 |
 | `codeCopyTooltip` | `String?` | 現在のロケール | コードコピーボタンのアクセシビリティラベルの上書き（日本語は`コピー`、その他は`Copy`） |
 | `codeCopiedMessage` | `String?` | 現在のロケール | コピー完了時の既定のSnackBar文言上書き（日本語は`コードをコピーしました`、その他は`Copied to clipboard`） |
+| `codeTheme` | `Map<String, TextStyle>?` | githubテーマ | コードブロックのシンタックスハイライトテーマ（ライトモード） |
+| `codeDarkTheme` | `Map<String, TextStyle>?` | `codeTheme`、なければgithub-dark | コードブロックのシンタックスハイライトテーマ（ダークモード） |
 | `author` | `MfmAuthorContext?` | null | `host` / `isCat`を持ち、ホスト依存描画と`respectAuthor` nyaizeに使う投稿者情報 |
 | `localHost` | `String?` | null | ホスト解決のフォールバックとself URL短縮に使用するローカルMisskeyホスト |
 | `searchButtonLabel` | `String?` | 現在のロケール | 検索ボタンのラベル上書き（日本語は`検索`、その他は`Search`） |

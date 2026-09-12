@@ -8,13 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- exampleアプリをmacOS / Linux / Windowsに対応させ、READMEにプラットフォームごとの注記（Web非対応、macOSのentitlement、Linux/Windowsの要件）を追加。
 - Mi Light / Mi Dark準拠の `MfmColorScheme` と `MfmRenderConfig.lightColorScheme` / `darkColorScheme` を追加し、リンク、メンション、ハッシュタグ、引用、検索、border fn、unixtime、インラインコードの色をlight/dark別に設定可能にした（#50）。
 - `MfmAuthorContext.isCat` と `MfmNyaizeMode`（`disabled` / `enabled` / `respectAuthor`）を追加。`nyaizeMode` が未指定の場合は既存の `enableNyaize` を後方互換で解釈し、`respectAuthor` は投稿者の `isCat` に従う（#39）。
 - `MfmText.plain`、`rootScale`、`isNote` を追加。plainは本家MkMfmと同様にsimple parser、TextNodeの改行の半角スペース化、カスタム絵文字のnormal表示を適用し、rootScaleは子孫の累積scaleを初期化する（#39）。
 - `MfmText.nowrap` を追加。1行表示、折り返し無効、はみ出し時の省略記号を有効にし、引用は余白・左罫線・opacityを保った自然なインライン幅で表示する（#39）。
 - `MfmHashtagTapDetails` と `onHashtagTapDetails` を追加。詳細コールバックはタグ、isNote、エンコード済みの `/tags/...` または `/user-tags/...` を受け取り、指定時は既存の `onHashtagTap` より優先する（#39）。
 - `MfmRenderConfig.emojiUrls`、`MfmCustomEmoji.url`、`MfmEmojiContext.host` / `url`、`MfmEmojiConfig.fromResolver(serverBaseUrl:)` を追加し、リモート投稿のカスタム絵文字の直接URLとローカルサーバー経由のフォールバックをサポート（#56）。
+- exampleアプリをmacOS / Linux / Windowsに対応させ、READMEにプラットフォームごとの注記（Web非対応、macOSのentitlement、Linux/Windowsの要件）を追加。
 
 ### Fixed
 - `rainbow` のアニメーションをグラデーション走査から、本家Misskeyと同じ `hue-rotate` → `contrast(150%)` → `saturate(150%)` の3段フィルタへ修正（#40、見た目の変更）。元の文字色を起点に色相が回るため、灰色や黒の本文では色相変化は見えず、暗い灰色が少し濃くなるだけ（黒は不変）。色付きのfg・リンク・カラー絵文字では色相変化が見える。正のdelay待機中はフィルタなしとし、無効時の虹色グラデーションは維持して本家と同じ7色7ストップへ整理した。
