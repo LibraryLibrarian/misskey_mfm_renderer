@@ -24,6 +24,10 @@ class _PlaygroundTabState extends State<PlaygroundTab>
     super.initState();
     _controller.text = '''こんにちは！ 😊
 
+@user #tag https://example.org/path?q=1#frag
+
+\$[clickable.ev=hello タップ]
+
 **太字**や*斜体*も使えます。
 
 \$[x2 大きな文字]

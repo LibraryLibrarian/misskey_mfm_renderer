@@ -6,6 +6,7 @@ import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../config/mfm_color_scheme.dart';
 import '../config/mfm_render_config.dart';
 import '../widgets/mfm_custom_emoji.dart';
 
@@ -33,20 +34,30 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          enableAdvancedMfm: config.enableAdvancedMfm,
          enableAnimation: config.enableAnimation,
          enableNyaize: config.enableNyaize,
+         nyaizeMode: config.nyaizeMode,
          emojiBuilder: config.emojiBuilder,
          unicodeEmojiBuilder: config.unicodeEmojiBuilder,
          onLinkTap: config.onLinkTap,
          onMentionTap: config.onMentionTap,
          onHashtagTap: config.onHashtagTap,
+         onHashtagTapDetails: config.onHashtagTapDetails,
          onSearchTap: config.onSearchTap,
+         author: config.author,
+         emojiUrls: config.emojiUrls,
+         localHost: config.localHost,
+         searchButtonLabel: config.searchButtonLabel,
+         useLocaleSearchButtonLabel: config.useLocaleSearchButtonLabel,
          onClickableEvent: config.onClickableEvent,
          fontFamilyResolver: config.fontFamilyResolver,
          codeTheme: config.codeTheme,
          codeDarkTheme: config.codeDarkTheme,
+         lightColorScheme: config.lightColorScheme,
+         darkColorScheme: config.darkColorScheme,
          brightness: config.brightness,
          showCodeBlockCopyButton: config.showCodeBlockCopyButton,
-         inlineCodeBgColorLight: config.inlineCodeBgColorLight,
-         inlineCodeBgColorDark: config.inlineCodeBgColorDark,
+         onCodeCopied: config.onCodeCopied,
+         codeCopyTooltip: config.codeCopyTooltip,
+         codeCopiedMessage: config.codeCopiedMessage,
        );
 
   final _MfmEmojiConfigLifecycle _lifecycle;
@@ -63,46 +74,74 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
   ///
   /// いずれかのコピーで[dispose]を呼ぶと、同じライフサイクルを共有する
   /// すべてのコピーが破棄済みになる。
+  ///
+  /// {@macro mfm_render_config_copy_with_mention_context}
   @override
   MfmEmojiConfigHandle copyWith({
     TextStyle? baseTextStyle,
     bool? enableAdvancedMfm,
     bool? enableAnimation,
     bool? enableNyaize,
-    Widget Function(String name)? emojiBuilder,
-    Widget Function(String emoji)? unicodeEmojiBuilder,
+    MfmNyaizeMode? nyaizeMode,
+    Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
+    Widget Function(String emoji, MfmEmojiContext context)? unicodeEmojiBuilder,
     void Function(String url)? onLinkTap,
     void Function(String acct)? onMentionTap,
     void Function(String tag)? onHashtagTap,
+    void Function(MfmHashtagTapDetails details)? onHashtagTapDetails,
     void Function(String query)? onSearchTap,
+    MfmAuthorContext? author,
+    Map<String, String>? emojiUrls,
+    String? localHost,
+    bool clearAuthor = false,
+    bool clearEmojiUrls = false,
+    bool clearLocalHost = false,
+    String? searchButtonLabel,
+    bool? useLocaleSearchButtonLabel,
     void Function(String eventId)? onClickableEvent,
     String? Function(String fontType)? fontFamilyResolver,
     Map<String, TextStyle>? codeTheme,
     Map<String, TextStyle>? codeDarkTheme,
+    MfmColorScheme? lightColorScheme,
+    MfmColorScheme? darkColorScheme,
     Brightness? brightness,
     bool? showCodeBlockCopyButton,
-    Color? inlineCodeBgColorLight,
-    Color? inlineCodeBgColorDark,
+    void Function(String code)? onCodeCopied,
+    String? codeCopyTooltip,
+    String? codeCopiedMessage,
   }) {
     final config = super.copyWith(
       baseTextStyle: baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm,
       enableAnimation: enableAnimation,
       enableNyaize: enableNyaize,
+      nyaizeMode: nyaizeMode,
       emojiBuilder: emojiBuilder,
       unicodeEmojiBuilder: unicodeEmojiBuilder,
       onLinkTap: onLinkTap,
       onMentionTap: onMentionTap,
       onHashtagTap: onHashtagTap,
+      onHashtagTapDetails: onHashtagTapDetails,
       onSearchTap: onSearchTap,
+      author: author,
+      emojiUrls: emojiUrls,
+      localHost: localHost,
+      clearAuthor: clearAuthor,
+      clearEmojiUrls: clearEmojiUrls,
+      clearLocalHost: clearLocalHost,
+      searchButtonLabel: searchButtonLabel,
+      useLocaleSearchButtonLabel: useLocaleSearchButtonLabel,
       onClickableEvent: onClickableEvent,
       fontFamilyResolver: fontFamilyResolver,
       codeTheme: codeTheme,
       codeDarkTheme: codeDarkTheme,
+      lightColorScheme: lightColorScheme,
+      darkColorScheme: darkColorScheme,
       brightness: brightness,
       showCodeBlockCopyButton: showCodeBlockCopyButton,
-      inlineCodeBgColorLight: inlineCodeBgColorLight,
-      inlineCodeBgColorDark: inlineCodeBgColorDark,
+      onCodeCopied: onCodeCopied,
+      codeCopyTooltip: codeCopyTooltip,
+      codeCopiedMessage: codeCopiedMessage,
     );
     return MfmEmojiConfigHandle._(config: config, lifecycle: _lifecycle);
   }
@@ -150,14 +189,19 @@ class MfmEmojiConfig {
   /// 永続化ストレージ込みのEmojiResolverとMfmRenderConfigを構築
   ///
   /// 接続先は[client]から導出され、サーバーごとに永続ストアが分離される。
+  /// リモート絵文字のURL未指定時は[client]のorigin上の`/emoji/name@host.webp`を使う。
+  /// localHostも同じ接続先から補完され、copyWithで上書きできる。
   /// [client]の所有権は呼び出し元にあり、返されたハンドルの破棄対象には含まれない。
-  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
+  /// [emojiSize]は表示上の高さ。省略時（null）は現在の実効フォントサイズの
+  /// 2倍（2em）、指定時はその固定値を使う。[emojiMaxWidth]は任意の最大幅。
+  /// 絵文字の縦位置は本家の`vertical-align: middle`相当（下端の下降量は
+  /// `size / 2 - フォントサイズ × 0.25`）に揃える。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
   /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
   static Future<MfmEmojiConfigHandle> createDefault({
     required MisskeyClient client,
     String? storagePath,
-    double emojiSize = 24.0,
+    double? emojiSize,
     double? emojiMaxWidth,
     Listenable? emojiRefreshListenable,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
@@ -203,9 +247,12 @@ class MfmEmojiConfig {
       unawaited(autoSyncFuture);
     }
 
+    final serverBaseUrl = Uri.parse(client.baseUrl.origin);
     final config = MfmRenderConfig(
+      localHost: serverBaseUrl.authority,
       emojiBuilder: _createEmojiBuilder(
         resolver: resolver.call,
+        serverBaseUrl: serverBaseUrl,
         cacheScope: resolver,
         emojiSize: emojiSize,
         emojiMaxWidth: emojiMaxWidth,
@@ -225,11 +272,18 @@ class MfmEmojiConfig {
 
   /// 作成済みのResolverからConfigを構築
   ///
-  /// [emojiSize]は表示上の高さ、[emojiMaxWidth]は任意の最大幅として扱われる。
+  /// [emojiSize]は表示上の高さ。省略時（null）は現在の実効フォントサイズの
+  /// 2倍（2em）、指定時はその固定値を使う。[emojiMaxWidth]は任意の最大幅。
+  /// 絵文字の縦位置は本家の`vertical-align: middle`相当（下端の下降量は
+  /// `size / 2 - フォントサイズ × 0.25`）に揃える。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
+  /// [serverBaseUrl]は閲覧中のローカルMisskeyの完全なURL（scheme・portを含む）。
+  /// リモート絵文字の直接URLがないときのエンドポイント生成に使用する。
+  /// 両方とも未指定ならリテラル表示し、ローカルresolverでは解決しない。
   static MfmRenderConfig fromResolver({
     required EmojiResolver resolver,
-    double emojiSize = 24.0,
+    Uri? serverBaseUrl,
+    double? emojiSize,
     double? emojiMaxWidth,
     Listenable? emojiRefreshListenable,
     Widget Function(BuildContext context, String name)? fallbackBuilder,
@@ -237,6 +291,7 @@ class MfmEmojiConfig {
     return MfmRenderConfig(
       emojiBuilder: _createEmojiBuilder(
         resolver: resolver,
+        serverBaseUrl: serverBaseUrl,
         cacheScope: resolver,
         emojiSize: emojiSize,
         emojiMaxWidth: emojiMaxWidth,
@@ -246,34 +301,53 @@ class MfmEmojiConfig {
     );
   }
 
-  static Widget Function(String name) _createEmojiBuilder({
+  static Widget Function(String name, MfmEmojiContext context)
+  _createEmojiBuilder({
     required EmojiResolver resolver,
+    required Uri? serverBaseUrl,
     required Object cacheScope,
-    required double emojiSize,
+    required double? emojiSize,
     required double? emojiMaxWidth,
     required Listenable? emojiRefreshListenable,
     required Widget Function(BuildContext context, String name)?
     fallbackBuilder,
   }) {
-    return (name) => MfmCustomEmoji(
-      name: name,
-      resolver: resolver,
-      cacheScope: cacheScope,
-      size: emojiSize,
-      maxWidth: emojiMaxWidth,
-      refreshListenable: emojiRefreshListenable,
-      fallbackBuilder: fallbackBuilder,
-    );
+    return (name, context) {
+      final host = context.host;
+      final isRemote = host != null && host.isNotEmpty;
+      final url = isRemote
+          ? context.url ?? serverBaseUrl?.resolve('/emoji/$name@$host.webp')
+          : null;
+      if (isRemote && url == null) {
+        return Text(':$name:', style: TextStyle(fontSize: context.fontSize));
+      }
+      final size = emojiSize ?? context.fontSize * (context.normal ? 1.25 : 2);
+      return MfmCustomEmoji(
+        name: name,
+        resolver: isRemote ? null : resolver,
+        url: url,
+        cacheScope: cacheScope,
+        size: size,
+        // 本家のカスタム絵文字は`vertical-align: middle`。CSSのmiddleは
+        // ボックスの上下中心を`baseline + x-height/2`へ合わせる指定なので、
+        // x-heightを0.5emと近似して下端の下降量を求める。Flutterの
+        // PlaceholderAlignment.middleはテキストのascent/descentの中点基準で
+        // CSSのmiddleとは別物のため、baseline揃えのまま位置を計算する。
+        baselineOffset: context.normal
+            ? context.fontSize * 0.25
+            : size / 2 - context.fontSize * 0.25,
+        maxWidth: emojiMaxWidth,
+        refreshListenable: emojiRefreshListenable,
+        fallbackBuilder: fallbackBuilder,
+      );
+    };
   }
 
   static Future<EmojiStore> _createDefaultStore({
     required Uri serverUrl,
     required String directory,
   }) async {
-    final isar = await openEmojiIsarForServer(
-      serverUrl,
-      directory: directory,
-    );
+    final isar = await openEmojiIsarForServer(serverUrl, directory: directory);
     return IsarEmojiStore(isar, ownsIsar: true);
   }
 }

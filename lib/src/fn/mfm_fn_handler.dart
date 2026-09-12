@@ -7,6 +7,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../builder/mfm_node_builder.dart';
 import '../utils/color_parser.dart';
+import '../utils/nyaize.dart';
 import 'animated/mfm_animated_wrapper.dart';
 import 'animated/mfm_bounce_widget.dart';
 import 'animated/mfm_jelly_widget.dart';
@@ -61,7 +62,7 @@ class MfmFnHandler {
       case 'clickable':
         return _buildClickable(node, builder);
 
-      // アニメーション系（将来実装）
+      // アニメーション系
       case 'tada':
         return _buildTada(node, builder);
       case 'jelly':
@@ -82,61 +83,92 @@ class MfmFnHandler {
         return _buildSparkle(node, builder);
 
       default:
-        // 未知のfn関数は子要素をそのまま表示
-        return TextSpan(children: builder.buildNodes(node.children));
+        return _buildLiteral(node, builder);
     }
+  }
+
+  /// 効果が決まらなかったfnを本家と同じく `$[name 中身]` のリテラルで表示する
+  static InlineSpan _buildLiteral(FnNode node, MfmNodeBuilder builder) {
+    return TextSpan(
+      children: [
+        TextSpan(text: '\$[${node.name} '),
+        ...builder.buildNodes(node.children),
+        const TextSpan(text: ']'),
+      ],
+    );
   }
 
   // 各fn関数の実装（初期はプレースホルダー、後続タスクで実装）
 
   static InlineSpan _buildSize(FnNode node, MfmNodeBuilder builder) {
-    double sizeMultiplier;
+    // sizeMultiplierはCSSの--mfm-zoom-size（200/400/600%）、
+    // nominalScaleは本家がgenElへ渡すscale（x2:2, x3:3, x4:4）に対応する。
+    final double sizeMultiplier;
+    final double nominalScale;
     switch (node.name) {
       case 'x2':
         sizeMultiplier = 2.0;
+        nominalScale = 2.0;
       case 'x3':
         sizeMultiplier = 4.0;
+        nominalScale = 3.0;
       case 'x4':
         sizeMultiplier = 6.0;
+        nominalScale = 4.0;
       default:
         sizeMultiplier = 1.0;
+        nominalScale = 1.0;
     }
 
-    final effectiveMultiplier =
-        1.0 + (sizeMultiplier - 1.0) * (1.0 / builder.scale);
-    final newScale = builder.scale * effectiveMultiplier;
+    final depth = builder.sizeDepth;
+    // 本家CSSと同じ親相対倍率。3階層目以降は拡大を無効化する。
+    final factor = depth == 0
+        ? sizeMultiplier
+        : depth == 1
+        ? sizeMultiplier / 2 + 0.5
+        : 1.0;
+    // 本家はadvanced MFMの有効状態やネスト深さに関係なく公称倍率でscaleを更新する
+    final sizedBuilder = builder
+        .withSizeDepth(depth + 1)
+        .withScale(builder.scale * nominalScale);
+    if (!builder.config.enableAdvancedMfm || factor == 1.0) {
+      return TextSpan(children: sizedBuilder.buildNodes(node.children));
+    }
 
-    final scaledBuilder = builder.withScale(newScale);
-    final children = scaledBuilder.buildNodes(node.children);
-
-    final baseSize = builder.config.baseTextStyle?.fontSize ?? 14.0;
-
-    return TextSpan(
-      style: TextStyle(fontSize: baseSize * effectiveMultiplier),
-      children: children,
+    final fontSize = builder.effectiveStyle.fontSize! * factor;
+    return sizedBuilder.buildStyledSpan(
+      TextStyle(fontSize: fontSize),
+      node.children,
     );
   }
 
   static InlineSpan _buildFlip(FnNode node, MfmNodeBuilder builder) {
     final args = node.args;
-    final flipH = args.containsKey('h') || args.containsKey('');
+    final flipH = args.containsKey('h');
     final flipV = args.containsKey('v');
 
-    final scaleX = flipH ? -1.0 : 1.0;
-    final scaleY = flipV ? -1.0 : 1.0;
+    final double scaleX;
+    final double scaleY;
+    if (flipH && flipV) {
+      scaleX = -1.0;
+      scaleY = -1.0;
+    } else if (flipV) {
+      scaleX = 1.0;
+      scaleY = -1.0;
+    } else {
+      scaleX = -1.0;
+      scaleY = 1.0;
+    }
 
     final children = builder.buildNodes(node.children);
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Transform(
         alignment: Alignment.center,
         transform: Matrix4.diagonal3Values(scaleX, scaleY, 1),
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -159,20 +191,17 @@ class MfmFnHandler {
     final children = builder.buildNodes(node.children);
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Transform.rotate(
         angle: radians,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildSpin(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -202,24 +231,21 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmSpinWidget(
         axis: axis,
         direction: direction,
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        enabled: builder.config.useAnimation,
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildJump(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -236,22 +262,19 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmJumpWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        enabled: builder.config.useAnimation,
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildBounce(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -268,16 +291,13 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmBounceWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        enabled: builder.config.useAnimation,
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -292,43 +312,44 @@ class MfmFnHandler {
 
     // 本家 Misskey ではアニメーション有効時の duration=0 は
     // rainbow の静的フォールバックを適用せず、通常の文字表示になる。
-    if (builder.config.enableAnimation && duration <= Duration.zero) {
+    if (builder.config.useAnimation && duration <= Duration.zero) {
       return TextSpan(children: children);
     }
 
     return WidgetSpan(
-      child: MfmRainbowWidget(
-        duration: duration,
-        delay: delay,
-        enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
-      ),
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: builder.config.useAnimation
+          ? MfmRainbowWidget(
+              duration: duration,
+              delay: delay,
+              enabled: builder.config.useAnimation,
+              child: builder.buildInlineRichText(children),
+            )
+          : MfmStaticRainbowWidget(
+              child: builder.buildInlineRichText(children),
+            ),
     );
   }
 
   static InlineSpan _buildSparkle(FnNode node, MfmNodeBuilder builder) {
     final children = builder.buildNodes(node.children);
+    if (!builder.config.useAnimation) {
+      return TextSpan(children: children);
+    }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmSparkleWidget(
-        enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        enabled: builder.config.useAnimation,
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildShake(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -345,22 +366,19 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmShakeWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        enabled: builder.config.useAnimation,
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildTwitch(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -377,16 +395,13 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmTwitchWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        enabled: builder.config.useAnimation,
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -398,25 +413,30 @@ class MfmFnHandler {
         const Duration(milliseconds: 1000);
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
-    final children = builder.buildNodes(node.children);
+    // 150%は描画時のTransformではなく実フォントサイズとしてレイアウトに反映する。
+    final sizeStyle = TextStyle(
+      fontSize: builder.effectiveStyle.fontSize! * 1.5,
+    );
+    if (!builder.config.useAnimation) {
+      return builder.buildStyledSpan(sizeStyle, node.children);
+    }
+    final sized = builder.withStyle(sizeStyle);
+    final children = sized.buildNodes(node.children);
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmTadaWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation && duration > Duration.zero,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        enabled: builder.config.useAnimation && duration > Duration.zero,
+        child: sized.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildJelly(FnNode node, MfmNodeBuilder builder) {
-    if (!builder.config.enableAnimation) {
+    if (!builder.config.useAnimation) {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -433,21 +453,22 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: MfmJellyWidget(
         duration: duration,
         delay: delay,
-        enabled: builder.config.enableAnimation,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        enabled: builder.config.useAnimation,
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildScale(FnNode node, MfmNodeBuilder builder) {
+    if (!builder.config.enableAdvancedMfm) {
+      return TextSpan(children: builder.buildNodes(node.children));
+    }
+
     final args = node.args;
 
     // x, y引数を取得（デフォルト: 1.0）
@@ -472,29 +493,28 @@ class MfmFnHandler {
       }
     }
 
-    // スケールを伝播
-    final newScale = builder.scale * ((scaleX.abs() + scaleY.abs()) / 2);
+    // スケールを伝播（本家と同じくx, yの大きい方を掛ける）
+    // 本家はabsを取らないため反転指定でscaleが負になるが、それは本家側の
+    // 不備なので、ここでは絶対値の大きい方を採用する。
+    final newScale = builder.scale * math.max(scaleX.abs(), scaleY.abs());
     final scaledBuilder = builder.withScale(newScale);
     final children = scaledBuilder.buildNodes(node.children);
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Transform.scale(
         scaleX: scaleX,
         scaleY: scaleY,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: scaledBuilder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildPosition(FnNode node, MfmNodeBuilder builder) {
-    // advancedMfmが無効な場合は子要素をそのまま表示
+    // advancedMfmが無効な場合はリテラルで表示
     if (!builder.config.enableAdvancedMfm) {
-      return TextSpan(children: builder.buildNodes(node.children));
+      return _buildLiteral(node, builder);
     }
 
     final args = node.args;
@@ -529,56 +549,62 @@ class MfmFnHandler {
     final offsetY = y * baseSize;
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Transform.translate(
         offset: Offset(offsetX, offsetY),
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
-  static Color? _parseColorArg(Map<String, dynamic> args) {
-    final colorValue = args['color'];
-    if (colorValue is String) {
-      final parsed = ColorParser.parse(colorValue);
-      if (parsed != null) {
-        return parsed;
-      }
+  /// 本家のvalidColor相当。nullは「色指定なし」を表す。
+  static Color? _resolveFgBgColor(Map<String, dynamic> args) {
+    const fallback = Color(0xFFFF0000);
+    final value = args['color'];
+    // 本家と同じく、#や名前色を含まない3〜6桁の16進文字列だけを受理する。
+    if (value is! String ||
+        !RegExp(r'^[0-9a-f]{3,6}$', caseSensitive: false).hasMatch(value)) {
+      return fallback;
     }
 
-    for (final entry in args.entries) {
-      final value = entry.value;
-      if (value == true || value == null) {
-        final parsed = ColorParser.parse(entry.key);
-        if (parsed != null) {
-          return parsed;
-        }
-      }
+    if (value.length == 4) {
+      // CSSの#RGBAをFlutterのARGBに変換し、各桁を2桁に展開する。
+      final rgba = int.parse(value, radix: 16);
+      return Color.fromARGB(
+        (rgba & 0xF) * 0x11,
+        ((rgba >> 12) & 0xF) * 0x11,
+        ((rgba >> 8) & 0xF) * 0x11,
+        ((rgba >> 4) & 0xF) * 0x11,
+      );
     }
 
-    return null;
+    // 5桁は本家の正規表現には一致するがCSSでは無効な色として
+    // 宣言ごと破棄されるため、本家と同じく色を付けない。
+    if (value.length == 5) {
+      return null;
+    }
+
+    return ColorParser.parse(value) ?? fallback;
   }
 
   static InlineSpan _buildFg(FnNode node, MfmNodeBuilder builder) {
-    final color = _parseColorArg(node.args);
-    final children = builder.buildNodes(node.children);
+    final color = _resolveFgBgColor(node.args);
 
     if (color == null) {
-      return TextSpan(children: children);
+      return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    return TextSpan(
-      style: TextStyle(color: color),
-      children: children,
+    // 本家のopacityは子孫の色指定では上書きできないため、
+    // 前景色にもsmallなどの累積不透明度を反映する。
+    return builder.buildStyledSpan(
+      TextStyle(color: builder.applyOpacity(color)),
+      node.children,
     );
   }
 
   static InlineSpan _buildBg(FnNode node, MfmNodeBuilder builder) {
-    final color = _parseColorArg(node.args);
+    final color = _resolveFgBgColor(node.args);
     final children = builder.buildNodes(node.children);
 
     if (color == null) {
@@ -586,14 +612,12 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: ColoredBox(
-        color: color,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        // 内側の文字は減光済みなので、背景色だけにsmallを反映する。
+        color: builder.applyOpacity(color),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -604,7 +628,7 @@ class MfmFnHandler {
 
     var width = 1.0;
     var style = BorderStyle.solid;
-    var color = const Color(0xFF000000);
+    var color = builder.colorScheme.accent;
     var radius = 0.0;
     final noclip = args.containsKey('noclip');
 
@@ -642,29 +666,26 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(
-            color: color,
+            // RichText全体を包まず、罫線だけを減光する。
+            color: builder.applyOpacity(color),
             width: width,
             style: style,
           ),
           borderRadius: radius > 0 ? BorderRadius.circular(radius) : null,
         ),
         clipBehavior: noclip ? Clip.none : Clip.antiAlias,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildFont(FnNode node, MfmNodeBuilder builder) {
     final args = node.args;
-    final children = builder.buildNodes(node.children);
 
     // フォントタイプを特定
     String? fontType;
@@ -683,15 +704,15 @@ class MfmFnHandler {
     }
 
     if (fontType == null) {
-      return TextSpan(children: children);
+      return _buildLiteral(node, builder);
     }
 
     // カスタムリゾルバーがあればそれを使用
     final customFont = builder.config.fontFamilyResolver?.call(fontType);
     if (customFont != null) {
-      return TextSpan(
-        style: TextStyle(fontFamily: customFont),
-        children: children,
+      return builder.buildStyledSpan(
+        TextStyle(fontFamily: customFont),
+        node.children,
       );
     }
 
@@ -718,10 +739,10 @@ class MfmFnHandler {
         );
       default:
         // emoji, mathはデフォルトフォント
-        return TextSpan(children: children);
+        return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    return TextSpan(style: style, children: children);
+    return builder.buildStyledSpan(style, node.children);
   }
 
   static InlineSpan _buildBlur(FnNode node, MfmNodeBuilder builder) {
@@ -731,36 +752,54 @@ class MfmFnHandler {
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: _MfmBlurWidget(
-        children: children,
-        baseTextStyle: builder.config.baseTextStyle,
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
 
   static InlineSpan _buildRuby(FnNode node, MfmNodeBuilder builder) {
     // ruby構文: $[ruby ベーステキスト ルビテキスト]
-    // 子ノードからテキストを取得、スペースで分割する
-    String? baseText;
-    String? rubyText;
-
-    // 最初のTextNodeからテキストを取得
-    for (final child in node.children) {
-      if (child is TextNode) {
-        final parts = child.text.split(' ');
-        if (parts.length >= 2) {
-          baseText = parts[0];
-          rubyText = parts.sublist(1).join(' ');
-        } else if (parts.length == 1) {
-          baseText = parts[0];
-        }
-        break;
-      }
+    if (node.children.isEmpty) {
+      return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    // ベーステキストまたはルビテキストがない場合は通常のテキストとして表示
-    if (baseText == null || rubyText == null || rubyText.isEmpty) {
-      final children = builder.buildNodes(node.children);
-      return TextSpan(children: children);
+    final InlineSpan baseSpan;
+    final String rubyText;
+    final lastChild = node.children.last;
+    if (node.children.length == 1 && lastChild is TextNode) {
+      // テキストのみの場合、本家と同じく全文をnyaizeしてから空白分割し、
+      // 2番目だけをルビにする。分割前に変換しないとnyaizeの
+      // 空白依存パターンが分割位置に影響されてしまう。
+      final raw = builder.shouldNyaize
+          ? nyaize(lastChild.text)
+          : lastChild.text;
+      final parts = raw.split(' ');
+      if (parts.length < 2 || parts[1].isEmpty) {
+        return TextSpan(children: builder.buildNodes(node.children));
+      }
+      baseSpan = TextSpan(text: parts[0]);
+      rubyText = parts[1];
+    } else {
+      // 最後の子をルビ、それ以外を装飾を保持したベースとして描画する。
+      // TextPainterではルビ側の非テキストノードを描けないため、そのまま表示する。
+      if (lastChild is! TextNode || lastChild.text.trim().isEmpty) {
+        return TextSpan(children: builder.buildNodes(node.children));
+      }
+      baseSpan = TextSpan(
+        children: builder.buildNodes(
+          node.children.sublist(0, node.children.length - 1),
+        ),
+      );
+      // 本家と同じくnyaizeしてからトリムする。
+      // ベース側はbuildNodes経由でnyaizeされる。
+      rubyText =
+          (builder.shouldNyaize ? nyaize(lastChild.text) : lastChild.text)
+              .trim();
+
+      // TextPainter単体ではWidgetSpanを描けない。ネストしたものも検出する。
+      if (!baseSpan.visitChildren((span) => span is! WidgetSpan)) {
+        return TextSpan(children: builder.buildNodes(node.children));
+      }
     }
 
     final baseStyle = builder.config.baseTextStyle;
@@ -774,12 +813,14 @@ class MfmFnHandler {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: _RubyTextWidget(
-        baseText: baseText,
-        rubyText: rubyText,
-        baseStyle: baseStyle,
-        rubyStyle: rubyStyle,
-        rubyFontSize: rubyFontSize,
+      child: builder.wrapOpacity(
+        _RubyTextWidget(
+          baseSpan: baseSpan,
+          rubyText: rubyText,
+          baseStyle: baseStyle,
+          rubyStyle: rubyStyle,
+          rubyFontSize: rubyFontSize,
+        ),
       ),
     );
   }
@@ -807,28 +848,31 @@ class MfmFnHandler {
     final textStyle = (baseStyle ?? const TextStyle()).copyWith(
       fontSize: fontSize,
     );
-    final borderColor = (baseStyle?.color ?? const Color(0xFF000000))
-        .withValues(alpha: 0.2);
 
+    // 本家はdisplay: inline-blockでvertical-align未指定のため、
+    // ピル内テキストのベースラインで周囲と揃う。
     return WidgetSpan(
-      alignment: PlaceholderAlignment.middle,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
-        decoration: BoxDecoration(
-          border: Border.all(color: borderColor),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              const IconData(0xe8b5, fontFamily: 'MaterialIcons'),
-              size: fontSize,
-              color: textStyle.color,
-            ),
-            const SizedBox(width: 4),
-            Text(formattedTime, style: textStyle),
-          ],
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: builder.wrapOpacity(
+        Container(
+          padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+          decoration: BoxDecoration(
+            border: Border.all(color: builder.colorScheme.divider),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                const IconData(0xe8b5, fontFamily: 'MaterialIcons'),
+                size: fontSize,
+                color: textStyle.color,
+              ),
+              const SizedBox(width: 4),
+              Text(formattedTime, style: textStyle),
+            ],
+          ),
         ),
       ),
     );
@@ -853,17 +897,14 @@ class MfmFnHandler {
     }
 
     return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
       child: GestureDetector(
         onTap: () {
           onClickableEvent(eventId);
         },
         behavior: HitTestBehavior.opaque,
-        child: RichText(
-          text: TextSpan(
-            style: builder.config.baseTextStyle,
-            children: children,
-          ),
-        ),
+        child: builder.buildInlineRichText(children),
       ),
     );
   }
@@ -894,14 +935,14 @@ class MfmFnHandler {
 /// ベーステキストのベースラインを維持しながら、ルビテキストを上に配置
 class _RubyTextWidget extends LeafRenderObjectWidget {
   const _RubyTextWidget({
-    required this.baseText,
+    required this.baseSpan,
     required this.rubyText,
     required this.baseStyle,
     required this.rubyStyle,
     required this.rubyFontSize,
   });
 
-  final String baseText;
+  final InlineSpan baseSpan;
   final String rubyText;
   final TextStyle? baseStyle;
   final TextStyle rubyStyle;
@@ -910,7 +951,7 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderRubyText(
-      baseText: baseText,
+      baseSpan: baseSpan,
       rubyText: rubyText,
       baseStyle: baseStyle,
       rubyStyle: rubyStyle,
@@ -924,7 +965,7 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
     _RenderRubyText renderObject,
   ) {
     renderObject
-      ..baseText = baseText
+      ..baseSpan = baseSpan
       ..rubyText = rubyText
       ..baseStyle = baseStyle
       ..rubyStyle = rubyStyle
@@ -934,22 +975,22 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
 
 class _RenderRubyText extends RenderBox {
   _RenderRubyText({
-    required String baseText,
+    required InlineSpan baseSpan,
     required String rubyText,
     required TextStyle? baseStyle,
     required TextStyle rubyStyle,
     required double rubyFontSize,
-  }) : _baseText = baseText,
+  }) : _baseSpan = baseSpan,
        _rubyText = rubyText,
        _baseStyle = baseStyle,
        _rubyStyle = rubyStyle,
        _rubyFontSize = rubyFontSize;
 
-  String _baseText;
-  String get baseText => _baseText;
-  set baseText(String value) {
-    if (_baseText != value) {
-      _baseText = value;
+  InlineSpan _baseSpan;
+  InlineSpan get baseSpan => _baseSpan;
+  set baseSpan(InlineSpan value) {
+    if (_baseSpan != value) {
+      _baseSpan = value;
       _basePainter = null;
       markNeedsLayout();
     }
@@ -999,7 +1040,7 @@ class _RenderRubyText extends RenderBox {
 
   TextPainter _getBasePainter() {
     _basePainter ??= TextPainter(
-      text: TextSpan(text: _baseText, style: _baseStyle),
+      text: TextSpan(style: _baseStyle, children: [_baseSpan]),
       textDirection: TextDirection.ltr,
     );
     return _basePainter!;
@@ -1061,20 +1102,21 @@ class _RenderRubyText extends RenderBox {
 }
 
 class _MfmBlurWidget extends StatefulWidget {
-  const _MfmBlurWidget({
-    required this.children,
-    this.baseTextStyle,
-  });
+  const _MfmBlurWidget({required this.child});
 
-  final List<InlineSpan> children;
-  final TextStyle? baseTextStyle;
+  final Widget child;
 
   @override
   State<_MfmBlurWidget> createState() => _MfmBlurWidgetState();
 }
 
 class _MfmBlurWidgetState extends State<_MfmBlurWidget> {
+  static const _blurSigma = 6.0;
+  static const _transitionDuration = Duration(milliseconds: 300);
+
   var _isBlurred = true;
+  var _isHovered = false;
+  PointerDeviceKind? _tapDeviceKind;
 
   void _toggleBlur() {
     setState(() {
@@ -1082,18 +1124,46 @@ class _MfmBlurWidgetState extends State<_MfmBlurWidget> {
     });
   }
 
+  void _handleTapDown(TapDownDetails details) {
+    _tapDeviceKind = details.kind;
+  }
+
+  void _handleTap() {
+    final deviceKind = _tapDeviceKind;
+    _tapDeviceKind = null;
+    if (deviceKind == PointerDeviceKind.mouse) {
+      return;
+    }
+    _toggleBlur();
+  }
+
+  void _setHovered({required bool isHovered}) {
+    setState(() {
+      _isHovered = isHovered;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _toggleBlur,
-      child: ImageFiltered(
-        enabled: _isBlurred,
-        imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-        child: RichText(
-          text: TextSpan(
-            style: widget.baseTextStyle,
-            children: widget.children,
+    final targetSigma = _isBlurred && !_isHovered ? _blurSigma : 0.0;
+
+    return MouseRegion(
+      onEnter: (_) => _setHovered(isHovered: true),
+      onExit: (_) => _setHovered(isHovered: false),
+      child: GestureDetector(
+        onTapDown: _handleTapDown,
+        onTapCancel: () => _tapDeviceKind = null,
+        onTap: _handleTap,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(end: targetSigma),
+          duration: _transitionDuration,
+          curve: Curves.ease,
+          builder: (context, sigma, child) => ImageFiltered(
+            enabled: sigma > 0,
+            imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+            child: child,
           ),
+          child: widget.child,
         ),
       ),
     );

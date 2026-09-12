@@ -61,7 +61,9 @@ class MfmShakeWidget extends StatelessWidget {
       final end = _keyframes[i + 1];
 
       if (t >= start.t && t <= end.t) {
-        final localT = (t - start.t) / (end.t - start.t);
+        final localT = _shakeCurve.transform(
+          (t - start.t) / (end.t - start.t),
+        );
         return _ShakeKeyframe(
           t,
           start.x + (end.x - start.x) * localT,
@@ -80,7 +82,6 @@ class MfmShakeWidget extends StatelessWidget {
       duration: duration,
       delay: delay,
       enabled: enabled,
-      curve: _shakeCurve,
       child: child,
       builder: (context, child, controller, progress) {
         final kf = _resolveKeyframe(progress.value);

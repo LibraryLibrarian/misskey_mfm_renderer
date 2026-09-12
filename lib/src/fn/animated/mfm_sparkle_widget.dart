@@ -22,14 +22,32 @@ class _SparkleParticle {
 }
 
 class MfmSparkleWidget extends StatefulWidget {
-  const MfmSparkleWidget({
-    super.key,
-    required this.child,
-    this.enabled = true,
-  });
+  const MfmSparkleWidget({super.key, required this.child, this.enabled = true});
 
   final Widget child;
   final bool enabled;
+
+  @visibleForTesting
+  static ({double size, Duration duration}) debugParticleMetrics(
+    double sizeFactor,
+  ) => _particleMetrics(sizeFactor);
+
+  @visibleForTesting
+  static Path debugStarPath() => _SparklePainter._createStarPath();
+
+  static ({double size, Duration duration}) _particleMetrics(
+    double sizeFactor,
+  ) {
+    assert(sizeFactor >= 0 && sizeFactor <= 1);
+    return (
+      size: 0.2 + (sizeFactor / 10) * 3,
+      duration: Duration(
+        microseconds:
+            ((1000 + sizeFactor * 1000) * Duration.microsecondsPerMillisecond)
+                .round(),
+      ),
+    );
+  }
 
   @override
   State<MfmSparkleWidget> createState() => _MfmSparkleWidgetState();
@@ -38,8 +56,6 @@ class MfmSparkleWidget extends StatefulWidget {
 class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
     with TickerProviderStateMixin {
   static const _paintPadding = 32.0;
-  static const _minDurationMs = 1000;
-  static const _maxDurationMs = 2000;
 
   final _particles = <_SparkleParticle>[];
   final _random = math.Random();
@@ -137,17 +153,16 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
 
     final usableWidth = math.max(0, _paintBounds.width - _paintPadding * 2);
     final usableHeight = math.max(0, _paintBounds.height - _paintPadding * 2);
-    final size = 0.2 + _random.nextDouble() * 0.3;
-    final durationMs =
-        _minDurationMs + _random.nextInt(_maxDurationMs - _minDurationMs + 1);
+    final sizeFactor = _random.nextDouble();
+    final metrics = MfmSparkleWidget._particleMetrics(sizeFactor);
     final particle = _SparkleParticle(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       position: Offset(
         _paintPadding + _random.nextDouble() * usableWidth,
         _paintPadding + _random.nextDouble() * usableHeight,
       ),
-      size: size,
-      duration: Duration(milliseconds: durationMs),
+      size: metrics.size,
+      duration: metrics.duration,
       color: _colors[_random.nextInt(_colors.length)],
       startTime: DateTime.now(),
     );
@@ -195,10 +210,7 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
       clipBehavior: Clip.none,
       children: [
         // 子要素にGlobalKeyを割り当てる
-        Container(
-          key: _childKey,
-          child: widget.child,
-        ),
+        Container(key: _childKey, child: widget.child),
         Positioned(
           left: -_paintPadding,
           top: -_paintPadding,
@@ -224,10 +236,7 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
 }
 
 class _SparklePainter extends CustomPainter {
-  _SparklePainter({
-    required this.particles,
-    required this.now,
-  });
+  _SparklePainter({required this.particles, required this.now});
 
   final List<_SparkleParticle> particles;
   final DateTime now;
@@ -237,8 +246,8 @@ class _SparklePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (final particle in particles) {
-      final elapsedMs = now.difference(particle.startTime).inMilliseconds;
-      final progress = (elapsedMs / particle.duration.inMilliseconds).clamp(
+      final elapsed = now.difference(particle.startTime).inMicroseconds;
+      final progress = (elapsed / particle.duration.inMicroseconds).clamp(
         0.0,
         1.0,
       );
@@ -271,13 +280,33 @@ class _SparklePainter extends CustomPainter {
   }
 
   static Path _createStarPath() {
-    const size = 32.0;
     final path = Path()
-      ..moveTo(0, -size)
-      ..quadraticBezierTo(size * 0.2, -size * 0.2, size, 0)
-      ..quadraticBezierTo(size * 0.2, size * 0.2, 0, size)
-      ..quadraticBezierTo(-size * 0.2, size * 0.2, -size, 0)
-      ..quadraticBezierTo(-size * 0.2, -size * 0.2, 0, -size)
+      // MkSparkle.vue の 64x64 SVG path を中心原点へ平行移動する。
+      ..moveTo(-2.573, -29.989)
+      ..cubicTo(-2.279, -31.17, -1.218, -32, 0, -32)
+      ..cubicTo(1.218, -32, 2.279, -31.17, 2.573, -29.989)
+      ..lineTo(7.455, -10.354)
+      ..cubicTo(7.629, -9.653, 7.991, -9.013, 8.502, -8.502)
+      ..cubicTo(9.013, -7.991, 9.653, -7.629, 10.354, -7.455)
+      ..lineTo(29.989, -2.573)
+      ..cubicTo(31.17, -2.279, 32, -1.218, 32, 0)
+      ..cubicTo(32, 1.218, 31.17, 2.279, 29.989, 2.573)
+      ..lineTo(10.354, 7.455)
+      ..cubicTo(9.653, 7.629, 9.013, 7.991, 8.502, 8.502)
+      ..cubicTo(7.991, 9.013, 7.629, 9.653, 7.455, 10.354)
+      ..lineTo(2.573, 29.989)
+      ..cubicTo(2.279, 31.17, 1.218, 32, 0, 32)
+      ..cubicTo(-1.218, 32, -2.279, 31.17, -2.573, 29.989)
+      ..lineTo(-7.455, 10.354)
+      ..cubicTo(-7.629, 9.653, -7.991, 9.013, -8.502, 8.502)
+      ..cubicTo(-9.013, 7.991, -9.653, 7.629, -10.354, 7.455)
+      ..lineTo(-29.989, 2.573)
+      ..cubicTo(-31.17, 2.279, -32, 1.218, -32, 0)
+      ..cubicTo(-32, -1.218, -31.17, -2.279, -29.989, -2.573)
+      ..lineTo(-10.354, -7.455)
+      ..cubicTo(-9.653, -7.629, -9.013, -7.991, -8.502, -8.502)
+      ..cubicTo(-7.991, -9.013, -7.629, -9.653, -7.455, -10.354)
+      ..lineTo(-2.573, -29.989)
       ..close();
     return path;
   }

@@ -111,46 +111,23 @@ class MfmAnimatedWrapper extends StatefulWidget {
   final Curve curve;
   final Curve? reverseCurve;
 
-  /// `value` は num（秒）または "1.5s" の形式を受け付ける。
+  /// 本家 Misskey の validTime と同じく、`^-?[0-9.]+s$` に一致する
+  /// 文字列のみを受け付ける。前後の空白は除去しない。
   ///
-  /// 未指定・不正値は null、有限の数値は符号を保った Duration を返す。
-  /// 正の極小値を失わないよう、マイクロ秒単位で変換する。
+  /// 未指定・不正値・数値に変換できない値は null を返す。
+  /// 有限の秒数は符号を保ち、マイクロ秒単位で Duration に変換する。
   static Duration? parseTime(Object? value) {
-    if (value == null) return null;
-    if (value is Duration) return value;
+    if (value is! String) return null;
 
-    double? seconds;
-    if (value is num) {
-      seconds = value.toDouble();
-    } else if (value is String) {
-      final trimmed = value.trim();
-      final match = RegExp(r'^(-?[\d.]+)s$').firstMatch(trimmed);
-      if (match != null) {
-        seconds = double.tryParse(match.group(1)!);
-      } else {
-        seconds = double.tryParse(trimmed);
-      }
-    }
+    final match = RegExp(r'^(-?[0-9.]+)s$').firstMatch(value);
+    if (match == null) return null;
 
-    if (seconds == null || seconds.isNaN || seconds.isInfinite) {
+    final seconds = double.tryParse(match.group(1)!);
+    if (seconds == null || !seconds.isFinite) {
       return null;
     }
 
     return Duration(microseconds: (seconds * 1000000).round());
-  }
-
-  /// `parseTime` の結果が null の場合に `fallback` を返す。
-  static Duration parseTimeOrDefault(Object? value, Duration fallback) {
-    return parseTime(value) ?? fallback;
-  }
-
-  /// Map形式の引数から時間を取り出してパースするヘルパー。
-  static Duration parseTimeFromArgs(
-    Map<String, Object?> args,
-    String key,
-    Duration fallback,
-  ) {
-    return parseTime(args[key]) ?? fallback;
   }
 
   @override
@@ -236,9 +213,7 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
     if (widget.repeat) {
       // 負の delay は、CSS と同様にその時間だけ進行済みの位相から
       // 始める。位相計算は _MfmRepeatingProgressAnimation が担う。
-      _controller.repeat(
-        reverse: widget.reverse && !widget.delay.isNegative,
-      );
+      _controller.repeat(reverse: widget.reverse && !widget.delay.isNegative);
       return;
     }
 

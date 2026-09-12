@@ -26,7 +26,7 @@ MFMを完全に描画できるようにするため、`misskey_emoji` を依存�
 | **テキスト整形** | 太字 | `**bold**` | ✅ |
 | | 斜体 | `*italic*` / `<i>italic</i>` | ✅ |
 | | 取り消し線 | `~~strike~~` | ✅ |
-| | 小文字 | `<small>small</small>` | ✅ |
+| | 小文字（継承サイズの0.8倍・0.7減光） | `<small>small</small>` | ✅ |
 | | プレーン | `<plain>text</plain>` | ✅ |
 | **ブロック要素** | 引用 | `> quote` | ✅ |
 | | 中央寄せ | `<center>text</center>` | ✅ |
@@ -42,17 +42,31 @@ MFMを完全に描画できるようにするため、`misskey_emoji` を依存�
 | **絵文字** | カスタム絵文字 | `:emoji_name:` | ✅ |
 | | Unicode絵文字 | `😀` | ✅ |
 
-*数式は現在プレーンテキストとして表示されます。将来的に数式レンダリング対応予定。
+*本家MisskeyもLaTeXを描画せず素の`<code>`として表示するため、両方の数式構文を本家準拠の装飾のない等幅テキストとして表示します。周囲の文字スタイルを継承し、背景・余白・強制的なブロック化は追加せず、パース後のTextNodeに含まれる改行を保持します。現在のパーサーは数式ブロック直後の改行を消費しますが、レンダラー側では補完しません。
 
 ### 追加の注意事項
 
+**インラインコード**: 周囲の文字サイズ・色・太字などを継承した等幅フォントで表示し、背景には選択中の `MfmColorScheme.bg` を使います。余白（0.1em）と角丸（0.3em）は継承サイズに比例します。
+
+**小文字**: `<small>` はネストするたびに継承サイズを0.8倍にし、0.7減光します。
+減光は継承色のalphaだけでなく、`$[fg ...]` やリンク色などの固定色、絵文字などのウィジェットにも適用されるため、子の色指定で減光が打ち消されることはありません。
+
+**URL表示**: 自動リンクされたHTTP(S) URLをscheme、host、port、path、query、fragmentに分解し、本家Misskeyの`MkUrl`と同じ強調で表示します。Punycode hostとpercent encodeされたhost・path・query・fragmentは表示用にだけdecodeし、`onLinkTap`には常に元のURLを渡します。外部URLの末尾には外部リンクiconを表示するため、アプリで`MaterialIcons`フォントをbundleする必要があります。
+自インスタンス宛てURLを短縮するには`MfmRenderConfig.localHost`を設定します。root以外はschemeとhostを省略し、root URLは太字のhostを表示します。現APIは完全なoriginではなくhostだけを受け取るため、この判定はhostベースの近似です。大文字小文字を区別せず末尾dotを無視し、`localHost`にportがある場合だけURLのeffective portも比較します。HTTPとHTTPSは区別できず、portを省略した場合はhostだけを比較します。
+
+**引用**: `> quote` は本家の `QUOTE_STYLE` に合わせ、行全幅を使い、四辺8pxのmargin、上下6px・左12px・右0pxのpadding、幅3pxの左罫線で表示します。文字と罫線には選択中の `MfmColorScheme.fg` を使い、引用と `<small>` の各階層で元のalphaに0.7を乗算します。引用色は `baseTextStyle` / `DefaultTextStyle` とは独立しています。
+ブロック表示は有限幅の親（例: `SizedBox(width: 300)` や `Row` 内の `Expanded`）を前提とします。`Row` 内の非 `Expanded` 子など幅が無制約の場合は自然幅となり、独立した行になる保証はありません。境界の改行は追加しません。隣接引用のCSS margin collapseやブロック前後の余分な改行の扱いまでは完全再現していません。
+
+**fnのリテラル表示**: 未知のfn、有効なフォント指定のない `font`、`enableAdvancedMfm: false` 時の `position` は、本家Misskeyと同じく子要素の装飾を維持した `$[name 中身]`（引数は省略）として表示されます。
+
 **未実装の機能:**
-- **数式レンダリング**: LaTeX数式はプレーンテキストで表示されます。KaTeXなどのライブラリを使った完全な数式レンダリングは将来のリリースで対応予定です。
 - **フォントの制限**: `$[font.xxx]` 構文の一部のフォントタイプ（特に `emoji` と `math`）は、プラットフォームの制限によりデフォルトフォントにフォールバックします。代替策を検討中です。
 
-**Nyaize（猫モード相当のテキスト変換）**: `enableNyaize` で有効化されます。
-Misskeyの猫モードと同等の挙動で、テキストノードの文字列を猫語に変換します（ja-JP / en-US / ko-KR の3言語）。
-`link` / `quote` / `plain` 配下のサブツリーは変換対象外（本家挙動に準拠）。
+**Nyaize（猫モード相当のテキスト変換）**: 互換用の `enableNyaize`、または
+`nyaizeMode` で指定します。`MfmNyaizeMode.respectAuthor` は
+`author?.isCat == true` のときだけ変換し、明示した `nyaizeMode` は
+`enableNyaize` より優先されます。`link` / `quote` / `plain` 配下のサブツリーは
+変換対象外（本家挙動に準拠）です。
 `nyaize(String)` 純粋関数も公開APIとして利用できます。
 
 ### カスタム絵文字対応
@@ -64,10 +78,24 @@ Misskeyの猫モードと同等の挙動で、テキストノードの文字列�
 **特徴**:
 - 絵文字メタデータの自動解決
 - `cached_network_image` による画像キャッシュ
-- 高さを固定し、元画像のアスペクト比を維持した表示
+- 実効フォントサイズに追随する高さ（既定2em）で、元画像のアスペクト比を維持した表示
 - 読み込み済みアスペクト比の再利用によるプレースホルダのレイアウト安定化
 - 未取得時のフォールバック表示
 - アニメーション絵文字（GIF/APNG/WebP）に対応
+
+`MfmEmojiConfig.createDefault` / `fromResolver` の既定の高さは **2em**
+（`context.fontSize * 2`）です。フォント14pxでは28px、`$[x4 :emoji:]` では
+168pxとなり、従来の24px固定から変更されています。`emojiSize` の既定値は
+`null` になりました。固定の高さを維持する場合は `emojiSize: 24` を指定してください。
+直接生成した場合の低レベルAPI `MfmCustomEmoji.size` の既定値は24pxのままです。
+サイズ関数・`tada`・`<small>` は実効フォントサイズを変更します。`scale` は
+フォントサイズを変更せず描画時の変形として適用されるため、高さに
+`context.scale` を重ねて掛けないでください。
+x2/x3/x4の視覚的拡大と `scale` の効果には `enableAdvancedMfm: true` が必要です。
+falseの場合、x2/x3/x4はフォントサイズを変えませんが、公称倍率2/3/4は
+`context.scale` へ伝播します。`scale` は変形も文脈への倍率伝播も行いません。
+例えば基準14pxの `$[x4 :emoji:]` の高さは28pxのままで、描画文脈は
+`(fontSize: 14, scale: 4)` になります。
 
 カスタム絵文字の幅は既定で元画像の比率に従います。極端に横長な絵文字の幅を
 制限する場合は、`MfmEmojiConfig` の `emojiMaxWidth` または
@@ -118,13 +146,23 @@ scopeはレイアウトヒントのキャッシュだけを制御し、resolver�
 || | rainbow | `$[rainbow text]` | ✅ |
 || | sparkle | `$[sparkle text]` | ✅ |
 
+`fg` / `bg` の `color` には、`#` なしの3・6桁のRGB、または4桁のRGBAの16進数を指定します。未指定・無効値は本家準拠で赤（`f00`）にフォールバックします。5桁は本家の正規表現には一致しますがCSSでは無効な色として宣言が破棄されるため、本実装でも色を付けません。
+
+`tada` の150%は親に対する実フォントサイズとして適用され、アニメーション無効時も維持されます。
+描画時の拡大だけでなく、テキストのレイアウトサイズも広がります。
+
+`twitch` と `shake` は本家Misskeyと同じく、隣接する各キーフレーム区間に `ease` を適用します。
+
 ## インストール
+
+Flutter 3.38.1 以上（Dart 3.10.0 以上）が必要です。`.fvmrc` の開発環境では
+Flutter 3.38.7 を使用していますが、パッケージの対応下限は Flutter 3.38.1 です。
 
 `pubspec.yaml` に依存関係を追加してください：
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.1
+  misskey_mfm_renderer: ^0.6.0-beta.2
   misskey_client: ^1.0.0-beta.5
 ```
 
@@ -191,6 +229,54 @@ MfmText(
 )
 ```
 
+`searchButtonLabel` はロケールから解決されたラベルと継承したラベルを上書きします。
+設定済みまたは継承した上書きを解除し、現在のロケール（日本語は`検索`、
+その他は`Search`）へ戻すには `useLocaleSearchButtonLabel` を指定します。
+trueの場合は `searchButtonLabel` より優先され、ラベルはnullとして保持されます。
+
+```dart
+final localizedConfig = config.copyWith(
+  useLocaleSearchButtonLabel: true,
+);
+
+MfmText(
+  text: 'flutter Search',
+  config: const MfmRenderConfig(
+    useLocaleSearchButtonLabel: true,
+  ),
+)
+```
+
+### MkMfm互換の文書単位props
+
+`plain`、`nowrap`、`rootScale`、`isNote` は設定全体ではなく描画する文書ごとの値なので、
+`MfmText` の引数です。
+
+```dart
+MfmText(
+  text: 'one\ntwo :wave:',
+  plain: true, // simple parserを使い、改行を半角スペースにする
+  nowrap: true, // タイムラインのプレビューなどで1行を省略表示する
+  rootScale: 3, // 子孫のMFM関数へ渡す初期累積スケール
+  isNote: false, // hashtag detailsのpathを /user-tags/... にする
+)
+```
+
+`plain` と `simple: true` は異なります。両者ともsimple parserを使いますが、
+`simple` は改行と通常のカスタム絵文字サイズを維持します。`plain` は
+CRLF/CR/LFを正規化してからLFを半角スペースに置換し、`parsedNodes` を直接
+渡した場合にも適用します。またカスタム絵文字ビルダーへ
+`MfmEmojiContext.normal: true` を渡します。`MfmEmojiConfig` はこれを本家
+`.normal` classと同じ1.25em・0.25emの下降量で描画します。
+
+`nowrap` は外側の `RichText` を `TextOverflow.ellipsis` と `softWrap: false` の
+1行表示にするため、タイムラインのプレビューに利用できます。引用はmargin・左罫線・
+opacityを維持しますが、プレビューの1行に収めるため全幅化せず自然なインライン幅で
+表示します。
+
+`rootScale` は有限の正値でなければなりません。これはtraversalの初期scaleだけを
+設定し、ルートのfontSizeやTransformを変更しません。
+
 ### コールバックの設定
 
 ```dart
@@ -205,17 +291,96 @@ MfmText(
     onMentionTap: (acct) {
       navigateToUser(acct);
     },
-    // ハッシュタグタップ時
+    // 後方互換のハッシュタグタップ時
     onHashtagTap: (tag) {
       navigateToHashtag(tag);
+    },
+    // 推奨の詳細コールバック。指定時はonHashtagTapを呼ばない
+    onHashtagTapDetails: (details) {
+      navigateToPath(details.path); // /tags/<encoded> または /user-tags/<encoded>
     },
     // 検索タップ時
     onSearchTap: (query) {
       performSearch(query);
     },
+    // 任意: ローカライズされた検索ボタンラベルを上書き
+    searchButtonLabel: '検索する',
+    // コードブロックのコピー完了時（既定のSnackBarを置き換える）
+    onCodeCopied: (code) {
+      showCopyConfirmation(code);
+    },
+    // 任意: ローカライズされたコードコピー文言を上書き
+    // （codeCopyTooltip はコピーボタンのアクセシビリティラベル）
+    codeCopyTooltip: 'ソースをコピー',
+    codeCopiedMessage: 'ソースをコピーしました',
   ),
 )
 ```
+
+`onCodeCopied` にはクリップボードへの書き込み完了後にコード全文が渡され、
+既定の通知を置き換えます。省略時は `ScaffoldMessenger` の祖先がある場合だけ
+SnackBarを表示し、ない場合は通知せずにコピーを完了します。
+`codeCopiedMessage` はこの既定のSnackBarでのみ使用します。文言を上書きしない場合、
+`codeCopyTooltip` / `codeCopiedMessage` は日本語ロケールで「コピー」/
+「コードをコピーしました」、その他・ロケール未設定時は `Copy` /
+`Copied to clipboard` になります。コピーボタンはMaterialウィジェットを使わずに
+構成しているため `CupertinoApp` / `WidgetsApp` 配下でも動作します。
+ツールチップは表示せず、`codeCopyTooltip` はコピーボタンの
+アクセシビリティ（Semantics）ラベルとして機能します。
+
+コードブロックは `baseTextStyle.fontSize`（ベーススタイル未設定時は周囲の
+`DefaultTextStyle`）を継承し、Consolas / Monaco / Andale Mono / Ubuntu Mono /
+monospace のフォールバック列を使用して、そのサイズと同じ1emのpaddingを適用します。
+テーマのdividerによる1px枠線と8px角丸を使用します。言語なしのブロックは選択中の
+MFM schemeの `bg` / `fg` を使用し、ハイライト済みブロックはハイライトテーマrootの
+背景を維持します。テーマrootに背景がない場合だけschemeの `bg` にフォールバックします。
+サイズ未指定時はシンタックスハイライターの既定値を使用します。
+
+リモート投稿内のホスト省略メンションを解決するには、投稿者とローカル
+インスタンスのホストを指定します。`onMentionTap`には解決後の完全なacctが
+渡されます。どちらのホストも解決できない場合は、元のacctがそのまま渡されます。
+
+```dart
+MfmText(
+  text: '@alice',
+  config: MfmRenderConfig(
+    author: const MfmAuthorContext(
+      host: 'remote.example',
+      isCat: true, // MfmNyaizeMode.respectAuthorで使用
+    ),
+    localHost: 'local.example',
+    onMentionTap: navigateToUser,
+  ),
+)
+```
+
+### リモート投稿のカスタム絵文字
+
+リモート投稿ごとに、投稿者ホストと絵文字URLマップを渡します。ローカルサーバー用の共有設定を
+もとに、投稿単位でコピーしてください。
+
+```dart
+MfmText(
+  text: note.text,
+  config: config.copyWith(
+    author: const MfmAuthorContext(host: 'remote.example'),
+    emojiUrls: note.emojis,
+  ),
+)
+```
+
+ローカル投稿では、カスタム絵文字は設定済みのローカルresolverで解決します。リモート投稿では、
+まず`emojiUrls`のshortcode完全一致キーを使い、空でないURLがあれば直接使用します。
+`emojiUrls`が存在していて該当shortcodeのキーがない場合は、フォールバックせず`:name:`を
+リテラル表示します。`emojiUrls`自体がない場合（または一致したURLが空の場合）は、
+`MfmEmojiConfig`がローカルMisskeyサーバーの`/emoji/name@host.webp`エンドポイントへ
+フォールバックします。`MfmEmojiConfig.createDefault`はclientからこのサーバーURLを取得します。
+`MfmEmojiConfig.fromResolver`では、リモートエンドポイントのフォールバックを有効にするため
+`serverBaseUrl`を指定してください。指定しない場合、直接URLのないリモート絵文字は
+リテラル表示となり、ローカルresolverでは解決しません。
+
+`emojiUrls`は不変として扱ってください。`MfmRenderConfig`へ渡した後でMapを変更しても、
+Inherited設定のリスナーには通知されません。投稿データが変わった場合は、新しいMapに置き換えてください。
 
 ### 高度なカスタム絵文字の設定
 
@@ -227,7 +392,7 @@ import対象パッケージを直接依存に置きたい場合は追加して�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.1
+  misskey_mfm_renderer: ^0.6.0-beta.2
   misskey_client: ^1.0.0-beta.5
   misskey_emoji: ^2.0.0-beta.1
   path_provider: ^2.1.5
@@ -277,11 +442,13 @@ MfmText(
   text: ':custom_emoji: こんにちは！',
   config: MfmRenderConfig(
     // nameはコロン無しで渡される
-    emojiBuilder: (name) => MfmCustomEmoji(
+    emojiBuilder: (name, context) => MfmCustomEmoji(
       name: name,
       resolver: resolver,
       cacheScope: resolver,
-      size: 24.0, // 表示上の高さ
+      size: context.fontSize * 2, // 表示上の高さ（2em）
+      // vertical-align: middle相当（size / 2 - context.fontSize * 0.25）
+      baselineOffset: context.fontSize * 0.75,
       maxWidth: 70.0, // 任意
       refreshListenable: emojiRefreshNotifier,
     ),
@@ -311,6 +478,66 @@ MfmCustomEmoji(
       const Icon(Icons.hourglass_empty, size: 16),
 )
 ```
+
+### 絵文字ビルダーの描画文脈とUnicode画像
+
+`emojiBuilder` / `unicodeEmojiBuilder` はともに引数が2つになりました。
+`(name) => ...` を `(name, context) => ...`（固定Widgetなら `(name, _) => ...`）
+へ移行してください。公開された不変の `MfmEmojiContext` は次の情報を持ちます。
+
+- `fontSize`: サイズ関数・`tada`（150%）・`<small>`（80%）を反映した
+  現在の実効フォントサイズ（論理px）。
+- `scale`: x2/x3/x4/scale関数の累積倍率。`tada` と `<small>` では変わりません。
+  `MfmText.rootScale` が初期値になります。
+  advanced MFMが有効で基準14pxなら、x2は `(28, 2)`、x4は `(84, 4)`、
+  `scale.x=3,y=3` は `(14, 3)`、`tada` は `(21, 1)` です。
+  非等倍の `scale` は非負の値では本家と同じく `max(x, y)` を掛けるため、
+  `scale.x=3,y=1` も `(14, 3)` になります。`enableAdvancedMfm: false` では、
+  x2/x3/x4は `(14, 2)` / `(14, 3)` / `(14, 4)`、`scale.x=3,y=3` は
+  `(14, 1)` になります。
+- `normal`: `MfmText(plain: true)` のカスタム絵文字だけでtrueになります。
+  ビルダーは本家の1.25em `.normal` 表示を選ぶために使えます。
+- `useOriginalSize`: 本家と同じ `scale >= 2.5` による原寸画像利用のヒント。
+  `misskey_emoji` 2.0.0-beta.1 は `EmojiImage.url` を1つだけ公開し、原寸／縮小版を
+  区別しません。自動切替には依存パッケージ側の対応が必要なため、現時点では
+  `MfmCustomEmoji.useOriginalSize` は追加していません。両URLを取得できる
+  独自ビルダーでこのヒントを利用できます。advanced MFM無効時もx系の倍率は
+  伝播するため、`$[x4 :emoji:]` はフォントを拡大しなくても
+  `useOriginalSize: true` になり得ます。
+
+両ビルダーの結果は `WidgetSpan` のalphabeticベースラインに揃えます。
+任意のWidgetの画像高さ・下降量はレンダラーから判断できないため、ベースラインは
+ビルダー側で指定してください。`MfmCustomEmoji.baselineOffset` は描画時の移動だけでなく、
+ボックス下端より上にベースラインを設定し、行レイアウトにも下降量を反映します。
+
+本家のカスタム絵文字は `vertical-align: middle`、つまりボックスの上下中心を
+`baseline + x-height / 2` に合わせます。x-heightを0.5emと近似すると下降量は
+`size / 2 - context.fontSize * 0.25` になり、`MfmEmojiConfig` は固定 `emojiSize`
+指定時も含めてこの値を設定します。Flutterの `PlaceholderAlignment.middle` は
+テキストのascent/descentの中点を基準にするためCSSの `middle` とは別物で、
+レンダラーはbaseline揃えを維持し位置決めをビルダーに委ねています。
+Unicode絵文字の画像は異なり、本家は高さ1.25emで `vertical-align: -0.25em`
+なので、下降量は `context.fontSize * 0.25` です。
+
+`unicodeEmojiBuilder` 未指定時はUnicode絵文字をネイティブの文字として描画します。
+Twemoji等の画像を使う場合は `unicodeEmojiBuilder` を実装してください。
+例えばUnicode文字列から画像URLを持つ `EmojiImage` を返す
+`unicodeImageResolver` をアプリ側で用意すれば、次のように画像Widgetを再利用できます。
+
+```dart
+MfmRenderConfig(
+  unicodeEmojiBuilder: (emoji, context) => MfmCustomEmoji(
+    name: emoji,
+    resolver: unicodeImageResolver, // アプリ側で用意したEmojiResolver
+    size: context.fontSize * 1.25,
+    baselineOffset: context.fontSize * 0.25,
+  ),
+)
+```
+
+本家のUnicode絵文字画像と同じ、高さ1.25em・`vertical-align: -0.25em` 相当に
+なります。Twemojiアセットや
+Unicode文字列から画像へのリゾルバーはパッケージに同梱していません。
 
 ### カスタムフォントの設定
 
@@ -353,39 +580,141 @@ MfmText(
 )
 ```
 
-### 色のカスタマイズ
+### MFM配色のカスタマイズ
 
-インラインコードや数式の背景色をカスタマイズできます：
+`MfmColorScheme` では、URL・リンク、メンション、ハッシュタグ、引用、検索の
+枠線、border fnの既定色、unixtimeの枠線、インラインコード背景に使う
+Misskeyテーマ色を設定できます。通常の本文色は引き続き `baseTextStyle` または
+`DefaultTextStyle` に従います。
+
+組み込みpresetにはMisskeyのMi Light / Mi Darkテーマから解決した次の色を
+設定しています。
+
+| role | Mi Light | Mi Dark |
+|------|----------|---------|
+| `accent` | `#86B300` | `#86B300` |
+| `link` | `#44A4C1` | `#86B300` |
+| `hashtag` | `#FF9156` | `#4CB8D4` |
+| `mention` | `#86B300` | `#DA6D35` |
+| `mentionMe` | `#00B346` | `#D44C4C` |
+| `fg` | `#676767` | `#C7D1D8` |
+| `bg` | `#F9F9F9` | `#232323` |
+| `divider` | `#E8E8E8` | `rgba(255, 255, 255, 0.14)` |
+| `panel` | `#FFFFFF` | `#2D2D2D` |
+
+`MfmRenderConfig` に一方または両方の配色を指定できます。省略したmodeでは
+組み込みpresetを使います。
 
 ```dart
 MfmText(
-  text: 'インライン`コード`と数式 $x^2$',
-  config: MfmRenderConfig(
-    // ライトモード用の背景色（デフォルト: #F5F5F5）
-    inlineCodeBgColorLight: const Color(0xFFF0F0F0),
-    // ダークモード用の背景色（デフォルト: #121212）
-    inlineCodeBgColorDark: const Color(0xFF1A1A1A),
+  text: '@user #flutter https://example.com と `code`',
+  config: const MfmRenderConfig(
+    lightColorScheme: MfmColorScheme.light(
+      link: Color(0xFF0066CC),
+      bg: Color(0xFFF0F0F0),
+    ),
+    darkColorScheme: MfmColorScheme.dark(
+      link: Color(0xFF80CBC4),
+      bg: Color(0xFF1A1A1A),
+    ),
   ),
 )
 ```
 
-デフォルトの色はMisskey本家の実装に準拠しています：
-- ライトモード: `Color(0xFFF5F5F5)` - 非常に薄いグレー
-- ダークモード: `Color(0xFF121212)` - 非常に暗いグレー
+各fieldは参照を解決済みの独立した色です。例えば `accent` だけを変更しても
+`mention`、`link` などは自動では変わりません。通常のメンションは現在
+`mention` を使います。`mentionMe` は配色として公開していますが、閲覧者情報を
+レンダラーへ渡すAPIがないため、現時点では自分宛て判定に利用しません。
+
+modeは次の優先順位で解決します。
+
+1. `MfmRenderConfig.brightness`
+2. 最寄りのMaterial `Theme`
+3. 最寄りのCupertino theme
+4. `MediaQuery` のplatform brightness
+5. `Brightness.light`
+
+周囲のthemeはmode選択にだけ使い、色そのものは自動変換しません。アプリの
+Material配色へ合わせる場合は、対応関係を明示して構築してください。
+
+```dart
+MfmColorScheme mfmColorsFrom(ColorScheme material) => MfmColorScheme(
+  accent: material.primary,
+  link: material.primary,
+  hashtag: material.tertiary,
+  mention: material.secondary,
+  mentionMe: material.error,
+  fg: material.onSurface,
+  bg: material.surface,
+  divider: material.outlineVariant,
+  panel: material.surfaceContainer,
+);
+
+final config = MfmRenderConfig(
+  lightColorScheme: mfmColorsFrom(lightTheme.colorScheme),
+  darkColorScheme: mfmColorsFrom(darkTheme.colorScheme),
+);
+```
+
+従来の `inlineCodeBgColorLight` / `inlineCodeBgColorDark` は削除しました。
+対応するpresetの `bg` 上書きへ移行してください。
+
+```dart
+const MfmRenderConfig(
+  lightColorScheme: MfmColorScheme.light(bg: Color(0xFFF0F0F0)),
+  darkColorScheme: MfmColorScheme.dark(bg: Color(0xFF1A1A1A)),
+)
+```
+
+数式は引き続き装飾を付けず、`bg` を使用しません。
 
 ### 高度なMFMの制御
 
-`position` などの高度なfn関数はセキュリティ上の理由から制御できます。  
+`enableAdvancedMfm` はx2/x3/x4の視覚的拡大、`scale`、`position`、
+および全9種類のMFMアニメーション関数を制御します。アニメーションは両フラグが
+trueのときだけ有効です。読み取り専用の `config.useAnimation` ゲッターは
+`enableAdvancedMfm && enableAnimation` を返します。既定値は両方trueです。
 
 ```dart
 MfmText(
-  text: r'$[position.x=10 移動]',
+  text: r'$[x4 拡大] $[scale.x=3 変形] $[position.x=10 移動] $[spin 静止]',
   config: MfmRenderConfig(
-    // positionなどの高度な機能を無効化
+    // サイズ・scale・positionの効果とMFMアニメーションを抑止
     enableAdvancedMfm: false,
+    enableAnimation: true, // advanced MFMの設定が優先される
   ),
 )
 ```
+
+advanced MFM無効時、x2/x3/x4はフォントサイズを維持します（絵文字の描画文脈への
+公称倍率伝播は継続）。`scale` は変形も倍率伝播も行わず、`position` は
+`$[position 子要素]` としてリテラル表示されます。`flip`、`rotate`、その他の
+スタイル関数は引き続き利用できます。
+
+どちらかのフラグがfalseの場合、`spin`、`jump`、`bounce`、`shake`、`twitch`、
+`jelly` はアニメーション用ラッパーなしで子要素を表示します。`tada` は150%の
+フォントサイズを維持し、`rainbow` は静的グラデーション、`sparkle` はラッパーなしの
+子要素になります。サイズ・scale・positionの効果を維持してMFMアニメーションだけを
+止める場合は、`enableAnimation: false` のみを指定してください。
+これらのフラグはMFMアニメーション関数を制御し、アニメーション絵文字画像の再生は
+制御しません。OSの「視差効果を減らす」設定には自動連動しません。
+
+### rainbow のアニメーションと元の色
+
+`rainbow` は本家Misskeyと同じく `hue-rotate` → `contrast(150%)` →
+`saturate(150%)` を適用し、グラデーションを横に流すのではなく、**元の文字色を
+起点に色相を回転**させます。**灰色や黒の本文では色相変化は見えません**。
+暗い灰色は少し濃くなるだけで、黒は黒のままです。色付きの `fg`、リンク、
+カラー絵文字では虹色への変化が見えます。
+
+```dart
+MfmText(text: r'$[rainbow $[fg.color=ff0000 カラフル]]')
+```
+
+既定周期は1秒で、等速・無限に繰り返します。`speed` で周期を変更でき、
+正の `delay` の待機中は元の子要素にフィルタを掛けません。
+`config.useAnimation` がfalseの場合は、従来どおり虹色グラデーションの
+静的フォールバック（7色・7ストップ）を表示します。
 
 ### unixtime のローカライズ
 
@@ -411,18 +740,53 @@ void main() {
 | プロパティ | 型 | デフォルト | 説明 |
 |-----------|------|---------|------|
 | `baseTextStyle` | `TextStyle?` | null | ベースのテキストスタイル |
-| `enableAdvancedMfm` | `bool` | true | position等の高度な機能を有効化 |
-| `enableAnimation` | `bool` | true | アニメーションを有効化（今後実装） |
-| `enableNyaize` | `bool` | false | nyaize（猫語）変換をテキストノードに対して有効化 |
-| `emojiBuilder` | `Widget Function(String)?` | null | カスタム絵文字ビルダー |
-| `unicodeEmojiBuilder` | `Widget Function(String)?` | null | Unicode絵文字ビルダー |
+| `lightColorScheme` | `MfmColorScheme?` | Mi Light preset | ライトモード用のMFM配色 |
+| `darkColorScheme` | `MfmColorScheme?` | Mi Dark preset | ダークモード用のMFM配色 |
+| `brightness` | `Brightness?` | 周囲のtheme/platform | 使用するMFM配色modeを明示指定 |
+| `enableAdvancedMfm` | `bool` | true | x2/x3/x4の視覚的拡大、scale/positionの効果、MFMアニメーションを有効化 |
+| `enableAnimation` | `bool` | true | advanced MFM有効時のMFMアニメーションを有効化 |
+| `useAnimation` | `bool`（getter） | true（導出値） | 読み取り専用の実効判定: `enableAdvancedMfm && enableAnimation` |
+| `enableNyaize` | `bool` | false | `nyaizeMode` がnullの場合に使う、互換用の強制nyaize設定 |
+| `nyaizeMode` | `MfmNyaizeMode?` | null | `disabled` / `enabled` / `respectAuthor`。明示値は`enableNyaize`より優先 |
+| `onHashtagTapDetails` | `void Function(MfmHashtagTapDetails)?` | null | `tag`、`isNote`、エンコード済み遷移先`path`を受け取る推奨コールバック |
+| `emojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | カスタム絵文字ビルダー |
+| `unicodeEmojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Unicode絵文字ビルダー |
+| `emojiUrls` | `Map<String, String>?` | null | カスタム絵文字名から直接画像URLへの辞書。リモート投稿でのみ使用し、Mapは不変として扱い更新時は新しいMapを渡す |
 | `onLinkTap` | `void Function(String)?` | null | リンクタップコールバック |
 | `onMentionTap` | `void Function(String)?` | null | メンションタップコールバック |
 | `onHashtagTap` | `void Function(String)?` | null | ハッシュタグタップコールバック |
 | `onSearchTap` | `void Function(String)?` | null | 検索タップコールバック |
+| `onClickableEvent` | `void Function(String)?` | null | `clickable` fn関数のイベントコールバック。`clickable.ev`引数の値を受け取る |
+| `showCodeBlockCopyButton` | `bool?` | true | コードブロックのコピーボタンを表示するか |
+| `onCodeCopied` | `void Function(String)?` | null | コードコピー完了コールバック。指定時は既定のSnackBarを置換し、未指定時はScaffoldMessengerの祖先がある場合のみ通知 |
+| `codeCopyTooltip` | `String?` | 現在のロケール | コードコピーボタンのアクセシビリティラベルの上書き（日本語は`コピー`、その他は`Copy`） |
+| `codeCopiedMessage` | `String?` | 現在のロケール | コピー完了時の既定のSnackBar文言上書き（日本語は`コードをコピーしました`、その他は`Copied to clipboard`） |
+| `codeTheme` | `Map<String, TextStyle>?` | githubテーマ | コードブロックのシンタックスハイライトテーマ（ライトモード） |
+| `codeDarkTheme` | `Map<String, TextStyle>?` | `codeTheme`、なければgithub-dark | コードブロックのシンタックスハイライトテーマ（ダークモード） |
+| `author` | `MfmAuthorContext?` | null | `host` / `isCat`を持ち、ホスト依存描画と`respectAuthor` nyaizeに使う投稿者情報 |
+| `localHost` | `String?` | null | ホスト解決のフォールバックとself URL短縮に使用するローカルMisskeyホスト |
+| `searchButtonLabel` | `String?` | 現在のロケール | 検索ボタンのラベル上書き（日本語は`検索`、その他は`Search`） |
+| `useLocaleSearchButtonLabel` | `bool` | false | 設定済みまたは継承した検索ラベルを解除し、現在のロケールから解決 |
 | `fontFamilyResolver` | `String? Function(String)?` | null | フォントファミリー解決関数 |
 
+`copyWith`では、`author`と`localHost`の引数を省略または`null`にすると
+現在値を維持します。値を削除するには`clearAuthor: true`または
+`clearLocalHost: true`を指定します。置換値と対応するclearフラグを同時に
+指定した場合は`ArgumentError`を投げます。
+
 ## 技術的な注意事項
+
+### プラットフォームに関する注記
+
+パッケージ本体はAndroid、iOS、macOS、Linux、Windowsで動作します。現行バージョンは
+Webビルドに対応していません。パッケージが `misskey_emoji` を再exportしており、その
+Isar生成コードがdart2js / dart2wasmでコンパイルできないため、`MfmText` だけを使う
+アプリでもWeb向けのビルドに失敗します。
+
+macOSのApp Sandboxを使うアプリでは、`MfmEmojiConfig` と画像取得のために
+`com.apple.security.network.client` entitlementが必要です。Linuxはx86-64かつ
+glibc 2.38以上でのみ対応します。Windowsはx64のみ対応し、Microsoft Visual C++
+Runtime（`VCRUNTIME140.dll`）が必要です。
 
 ### テキスト選択について
 
@@ -432,6 +796,26 @@ void main() {
 ### スケールの制限
 
 `scale` fn関数は最大5倍に制限されています。これはMisskey本家と同様の制限です。
+`enableAdvancedMfm: false` の場合、描画時の変形も `MfmEmojiContext.scale` への
+倍率伝播も行いません。外側のx系関数から継承した倍率はそのまま維持します。
+静的な子要素には `TextSpan` を使い、本家の空の `inline-block` spanによる
+行レイアウトの境界までは再現しません。
+
+### サイズ関数の入れ子
+
+`x2`、`x3`、`x4`は、異なる種類の組み合わせも含めて共通のネスト深さを使い、Misskey本家と同じ動作をします。advanced MFM有効時、以下の割合はいずれも親の実効フォントサイズに対する相対値です。
+
+- 1階層目: `x2`は200%、`x3`は400%、`x4`は600%。
+- 2階層目: 内側の関数自身のzoom値を使い、`zoom / 2 + 50%`（`x2`: 150%、`x3`: 250%、`x4`: 350%）。
+- 3階層目以降: 100%（追加の拡大を無効化し、親のフォントサイズを継承）。
+
+ベースフォントサイズが14pxの場合、`$[x2 $[x2 A]]`の外側は28px、内側は42pxになります。`$[x2 $[x3 A]]`の内側は70pxです。3階層目にサイズ関数を追加しても、それ以上は拡大しません。太字、アニメーション関数、`scale`など他のノードは、このネスト深さを増やさずに引き継ぎます。
+
+`enableAdvancedMfm: false` の場合、x2/x3/x4はどの階層でもフォントサイズを
+変更しません。ネスト深さと公称倍率（2/3/4）は、3階層目以降も伝播します。
+この倍率はCSSのフォントサイズ割合とは別系統です。例えば `$[x2 $[x3 A]]` は
+基準14pxのままですが、子要素へ渡すscaleは6です。`enableAnimation` だけを
+無効化しても、サイズ関数の動作は変わりません。
 
 ## 追加情報
 

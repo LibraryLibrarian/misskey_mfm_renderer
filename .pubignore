@@ -36,3 +36,10 @@ docs/
 # Tests and release tooling
 /test/
 /tool/
+/example/android/
+/example/ios/
+/example/linux/
+/example/macos/
+/example/test/
+/example/web/
+/example/windows/

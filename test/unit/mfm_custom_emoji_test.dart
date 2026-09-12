@@ -87,6 +87,161 @@ void main() {
       expect(image.imageBuilder, isNull);
     });
 
+    for (final fontSize in [14.0, 28.0, 84.0]) {
+      for (final fixedSize in [null, 24.0]) {
+        testWidgets(
+          'fontSize=$fontSize fixedSize=$fixedSizeで中心をbaseline+0.25emに揃える',
+          (tester) async {
+            final pending = Completer<EmojiImage?>();
+            final config = MfmEmojiConfig.fromResolver(
+              resolver: (_) => pending.future,
+              emojiSize: fixedSize,
+            ).copyWith(baseTextStyle: TextStyle(fontSize: fontSize));
+            await tester.pumpWidget(
+              MaterialApp(
+                home: Scaffold(
+                  body: MfmText(text: ':emoji:', config: config),
+                ),
+              ),
+            );
+
+            final size = fixedSize ?? fontSize * 2;
+            final descent = size / 2 - fontSize * 0.25;
+            final placeholder = find.byWidgetPredicate(
+              (widget) =>
+                  widget is SizedBox &&
+                  widget.width == 0 &&
+                  widget.height == size,
+            );
+            final paragraph = tester.renderObject<RenderBox>(
+              find.byType(RichText),
+            );
+            final baseline =
+                tester.getTopLeft(find.byType(RichText)).dy +
+                paragraph.getDryBaseline(
+                  paragraph.constraints,
+                  TextBaseline.alphabetic,
+                )!;
+            expect(
+              tester.getBottomLeft(placeholder).dy - baseline,
+              closeTo(descent, 1e-6),
+            );
+            final emojiBox = tester.renderObject<RenderBox>(
+              find.byType(MfmCustomEmoji),
+            );
+            expect(emojiBox.size.height, size);
+            expect(
+              emojiBox.getDryBaseline(
+                emojiBox.constraints,
+                TextBaseline.alphabetic,
+              ),
+              closeTo(size - descent, 1e-6),
+            );
+            for (final type in [Transform, LayoutBuilder]) {
+              expect(
+                find.descendant(
+                  of: find.byType(MfmCustomEmoji),
+                  matching: find.byType(type),
+                ),
+                findsNothing,
+              );
+            }
+          },
+        );
+      }
+    }
+
+    testWidgets('Unicode画像の下降量を更新しても高さと幅を変えない', (tester) async {
+      final pending = Completer<EmojiImage?>();
+      Future<EmojiImage?> resolver(String _) => pending.future;
+      const boxKey = Key('unicode-image-box');
+      for (final offset in [null, 3.5, 7.0, 0.0, null]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Baseline(
+                baseline: 100,
+                baselineType: TextBaseline.alphabetic,
+                child: MfmText(
+                  text: '😀',
+                  config: MfmRenderConfig(
+                    baseTextStyle: const TextStyle(fontSize: 14),
+                    unicodeEmojiBuilder: (emoji, context) => MfmCustomEmoji(
+                      name: emoji,
+                      resolver: resolver,
+                      size: context.fontSize * 1.25,
+                      baselineOffset: offset,
+                      loadingBuilder: (_) => const SizedBox(
+                        key: boxKey,
+                        width: 35,
+                        height: 17.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        final baseline = tester.getTopLeft(find.byType(Baseline)).dy + 100;
+        expect(tester.getSize(find.byKey(boxKey)), const Size(35, 17.5));
+        if (offset != null) {
+          final box = tester.renderObject<RenderBox>(
+            find.byType(MfmCustomEmoji),
+          );
+          expect(
+            box.getDryBaseline(box.constraints, TextBaseline.alphabetic),
+            17.5 - offset,
+          );
+        }
+        // Paragraph metrics round the 17.5px placeholder's line height.
+        // The reported baseline is exact; painting may differ by half a pixel.
+        expect(
+          tester.getBottomLeft(find.byKey(boxKey)).dy - baseline,
+          closeTo(offset ?? 0, 0.500001),
+        );
+      }
+    });
+
+    testWidgets('サイズ文脈の更新で画像とデコード高さが追随し再解決しない', (tester) async {
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var resolveCount = 0;
+      Future<EmojiImage?> resolver(String _) async {
+        resolveCount++;
+        return EmojiImage(
+          url: Uri.parse('https://example.com/context-sized.png'),
+          animated: false,
+          isSensitive: false,
+        );
+      }
+
+      final config = MfmEmojiConfig.fromResolver(resolver: resolver).copyWith(
+        baseTextStyle: const TextStyle(fontSize: 14),
+      );
+      for (final testCase in [
+        (text: ':emoji:', height: 28.0),
+        (text: r'$[x2 :emoji:]', height: 56.0),
+        (text: r'$[x4 :emoji:]', height: 168.0),
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(text: testCase.text, config: config),
+            ),
+          ),
+        );
+        await tester.pump();
+        final image = tester.widget<CachedNetworkImage>(
+          find.byType(CachedNetworkImage),
+        );
+        expect(image.height, testCase.height);
+        expect(image.memCacheHeight, (testCase.height * 2).ceil());
+        expect(image.memCacheWidth, isNull);
+        expect(resolveCount, 1);
+      }
+    });
+
     testWidgets('最大幅を指定した場合のみ画像の幅を制約する', (tester) async {
       final resolver = MockEmojiResolver({
         'wide': EmojiImage(
@@ -708,6 +863,155 @@ void main() {
 
       expect(find.byKey(const Key('custom-error')), findsOneWidget);
       expect(find.text('ERROR:error'), findsOneWidget);
+    });
+
+    testWidgets('URL直指定時はresolverを呼ばない', (tester) async {
+      var resolveCount = 0;
+      Future<EmojiImage?> resolver(String _) async {
+        resolveCount++;
+        return null;
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'direct',
+            url: Uri.parse('https://cdn.example/direct.webp'),
+            resolver: resolver,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(resolveCount, 0);
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://cdn.example/direct.webp',
+      );
+    });
+
+    testWidgets('URLとresolverの両指定時はURLを優先する', (tester) async {
+      var resolveCount = 0;
+      Future<EmojiImage?> resolver(String _) async {
+        resolveCount++;
+        return EmojiImage(
+          url: Uri.parse('https://resolver.example/emoji.webp'),
+          animated: false,
+          isSensitive: false,
+        );
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'preferred',
+            url: Uri.parse('https://cdn.example/preferred.webp'),
+            resolver: resolver,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(resolveCount, 0);
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://cdn.example/preferred.webp',
+      );
+    });
+
+    testWidgets('URLの更新時に再解決する', (tester) async {
+      Widget buildApp(Uri url) => MaterialApp(
+        home: MfmCustomEmoji(name: 'updated', url: url),
+      );
+
+      await tester.pumpWidget(
+        buildApp(Uri.parse('https://cdn.example/first.webp')),
+      );
+      await tester.pump();
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://cdn.example/first.webp',
+      );
+
+      await tester.pumpWidget(
+        buildApp(Uri.parse('https://cdn.example/second.webp')),
+      );
+      await tester.pump();
+      expect(
+        tester
+            .widget<CachedNetworkImage>(find.byType(CachedNetworkImage))
+            .imageUrl,
+        'https://cdn.example/second.webp',
+      );
+    });
+
+    testWidgets('直指定URLの画像エラーはshortcodeへフォールバックする', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'broken',
+            url: Uri.parse('https://cdn.example/broken.webp'),
+          ),
+        ),
+      );
+      await tester.pump();
+      final image = tester.widget<CachedNetworkImage>(
+        find.byType(CachedNetworkImage),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: image.errorWidget!(
+            tester.element(find.byType(CachedNetworkImage)),
+            image.imageUrl,
+            Exception('image failed'),
+          ),
+        ),
+      );
+
+      expect(find.text(':broken:'), findsOneWidget);
+    });
+
+    testWidgets('同名でもURLが異なればアスペクト比キャッシュを分離する', (
+      tester,
+    ) async {
+      final scope = Object();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'same-name',
+            url: Uri.parse('https://first.remote.example/emoji.webp'),
+            cacheScope: scope,
+            aspectRatio: 4,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmCustomEmoji(
+            name: 'same-name',
+            url: Uri.parse('https://second.remote.example/emoji.webp'),
+            cacheScope: scope,
+          ),
+        ),
+      );
+
+      final placeholder = find.byWidgetPredicate(
+        (widget) =>
+            widget is SizedBox && widget.width == 0 && widget.height == 24,
+      );
+      expect(placeholder, findsOneWidget);
     });
   });
 }

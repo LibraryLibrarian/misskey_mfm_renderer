@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
@@ -7,15 +9,232 @@ void main() {
       const config = MfmRenderConfig();
       expect(config.enableAdvancedMfm, true);
       expect(config.enableAnimation, true);
+      expect(config.useAnimation, true);
       expect(config.enableNyaize, false);
+      expect(config.nyaizeMode, isNull);
+      expect(config.onHashtagTapDetails, isNull);
       expect(config.baseTextStyle, null);
+      expect(config.author, null);
+      expect(config.emojiUrls, isNull);
+      expect(config.localHost, null);
+      expect(config.searchButtonLabel, null);
+      expect(config.useLocaleSearchButtonLabel, false);
+      expect(config.lightColorScheme, isNull);
+      expect(config.darkColorScheme, isNull);
+      expect(config.onCodeCopied, isNull);
+      expect(config.codeCopyTooltip, isNull);
+      expect(config.codeCopiedMessage, isNull);
+
+      const localized = MfmRenderConfig(
+        searchButtonLabel: 'Ignored',
+        useLocaleSearchButtonLabel: true,
+      );
+      expect(localized.searchButtonLabel, isNull);
+      expect(localized.useLocaleSearchButtonLabel, isTrue);
     });
+
+    for (final advanced in [false, true]) {
+      for (final animation in [false, true]) {
+        test('useAnimation is the AND of $advanced and $animation', () {
+          final config = MfmRenderConfig(
+            enableAdvancedMfm: advanced,
+            enableAnimation: animation,
+          );
+          expect(config.useAnimation, advanced && animation);
+          expect(config.copyWith().useAnimation, advanced && animation);
+          expect(
+            config.copyWith(enableAdvancedMfm: !advanced).useAnimation,
+            !advanced && animation,
+          );
+          expect(
+            config.copyWith(enableAnimation: !animation).useAnimation,
+            advanced && !animation,
+          );
+        });
+      }
+    }
 
     test('copyWith works correctly', () {
       const config = MfmRenderConfig();
-      final newConfig = config.copyWith(enableAdvancedMfm: false);
+      final newConfig = config.copyWith(
+        enableAdvancedMfm: false,
+        searchButtonLabel: 'Find',
+      );
       expect(newConfig.enableAdvancedMfm, false);
       expect(newConfig.enableAnimation, true);
+      expect(newConfig.searchButtonLabel, 'Find');
+
+      final localizedConfig = newConfig.copyWith(
+        useLocaleSearchButtonLabel: true,
+      );
+      expect(localizedConfig.searchButtonLabel, isNull);
+      expect(localizedConfig.useLocaleSearchButtonLabel, isTrue);
+
+      final explicitLocaleWins = newConfig.copyWith(
+        searchButtonLabel: 'Ignored',
+        useLocaleSearchButtonLabel: true,
+      );
+      expect(explicitLocaleWins.searchButtonLabel, isNull);
+      expect(explicitLocaleWins.useLocaleSearchButtonLabel, isTrue);
+
+      final overriddenAgain = localizedConfig.copyWith(
+        searchButtonLabel: 'Search again',
+      );
+      expect(overriddenAgain.searchButtonLabel, 'Search again');
+      expect(overriddenAgain.useLocaleSearchButtonLabel, isFalse);
+    });
+
+    test('copyWithが配色を保持し上書きできる', () {
+      const light = MfmColorScheme.light(link: Color(0xFF111111));
+      const dark = MfmColorScheme.dark(link: Color(0xFF222222));
+      const replacement = MfmColorScheme.light(link: Color(0xFF333333));
+      const config = MfmRenderConfig(
+        lightColorScheme: light,
+        darkColorScheme: dark,
+      );
+
+      final preserved = config.copyWith(enableAnimation: false);
+      expect(preserved.lightColorScheme, light);
+      expect(preserved.darkColorScheme, dark);
+
+      final overridden = config.copyWith(lightColorScheme: replacement);
+      expect(overridden.lightColorScheme, replacement);
+      expect(overridden.darkColorScheme, dark);
+    });
+
+    test('copyWithがコードコピー設定を保持し上書きできる', () {
+      void onCopied(String _) {}
+      void onCopiedOverride(String _) {}
+      final config = MfmRenderConfig(
+        onCodeCopied: onCopied,
+        codeCopyTooltip: 'Copy source',
+        codeCopiedMessage: 'Source copied',
+      );
+
+      final preserved = config.copyWith(enableAnimation: false);
+      expect(preserved.onCodeCopied, same(onCopied));
+      expect(preserved.codeCopyTooltip, 'Copy source');
+      expect(preserved.codeCopiedMessage, 'Source copied');
+
+      final overridden = config.copyWith(
+        onCodeCopied: onCopiedOverride,
+        codeCopyTooltip: '別のツールチップ',
+        codeCopiedMessage: '別のメッセージ',
+      );
+      expect(overridden.onCodeCopied, same(onCopiedOverride));
+      expect(overridden.codeCopyTooltip, '別のツールチップ');
+      expect(overridden.codeCopiedMessage, '別のメッセージ');
+      expect(config.onCodeCopied, same(onCopied));
+      expect(config.codeCopyTooltip, 'Copy source');
+      expect(config.codeCopiedMessage, 'Source copied');
+    });
+
+    test('copyWith preserves and overrides mention context', () {
+      const author = MfmAuthorContext(host: 'remote.example');
+      const config = MfmRenderConfig(
+        author: author,
+        localHost: 'local.example',
+      );
+
+      final preserved = config.copyWith(enableAdvancedMfm: false);
+      expect(identical(preserved.author, author), isTrue);
+      expect(preserved.localHost, 'local.example');
+
+      const replacement = MfmAuthorContext(host: 'other.example');
+      final overridden = config.copyWith(
+        author: replacement,
+        localHost: 'new-local.example',
+      );
+      expect(identical(overridden.author, replacement), isTrue);
+      expect(overridden.localHost, 'new-local.example');
+
+      final preservedWithNull = config.copyWith(
+        // ignore: avoid_redundant_argument_values
+        author: null,
+        // ignore: avoid_redundant_argument_values
+        localHost: null,
+      );
+      expect(identical(preservedWithNull.author, author), isTrue);
+      expect(preservedWithNull.localHost, 'local.example');
+
+      final cleared = config.copyWith(
+        clearAuthor: true,
+        clearLocalHost: true,
+      );
+      expect(cleared.author, isNull);
+      expect(cleared.localHost, isNull);
+    });
+
+    test('emojiUrls can be preserved, replaced, emptied and cleared', () {
+      const urls = {'Wave': 'https://remote.example/wave.png'};
+      const config = MfmRenderConfig(emojiUrls: urls);
+      expect(config.copyWith().emojiUrls, same(urls));
+      expect(config.copyWith(enableAnimation: false).emojiUrls, same(urls));
+      expect(
+        // ignore: avoid_redundant_argument_values
+        config.copyWith(emojiUrls: null).emojiUrls,
+        same(urls),
+      );
+      const replacement = {'Other': 'https://other.example/emoji.png'};
+      expect(
+        config.copyWith(emojiUrls: replacement).emojiUrls,
+        same(replacement),
+      );
+      expect(config.copyWith(emojiUrls: {}).emojiUrls, isEmpty);
+      expect(config.copyWith(clearEmojiUrls: true).emojiUrls, isNull);
+      expect(config.emojiUrls, same(urls));
+      expect(
+        const MfmRenderConfig().copyWith(clearEmojiUrls: true).emojiUrls,
+        isNull,
+      );
+    });
+
+    test('copyWith rejects conflicting emojiUrls operations', () {
+      expect(
+        () => const MfmRenderConfig().copyWith(
+          emojiUrls: {},
+          clearEmojiUrls: true,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('copyWith rejects conflicting mention context operations', () {
+      const config = MfmRenderConfig(
+        author: MfmAuthorContext(host: 'remote.example'),
+        localHost: 'local.example',
+      );
+
+      expect(
+        () => config.copyWith(
+          author: const MfmAuthorContext(host: 'other.example'),
+          clearAuthor: true,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => config.copyWith(
+          localHost: 'other.example',
+          clearLocalHost: true,
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('MfmAuthorContext', () {
+    test('value equality, hashCode and toString include host and isCat', () {
+      const cat = MfmAuthorContext(host: 'remote.example', isCat: true);
+      expect(cat, const MfmAuthorContext(host: 'remote.example', isCat: true));
+      expect(
+        cat.hashCode,
+        const MfmAuthorContext(host: 'remote.example', isCat: true).hashCode,
+      );
+      expect(cat, isNot(const MfmAuthorContext(host: 'remote.example')));
+      expect(
+        cat.toString(),
+        'MfmAuthorContext(host: remote.example, isCat: true)',
+      );
     });
   });
 }

@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart' show CupertinoTheme;
+import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/widgets.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 
 import 'builder/mfm_node_builder.dart';
+import 'config/mfm_color_scheme.dart';
 import 'config/mfm_inherited_config.dart';
 import 'config/mfm_render_config.dart';
 
@@ -13,7 +16,12 @@ class MfmText extends StatelessWidget {
     this.parsedNodes,
     this.config = const MfmRenderConfig(),
     this.simple = false,
-  }) : assert(
+    this.plain = false,
+    this.nowrap = false,
+    this.rootScale = 1.0,
+    this.isNote = true,
+  }) : assert(rootScale > 0 && rootScale < double.infinity),
+       assert(
          text != null || parsedNodes != null,
          'Either text or parsedNodes must be provided',
        );
@@ -33,6 +41,18 @@ class MfmText extends StatelessWidget {
   /// trueの場合、テキスト・Unicode絵文字・カスタム絵文字のみパース
   final bool simple;
 
+  /// 本家MkMfmのplain表示を使うか。
+  final bool plain;
+
+  /// 1行に収め、はみ出した内容を省略記号で表示するか。
+  final bool nowrap;
+
+  /// ルートでの累積スケール。
+  final double rootScale;
+
+  /// ハッシュタグをノート用の遷移先へ向けるか。
+  final bool isNote;
+
   @override
   Widget build(BuildContext context) {
     // ノードを取得（パース済みがあればそれを使用、なければパース）
@@ -42,30 +62,46 @@ class MfmText extends StatelessWidget {
     final inheritedConfig = MfmConfig.maybeOf(context);
     final mergedConfig = _mergeConfigs(inheritedConfig, config);
 
-    // brightnessを判定
-    final brightness = MediaQuery.platformBrightnessOf(context);
+    final brightness = _resolveBrightness(context, mergedConfig.brightness);
+    final colorScheme = brightness == Brightness.dark
+        ? mergedConfig.darkColorScheme ?? const MfmColorScheme.dark()
+        : mergedConfig.lightColorScheme ?? const MfmColorScheme.light();
 
-    // baseTextStyleとbrightnessを設定
-    final effectiveConfig =
-        mergedConfig.baseTextStyle == null || mergedConfig.brightness == null
-        ? mergedConfig.copyWith(
-            baseTextStyle:
-                mergedConfig.baseTextStyle ??
-                DefaultTextStyle.of(context).style,
-            brightness: mergedConfig.brightness ?? brightness,
-          )
-        : mergedConfig;
+    // 明示スタイルは環境とマージせず、未指定のフォントサイズのみ補完する
+    final rawStyle =
+        mergedConfig.baseTextStyle ?? DefaultTextStyle.of(context).style;
+    final rootStyle = rawStyle.copyWith(fontSize: rawStyle.fontSize ?? 14.0);
+
+    // baseTextStyleと解決済みbrightnessを設定
+    final effectiveConfig = mergedConfig.copyWith(
+      baseTextStyle: rootStyle,
+      brightness: brightness,
+      searchButtonLabel:
+          mergedConfig.searchButtonLabel ??
+          _resolveSearchButtonLabel(Localizations.maybeLocaleOf(context)),
+    );
 
     // ビルダーを作成
-    final builder = MfmNodeBuilder(config: effectiveConfig);
+    final builder = MfmNodeBuilder(
+      config: effectiveConfig,
+      colorScheme: colorScheme,
+      effectiveStyle: rootStyle,
+      scale: rootScale,
+      plain: plain,
+      nowrap: nowrap,
+      isNote: isNote,
+    );
 
     // ノードをスパンに変換
     final spans = builder.buildNodes(nodes);
 
     // RichTextでレンダリング
     return RichText(
+      maxLines: nowrap ? 1 : null,
+      softWrap: !nowrap,
+      overflow: nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
       text: TextSpan(
-        style: effectiveConfig.baseTextStyle,
+        style: rootStyle,
         children: spans,
       ),
     );
@@ -78,7 +114,9 @@ class MfmText extends StatelessWidget {
       return [];
     }
 
-    final parser = simple ? MfmParser().buildSimple() : MfmParser().build();
+    final parser = (simple || plain)
+        ? MfmParser().buildSimple()
+        : MfmParser().build();
     final result = parser.parse(source);
     try {
       return result.value;
@@ -112,25 +150,40 @@ MfmRenderConfig _mergeConfigs(
     enableNyaize: explicit.enableNyaize != defaults.enableNyaize
         ? explicit.enableNyaize
         : inherited.enableNyaize,
+    nyaizeMode: explicit.nyaizeMode ?? inherited.nyaizeMode,
     emojiBuilder: explicit.emojiBuilder ?? inherited.emojiBuilder,
     unicodeEmojiBuilder:
         explicit.unicodeEmojiBuilder ?? inherited.unicodeEmojiBuilder,
     onLinkTap: explicit.onLinkTap ?? inherited.onLinkTap,
     onMentionTap: explicit.onMentionTap ?? inherited.onMentionTap,
     onHashtagTap: explicit.onHashtagTap ?? inherited.onHashtagTap,
+    onHashtagTapDetails:
+        explicit.onHashtagTapDetails ?? inherited.onHashtagTapDetails,
     onSearchTap: explicit.onSearchTap ?? inherited.onSearchTap,
+    author: explicit.author ?? inherited.author,
+    emojiUrls: explicit.emojiUrls ?? inherited.emojiUrls,
+    localHost: explicit.localHost ?? inherited.localHost,
+    searchButtonLabel: explicit.useLocaleSearchButtonLabel
+        ? null
+        : explicit.searchButtonLabel ?? inherited.searchButtonLabel,
+    useLocaleSearchButtonLabel:
+        explicit.searchButtonLabel == null &&
+        (explicit.useLocaleSearchButtonLabel ||
+            inherited.useLocaleSearchButtonLabel),
     onClickableEvent: explicit.onClickableEvent ?? inherited.onClickableEvent,
     fontFamilyResolver:
         explicit.fontFamilyResolver ?? inherited.fontFamilyResolver,
     codeTheme: explicit.codeTheme ?? inherited.codeTheme,
     codeDarkTheme: explicit.codeDarkTheme ?? inherited.codeDarkTheme,
+    lightColorScheme: explicit.lightColorScheme ?? inherited.lightColorScheme,
+    darkColorScheme: explicit.darkColorScheme ?? inherited.darkColorScheme,
     brightness: explicit.brightness ?? inherited.brightness,
     showCodeBlockCopyButton:
         explicit.showCodeBlockCopyButton ?? inherited.showCodeBlockCopyButton,
-    inlineCodeBgColorLight:
-        explicit.inlineCodeBgColorLight ?? inherited.inlineCodeBgColorLight,
-    inlineCodeBgColorDark:
-        explicit.inlineCodeBgColorDark ?? inherited.inlineCodeBgColorDark,
+    onCodeCopied: explicit.onCodeCopied ?? inherited.onCodeCopied,
+    codeCopyTooltip: explicit.codeCopyTooltip ?? inherited.codeCopyTooltip,
+    codeCopiedMessage:
+        explicit.codeCopiedMessage ?? inherited.codeCopiedMessage,
   );
 }
 
@@ -140,18 +193,48 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.enableAdvancedMfm == defaults.enableAdvancedMfm &&
       config.enableAnimation == defaults.enableAnimation &&
       config.enableNyaize == defaults.enableNyaize &&
+      config.nyaizeMode == defaults.nyaizeMode &&
       config.emojiBuilder == defaults.emojiBuilder &&
       config.unicodeEmojiBuilder == defaults.unicodeEmojiBuilder &&
       config.onLinkTap == defaults.onLinkTap &&
       config.onMentionTap == defaults.onMentionTap &&
       config.onHashtagTap == defaults.onHashtagTap &&
+      config.onHashtagTapDetails == defaults.onHashtagTapDetails &&
       config.onSearchTap == defaults.onSearchTap &&
+      config.author == defaults.author &&
+      config.emojiUrls == defaults.emojiUrls &&
+      config.localHost == defaults.localHost &&
+      config.searchButtonLabel == defaults.searchButtonLabel &&
+      config.useLocaleSearchButtonLabel ==
+          defaults.useLocaleSearchButtonLabel &&
       config.onClickableEvent == defaults.onClickableEvent &&
       config.fontFamilyResolver == defaults.fontFamilyResolver &&
       config.codeTheme == defaults.codeTheme &&
       config.codeDarkTheme == defaults.codeDarkTheme &&
+      config.lightColorScheme == defaults.lightColorScheme &&
+      config.darkColorScheme == defaults.darkColorScheme &&
       config.brightness == defaults.brightness &&
       config.showCodeBlockCopyButton == defaults.showCodeBlockCopyButton &&
-      config.inlineCodeBgColorLight == defaults.inlineCodeBgColorLight &&
-      config.inlineCodeBgColorDark == defaults.inlineCodeBgColorDark;
+      config.onCodeCopied == defaults.onCodeCopied &&
+      config.codeCopyTooltip == defaults.codeCopyTooltip &&
+      config.codeCopiedMessage == defaults.codeCopiedMessage;
+}
+
+Brightness _resolveBrightness(
+  BuildContext context,
+  Brightness? explicitBrightness,
+) {
+  if (explicitBrightness != null) {
+    return explicitBrightness;
+  }
+  if (context.findAncestorWidgetOfExactType<Theme>() != null) {
+    return Theme.of(context).brightness;
+  }
+  return CupertinoTheme.maybeBrightnessOf(context) ??
+      MediaQuery.maybePlatformBrightnessOf(context) ??
+      Brightness.light;
+}
+
+String _resolveSearchButtonLabel(Locale? locale) {
+  return locale?.languageCode == 'ja' ? '検索' : 'Search';
 }

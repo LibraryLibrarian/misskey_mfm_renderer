@@ -1,9 +1,11 @@
+import 'package:flutter/cupertino.dart' show CupertinoApp, CupertinoThemeData;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_highlight/themes/dracula.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_spin_widget.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
 
 void main() {
@@ -11,14 +13,12 @@ void main() {
     testWidgets('プレーンテキストをレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: 'Hello, World!'),
-          ),
+          home: Scaffold(body: MfmText(text: 'Hello, World!')),
         ),
       );
 
       // MfmTextはRichTextを使用するため、TextSpanの内容を確認する
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
       final foundSpan = _findSpanWithText(textSpan, 'Hello, World!');
       expect(foundSpan, isNotNull);
@@ -27,9 +27,7 @@ void main() {
     testWidgets('空のテキストでもエラーなくレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: ''),
-          ),
+          home: Scaffold(body: MfmText(text: '')),
         ),
       );
 
@@ -42,14 +40,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: MfmText(parsedNodes: nodes),
-          ),
+          home: Scaffold(body: MfmText(parsedNodes: nodes)),
         ),
       );
 
       // MfmTextはRichTextを使用するため、TextSpanの内容を確認する
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
       final foundSpan = _findSpanWithText(textSpan, 'Direct nodes');
       expect(foundSpan, isNotNull);
@@ -69,24 +65,669 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
       expect(textSpan.style?.fontSize, 20);
       expect(textSpan.style?.color, Colors.red);
     });
   });
 
-  group('MfmText インライン要素', () {
-    testWidgets('太字テキストをレンダリングできる', (tester) async {
+  group('MfmText brightness解決', () {
+    testWidgets('platform lightよりMaterial darkを優先する', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '**bold**'),
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: const Scaffold(body: MfmText(text: '`code`')),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFF232323));
+    });
+
+    testWidgets('platform darkよりMaterial lightを優先する', (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.light(),
+          home: const Scaffold(body: MfmText(text: '`code`')),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFFF9F9F9));
+    });
+
+    testWidgets('明示brightnessをMaterial themeより優先する', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: const Scaffold(
+            body: MfmText(
+              text: '`code`',
+              config: MfmRenderConfig(brightness: Brightness.light),
+            ),
           ),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      expect(_inlineCodeBackground(tester), const Color(0xFFF9F9F9));
+    });
+
+    testWidgets('MaterialなしではCupertino themeをplatformより優先する', (
+      tester,
+    ) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+      await tester.pumpWidget(
+        const CupertinoApp(
+          theme: CupertinoThemeData(brightness: Brightness.dark),
+          home: MfmText(text: '`code`'),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFF232323));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('MaterialなしのWidgetsAppではplatform brightnessを使う', (
+      tester,
+    ) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: Colors.white,
+          builder: (context, _) => const MfmText(text: '`code`'),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFF232323));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('themeもMediaQueryもない場合はlightへfallbackする', (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: DefaultTextStyle(
+            style: TextStyle(fontSize: 14),
+            child: MfmText(text: '`code`'),
+          ),
+        ),
+      );
+
+      expect(_inlineCodeBackground(tester), const Color(0xFFF9F9F9));
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('MfmText smallの親相対サイズと減光', () {
+    const baseStyle = TextStyle(fontSize: 14, color: Colors.blue);
+    final textCases = [
+      (name: '単独', text: '<small>abc</small>', size: 11.2, alpha: 0.7),
+      (
+        name: 'サイズ関数の内側',
+        text: r'$[x2 <small>abc</small>]',
+        size: 22.4,
+        alpha: 0.7,
+      ),
+      (
+        name: '二重のsmall',
+        text: '<small><small>abc</small></small>',
+        size: 8.96,
+        alpha: 0.49,
+      ),
+      (
+        name: 'サイズ関数を挟む二重のsmall',
+        text: r'<small>$[x2 <small>abc</small>]</small>',
+        size: 17.92,
+        alpha: 0.49,
+      ),
+    ];
+    for (final testCase in textCases) {
+      testWidgets('${testCase.name}は継承サイズと色のalphaに倍率を掛ける', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: testCase.text,
+                config: const MfmRenderConfig(baseTextStyle: baseStyle),
+              ),
+            ),
+          ),
+        );
+
+        final richText = _rootRichText(tester);
+        final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
+        expect(style, isNotNull);
+        expect(style!.fontSize, closeTo(testCase.size, 0.000001));
+        expect(style.color!.a, closeTo(testCase.alpha, 0.000001));
+        expect(find.byType(Opacity), findsNothing);
+      });
+    }
+
+    testWidgets('半透明の継承色のalphaを置換せず乗算する', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '<small>abc</small>',
+              config: MfmRenderConfig(
+                baseTextStyle: baseStyle.copyWith(
+                  color: Colors.blue.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final richText = _rootRichText(tester);
+      final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
+      expect(style!.color!.a, closeTo(0.35, 0.000001));
+    });
+
+    for (final depth in [0, 1, 2]) {
+      testWidgets('前景色指定にもsmallを$depth回分だけ適用する', (tester) async {
+        final text =
+            '${'<small>' * depth}'
+            r'$[fg.color=f00 abc]'
+            '${'</small>' * depth}';
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: text,
+                config: const MfmRenderConfig(baseTextStyle: baseStyle),
+              ),
+            ),
+          ),
+        );
+
+        final richText = _rootRichText(tester);
+        final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
+        // 本家のopacityはスタッキングコンテキストを作るため、
+        // 子のfgでも減光を上書きできない。
+        expect(style!.color!.withValues(alpha: 1), const Color(0xFFFF0000));
+        expect(
+          style.color!.a,
+          closeTo(
+            depth == 0
+                ? 1.0
+                : depth == 1
+                ? 0.7
+                : 0.49,
+            0.000001,
+          ),
+        );
+      });
+    }
+
+    final linkCases = [
+      (
+        name: 'リンク',
+        text: '[link](https://example.com)',
+        label: 'link',
+        color: const Color(0xFF44A4C1),
+      ),
+      (
+        name: 'URL',
+        text: 'https://example.com',
+        label: 'example.com',
+        color: const Color(0xFF44A4C1),
+      ),
+      (
+        name: 'メンション',
+        text: '@user',
+        label: '@user',
+        color: const Color(0xFF86B300),
+      ),
+      (
+        name: 'ハッシュタグ',
+        text: '#tag',
+        label: '#tag',
+        color: const Color(0xFFFF9156),
+      ),
+    ];
+    for (final testCase in linkCases) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('${testCase.name}色にもsmallを$depth回分だけ適用する', (tester) async {
+          final text =
+              '${'<small>' * depth}${testCase.text}${'</small>' * depth}';
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: text,
+                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                ),
+              ),
+            ),
+          );
+
+          final richText = _rootRichText(tester);
+          final style = _effectiveStyleForText(
+            richText.text as TextSpan,
+            testCase.label,
+          );
+          expect(style, isNotNull);
+          expect(style!.color!.withValues(alpha: 1), testCase.color);
+          expect(
+            style.color!.a,
+            closeTo(
+              depth == 0
+                  ? 1.0
+                  : depth == 1
+                  ? 0.7
+                  : 0.49,
+              0.000001,
+            ),
+          );
+        });
+      }
+    }
+
+    testWidgets('継承色が未指定なら色patchを追加しない', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '<small>abc</small>',
+              config: MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 14)),
+            ),
+          ),
+        ),
+      );
+
+      final richText = _rootRichText(tester);
+      final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
+      expect(style!.fontSize, closeTo(11.2, 0.000001));
+      expect(style.color, isNull);
+    });
+
+    for (final emoji in [':emoji:', '😀']) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('$emojiのビルダー結果にsmallを$depth回分だけ適用する', (tester) async {
+          const emojiKey = Key('small-emoji');
+          final text = '${'<small>' * depth}$emoji${'</small>' * depth}';
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: text,
+                  config: MfmRenderConfig(
+                    baseTextStyle: baseStyle,
+                    emojiBuilder: (_, _) =>
+                        const SizedBox(key: emojiKey, width: 24, height: 24),
+                    unicodeEmojiBuilder: (_, _) =>
+                        const SizedBox(key: emojiKey, width: 24, height: 24),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          final emojiFinder = find.byKey(emojiKey);
+          expect(emojiFinder, findsOneWidget);
+          final opacityFinder = find.ancestor(
+            of: emojiFinder,
+            matching: find.byType(Opacity),
+          );
+          if (depth == 0) {
+            expect(opacityFinder, findsNothing);
+          } else {
+            expect(opacityFinder, findsOneWidget);
+            final opacity = tester.widget<Opacity>(opacityFinder);
+            expect(opacity.opacity, closeTo(depth == 1 ? 0.7 : 0.49, 0.000001));
+            expect(opacity.child, same(tester.widget(emojiFinder)));
+          }
+        });
+      }
+    }
+
+    for (final testCase in [
+      (name: 'インライン数式', source: r'\(x\)'),
+      (name: 'ブロック数式', source: r'\[x\]'),
+    ]) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('${testCase.name}はsmallを$depth回分だけ文字色のalphaで減光する', (
+          tester,
+        ) async {
+          // ブロック数式の構文制約と分離して、両ノードの継承を検証する。
+          var nodes = MfmParser().build().parse(testCase.source).value;
+          for (var i = 0; i < depth; i++) {
+            nodes = [SmallNode(nodes)];
+          }
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  parsedNodes: nodes,
+                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                ),
+              ),
+            ),
+          );
+
+          final root = _rootRichText(tester).text as TextSpan;
+          final formula = _findSpanWithStyle(
+            root,
+            (style) => style?.fontFamily == 'monospace',
+          );
+          expect(formula?.text, 'x');
+          final style = _effectiveStyleForText(root, 'x')!;
+          expect(style.fontSize, closeTo([14.0, 11.2, 8.96][depth], 0.000001));
+          expect(style.color!.a, closeTo([1.0, 0.7, 0.49][depth], 0.000001));
+          expect(_firstWidgetSpan(root), isNull);
+          expect(find.byType(Container), findsNothing);
+          expect(find.byType(Opacity), findsNothing);
+        });
+      }
+    }
+
+    testWidgets('small内のインライン数式構文は文字色のalphaが0.7になる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'<small>\(x\)</small>',
+              config: MfmRenderConfig(baseTextStyle: baseStyle),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      final style = _effectiveStyleForText(root, 'x')!;
+      expect(style.fontFamily, 'monospace');
+      expect(style.color!.a, closeTo(0.7, 0.000001));
+      expect(find.byType(Opacity), findsNothing);
+    });
+
+    final widgetCases = [
+      (name: 'コードブロック', source: '```\ncode\n```'),
+      (name: '検索', source: 'keyword Search'),
+      (name: '日時', source: r'$[unixtime 1700000000]'),
+      (name: 'ルビ', source: r'$[ruby 漢字 かんじ]'),
+    ];
+    for (final testCase in widgetCases) {
+      for (final depth in [0, 1, 2]) {
+        testWidgets('${testCase.name}の独自描画にsmallを$depth回分だけ適用する', (
+          tester,
+        ) async {
+          // ブロック要素も含め、small配下の描画をパーサーの構文制約と分離して検証。
+          var nodes = MfmParser().build().parse(testCase.source).value;
+          for (var i = 0; i < depth; i++) {
+            nodes = [SmallNode(nodes)];
+          }
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  parsedNodes: nodes,
+                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                ),
+              ),
+            ),
+          );
+
+          final root = tester.widget<RichText>(find.byType(RichText).first);
+          final widgetSpan = _firstWidgetSpan(root.text as TextSpan);
+          expect(widgetSpan, isNotNull);
+          final child = widgetSpan!.child;
+          final opacityFinder = find.ancestor(
+            of: find.byWidget(child is Opacity ? child.child! : child),
+            matching: find.byType(Opacity),
+          );
+          if (depth == 0) {
+            // コードブロックのコピーボタン内にあるOpacityは対象外。
+            expect(child, isNot(isA<Opacity>()));
+            expect(opacityFinder, findsNothing);
+          } else {
+            expect(child, isA<Opacity>());
+            expect(opacityFinder, findsOneWidget);
+            final opacity = child as Opacity;
+            expect(opacity.opacity, closeTo(depth == 1 ? 0.7 : 0.49, 0.000001));
+            if (testCase.name != 'コードブロック' && testCase.name != 'ルビ') {
+              expect(opacity.child, isA<Container>());
+            }
+          }
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
+
+    for (final backgroundCase in [
+      (name: '標準背景', light: null, dark: null),
+      (
+        name: '半透明のカスタム背景',
+        light: const Color(0x80667788),
+        dark: const Color(0x80443322),
+      ),
+    ]) {
+      for (final brightness in Brightness.values) {
+        for (final depth in [0, 1, 2]) {
+          testWidgets('インラインコードの${backgroundCase.name}は${brightness.name}でも'
+              'smallを$depth回分だけ文字と背景に個別適用する', (tester) async {
+            tester.platformDispatcher.platformBrightnessTestValue = brightness;
+            addTearDown(
+              tester.platformDispatcher.clearPlatformBrightnessTestValue,
+            );
+            await tester.pumpWidget(
+              MaterialApp(
+                theme: ThemeData(brightness: brightness),
+                home: Scaffold(
+                  body: MfmText(
+                    text: '${'<small>' * depth}`code`${'</small>' * depth}',
+                    config: MfmRenderConfig(
+                      baseTextStyle: baseStyle,
+                      lightColorScheme: backgroundCase.light == null
+                          ? null
+                          : MfmColorScheme.light(bg: backgroundCase.light!),
+                      darkColorScheme: backgroundCase.dark == null
+                          ? null
+                          : MfmColorScheme.dark(bg: backgroundCase.dark!),
+                    ),
+                  ),
+                ),
+              ),
+            );
+
+            final alpha = [1.0, 0.7, 0.49][depth];
+            final style = tester.widget<Text>(find.text('code')).style!;
+            expect(
+              style.fontSize,
+              closeTo([14.0, 11.2, 8.96][depth], 0.000001),
+            );
+            expect(style.color!.withValues(alpha: 1), const Color(0xFF2196F3));
+            expect(style.color!.a, closeTo(alpha, 0.000001));
+            final container = tester.widget<Container>(
+              find.ancestor(
+                of: find.text('code'),
+                matching: find.byType(Container),
+              ),
+            );
+            final background = (container.decoration! as BoxDecoration).color!;
+            final originalBackground = brightness == Brightness.dark
+                ? (backgroundCase.dark ?? const Color(0xFF232323))
+                : (backgroundCase.light ?? const Color(0xFFF9F9F9));
+            expect(
+              background.a,
+              closeTo(originalBackground.a * alpha, 0.000001),
+            );
+            expect(
+              background.withValues(alpha: 1),
+              originalBackground.withValues(alpha: 1),
+            );
+            expect(find.byType(Opacity), findsNothing);
+          });
+        }
+      }
+    }
+
+    for (final depth in [0, 1]) {
+      testWidgets('引用の罫線と文字を別々に減光し絵文字を二重に減光しない(small $depth回)', (
+        tester,
+      ) async {
+        const emojiKey = Key('quoted-emoji');
+        var nodes = MfmParser().build().parse('> abc :emoji:').value;
+        for (var i = 0; i < depth; i++) {
+          nodes = [SmallNode(nodes)];
+        }
+        // 引用は本家QUOTE_STYLEと同じく要素全体に0.7を掛けるため、
+        // smallの累積不透明度と乗算される。
+        final expected = depth == 0 ? 0.7 : 0.49;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                parsedNodes: nodes,
+                config: MfmRenderConfig(
+                  baseTextStyle: baseStyle,
+                  emojiBuilder: (_, _) =>
+                      const SizedBox(key: emojiKey, width: 24, height: 24),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final container = tester.widget<Container>(
+          find.descendant(
+            of: find.byType(MfmText),
+            matching: find.byType(Container),
+          ),
+        );
+        final border =
+            (container.decoration! as BoxDecoration).border! as Border;
+        expect(
+          border.left.color.withValues(alpha: 1),
+          const MfmColorScheme.light().fg,
+        );
+        expect(border.left.color.a, closeTo(expected, 0.000001));
+        final innerText = container.child! as RichText;
+        expect(
+          innerText.text.style!.fontSize,
+          closeTo(depth == 0 ? 14 : 11.2, 0.000001),
+        );
+        expect(innerText.text.style!.color!.a, closeTo(expected, 0.000001));
+        expect(
+          find.ancestor(
+            of: find.byWidget(container),
+            matching: find.byType(Opacity),
+          ),
+          findsNothing,
+        );
+        final opacityFinder = find.ancestor(
+          of: find.byKey(emojiKey),
+          matching: find.byType(Opacity),
+        );
+        expect(opacityFinder, findsOneWidget);
+        expect(
+          tester.widget<Opacity>(opacityFinder).opacity,
+          closeTo(expected, 0.000001),
+        );
+      });
+    }
+
+    testWidgets('変形とアニメーションを越えて減光を維持し兄弟へ漏らさない', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text:
+                  r'<small>**$[scale.x=2 $[x2 $[spin <small>abc :inner:</small>]]]**</small> :sibling:',
+              config: MfmRenderConfig(
+                baseTextStyle: baseStyle,
+                emojiBuilder: (name, _) =>
+                    SizedBox(key: Key(name), width: 24, height: 24),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final richTextFinder = find.descendant(
+        of: find.byType(MfmSpinWidget),
+        matching: find.byType(RichText),
+      );
+      expect(richTextFinder, findsOneWidget);
+      final richText = tester.widget<RichText>(richTextFinder);
+      final style = _effectiveStyleForText(richText.text as TextSpan, 'abc ');
+      expect(style!.fontSize, closeTo(17.92, 0.000001));
+      expect(style.color!.a, closeTo(0.49, 0.000001));
+      expect(
+        find.ancestor(of: richTextFinder, matching: find.byType(Opacity)),
+        findsNothing,
+      );
+      final innerOpacity = find.ancestor(
+        of: find.byKey(const Key('inner')),
+        matching: find.byType(Opacity),
+      );
+      expect(innerOpacity, findsOneWidget);
+      expect(
+        tester.widget<Opacity>(innerOpacity).opacity,
+        closeTo(0.49, 0.000001),
+      );
+      expect(
+        find.ancestor(
+          of: find.byKey(const Key('sibling')),
+          matching: find.byType(Opacity),
+        ),
+        findsNothing,
+      );
+    });
+
+    for (final function in ['bg.color=f00', 'border.color=f00']) {
+      testWidgets('$functionの装飾色だけを減光し文字を二重に減光しない', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '<small>\$[$function abc]</small>',
+                config: const MfmRenderConfig(baseTextStyle: baseStyle),
+              ),
+            ),
+          ),
+        );
+
+        final root = tester.widget<RichText>(find.byType(RichText).first);
+        final child = _firstWidgetSpan(root.text as TextSpan)!.child;
+        final Color decorationColor;
+        final RichText innerText;
+        if (child is ColoredBox) {
+          decorationColor = child.color;
+          innerText = child.child! as RichText;
+        } else {
+          final container = child as Container;
+          final border =
+              (container.decoration! as BoxDecoration).border! as Border;
+          decorationColor = border.top.color;
+          innerText = container.child! as RichText;
+        }
+        expect(decorationColor.a, closeTo(0.7, 0.000001));
+        expect(innerText.text.style!.color!.a, closeTo(0.7, 0.000001));
+        expect(find.byType(Opacity), findsNothing);
+      });
+    }
+  });
+
+  group('MfmText インライン要素', () {
+    testWidgets('太字テキストをレンダリングできる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: MfmText(text: '**bold**')),
+        ),
+      );
+
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       // 太字スタイルを持つ子Spanを検索
@@ -100,13 +741,11 @@ void main() {
     testWidgets('斜体テキストをレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '<i>italic</i>'),
-          ),
+          home: Scaffold(body: MfmText(text: '<i>italic</i>')),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final italicSpan = _findSpanWithStyle(
@@ -119,13 +758,11 @@ void main() {
     testWidgets('取り消し線テキストをレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '~~strike~~'),
-          ),
+          home: Scaffold(body: MfmText(text: '~~strike~~')),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final strikeSpan = _findSpanWithStyle(
@@ -141,15 +778,13 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: '<small>small</small>',
-              config: MfmRenderConfig(
-                baseTextStyle: TextStyle(fontSize: 14),
-              ),
+              config: MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 14)),
             ),
           ),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final smallSpan = _findSpanWithStyle(
@@ -159,68 +794,451 @@ void main() {
       expect(smallSpan, isNotNull);
     });
 
-    testWidgets('インラインコードを等幅フォントでレンダリングできる', (tester) async {
+    for (final testCase in [
+      (name: '単独', source: '`code`', size: 14.0, padding: 1.4, radius: 4.2),
+      (
+        name: 'サイズ関数の内側',
+        source: r'$[x2 `code`]',
+        size: 28.0,
+        padding: 2.8,
+        radius: 8.4,
+      ),
+    ]) {
+      testWidgets('${testCase.name}のインラインコードは継承サイズとem相対の装飾を使う', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: testCase.source,
+                config: const MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final text = tester.widget<Text>(find.text('code'));
+        expect(text.style!.fontSize, testCase.size);
+        expect(text.style!.color, Colors.blue);
+        expect(text.style!.fontFamily, 'Consolas');
+        expect(text.style!.fontFamilyFallback, [
+          'Monaco',
+          'Andale Mono',
+          'Ubuntu Mono',
+          'monospace',
+        ]);
+        final container = tester.widget<Container>(
+          find.ancestor(
+            of: find.text('code'),
+            matching: find.byType(Container),
+          ),
+        );
+        final padding = container.padding! as EdgeInsets;
+        for (final inset in [
+          padding.left,
+          padding.top,
+          padding.right,
+          padding.bottom,
+        ]) {
+          expect(inset, closeTo(testCase.padding, 0.000001));
+        }
+        final decoration = container.decoration! as BoxDecoration;
+        final radius = decoration.borderRadius! as BorderRadius;
+        for (final corner in [
+          radius.topLeft,
+          radius.topRight,
+          radius.bottomLeft,
+          radius.bottomRight,
+        ]) {
+          expect(corner.x, closeTo(testCase.radius, 0.000001));
+          expect(corner.y, closeTo(testCase.radius, 0.000001));
+        }
+        expect(decoration.color, const Color(0xFFF9F9F9));
+        final root = tester.widget<RichText>(find.byType(RichText).first);
+        final span = _firstWidgetSpan(root.text as TextSpan)!;
+        expect(span.alignment, PlaceholderAlignment.baseline);
+        expect(span.baseline, TextBaseline.alphabetic);
+      });
+    }
+
+    testWidgets('インラインコードは親の太字と前景色を継承する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: '`code`'),
+            body: MfmText(
+              text: r'**`code`** **$[fg.color=f00 `colored`]**',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+              ),
+            ),
           ),
         ),
       );
 
-      expect(find.text('code'), findsOneWidget);
+      final codeStyle = tester.widget<Text>(find.text('code')).style!;
+      expect(codeStyle.fontWeight, FontWeight.bold);
+      expect(codeStyle.fontSize, 14);
+      final coloredStyle = tester.widget<Text>(find.text('colored')).style!;
+      expect(coloredStyle.fontWeight, FontWeight.bold);
+      expect(coloredStyle.color, const Color(0xFFFF0000));
     });
 
-    testWidgets('URLをリンク色でレンダリングできる', (tester) async {
+    testWidgets('URLのhostをリンク色・太字・下線なしでレンダリングできる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: MfmText(text: 'https://example.com')),
+        ),
+      );
+
+      final richText = _rootRichText(tester);
+      final textSpan = richText.text as TextSpan;
+
+      final hostSpan = _findSpanWithText(textSpan, 'example.com');
+      expect(hostSpan, isNotNull);
+      expect(hostSpan!.style!.color, const Color(0xFF44A4C1));
+      expect(hostSpan.style!.fontWeight, FontWeight.bold);
+      expect(hostSpan.style!.decoration, TextDecoration.none);
+    });
+
+    testWidgets('external URLをパート別styleと外部リンクiconで表示する', (tester) async {
+      const linkColor = Color.fromRGBO(16, 32, 48, 0.6);
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: 'https://example.com'),
+            body: MfmText(
+              text:
+                  '<small>https://example.com:8443/'
+                  '%E3%83%91%E3%82%B9?q=%E3%81%82+b#%E7%89%87</small>',
+              config: MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 14),
+                lightColorScheme: MfmColorScheme.light(link: linkColor),
+              ),
+            ),
           ),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
-      final textSpan = richText.text as TextSpan;
-
-      final linkSpan = _findSpanWithStyle(
-        textSpan,
-        (style) => style?.color == const Color(0xFF0066CC),
+      final root = _rootRichText(tester).text as TextSpan;
+      final expectedAlphas = <String, double>{
+        'https://': 0.21,
+        'example.com': 0.42,
+        ':8443': 0.42,
+        '/パス': 0.336,
+        '?q=あ+b': 0.21,
+        '#片': 0.42,
+      };
+      for (final entry in expectedAlphas.entries) {
+        final style = _effectiveStyleForText(root, entry.key)!;
+        expect(
+          style.color!.withValues(alpha: 1),
+          linkColor.withValues(alpha: 1),
+          reason: entry.key,
+        );
+        expect(
+          style.color!.a,
+          closeTo(entry.value, 0.000001),
+          reason: entry.key,
+        );
+        expect(style.decoration, TextDecoration.none, reason: entry.key);
+      }
+      expect(
+        _effectiveStyleForText(root, 'example.com')!.fontWeight,
+        FontWeight.bold,
       );
-      expect(linkSpan, isNotNull);
+      expect(_effectiveStyleForText(root, '#片')!.fontStyle, FontStyle.italic);
+
+      final iconFinder = _externalLinkIconFinder();
+      expect(iconFinder, findsOneWidget);
+      final icon = tester.widget<Icon>(iconFinder);
+      expect(icon.size, closeTo(10.08, 0.000001));
+      expect(icon.color!.a, closeTo(0.42, 0.000001));
+      expect(icon.semanticLabel, 'External link');
+      final widgetSpan = _firstWidgetSpan(root)!;
+      expect(widgetSpan.alignment, PlaceholderAlignment.baseline);
+      expect(widgetSpan.baseline, TextBaseline.alphabetic);
+      final padding = widgetSpan.child as Padding;
+      expect(padding.padding, const EdgeInsets.only(left: 2));
+      expect(find.byType(Opacity), findsNothing);
+    });
+
+    testWidgets('self URLは先頭slashを除いたpathだけを表示してiconを付けない', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              parsedNodes: [
+                UrlNode(
+                  url:
+                      'https://LOCAL.example/%E3%83%91%E3%82%B9'
+                      '?q=%E3%81%82#%E7%89%87',
+                ),
+              ],
+              config: MfmRenderConfig(localHost: 'local.EXAMPLE.'),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      expect(_findSpanWithText(root, 'https://'), isNull);
+      expect(_findSpanWithText(root, 'LOCAL.example'), isNull);
+      expect(_findSpanWithText(root, '/パス'), isNull);
+      expect(_findSpanWithText(root, 'パス'), isNotNull);
+      expect(_findSpanWithText(root, '?q=あ'), isNotNull);
+      expect(_findSpanWithText(root, '#片'), isNotNull);
+      expect(_externalLinkIconFinder(), findsNothing);
+    });
+
+    testWidgets('rootのself URLだけはhostを太字表示する', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: 'https://local.example',
+              config: MfmRenderConfig(localHost: 'LOCAL.EXAMPLE.'),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      final host = _findSpanWithText(root, 'local.example');
+      expect(host, isNotNull);
+      expect(host!.style!.fontWeight, FontWeight.bold);
+      expect(_findSpanWithText(root, '/'), isNull);
+      expect(_externalLinkIconFinder(), findsNothing);
+    });
+
+    testWidgets('external URLの全パートとiconが同じ原URLをcallbackへ渡す', (
+      tester,
+    ) async {
+      const original =
+          'https://example.com:8443/%E3%83%91%E3%82%B9'
+          '?q=%E3%81%82#%E7%89%87';
+      final tappedUrls = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              parsedNodes: const [UrlNode(url: original)],
+              config: MfmRenderConfig(onLinkTap: tappedUrls.add),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      final spans = [
+        'https://',
+        'example.com',
+        ':8443',
+        '/パス',
+        '?q=あ',
+        '#片',
+      ].map((text) => _findSpanWithText(root, text)!).toList();
+      final recognizer = spans.first.recognizer! as TapGestureRecognizer;
+      for (final span in spans) {
+        expect(span.recognizer, same(recognizer));
+        (span.recognizer! as TapGestureRecognizer).onTap!.call();
+      }
+      expect(tappedUrls, List.filled(spans.length, original));
+
+      final widgetSpan = _firstWidgetSpan(root)!;
+      expect(widgetSpan.child, isA<Listener>());
+      await tester.tap(_externalLinkIconFinder());
+      await tester.pump();
+      expect(tappedUrls, [...List.filled(spans.length, original), original]);
+    });
+
+    testWidgets('angle bracket形式も括弧を除いた同じ分解表示にする', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '<https://example.com/%E3%83%91%E3%82%B9>',
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      expect(_findSpanWithText(root, 'https://'), isNotNull);
+      expect(_findSpanWithText(root, 'example.com'), isNotNull);
+      expect(_findSpanWithText(root, '/パス'), isNotNull);
+      expect(root.toPlainText(), isNot(contains('<')));
+      expect(root.toPlainText(), isNot(contains('>')));
+      expect(_externalLinkIconFinder(), findsOneWidget);
+    });
+
+    testWidgets('狭幅でも長い連続URLを文字境界で複数行に折り返す', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 60,
+              child: MfmText(
+                parsedNodes: [
+                  UrlNode(
+                    url:
+                        'https://example.com/'
+                        'abcdefghijklmnopqrstuvwxyz0123456789',
+                  ),
+                ],
+                config: MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final richText = _rootRichText(tester);
+      expect(tester.getSize(_rootRichTextFinder()).height, greaterThan(20));
+      expect(
+        richText.text.toPlainText(),
+        isNot(contains(String.fromCharCode(0x200B))),
+      );
+    });
+
+    testWidgets('URL表示用parse失敗時は生文字列へfallbackする', (tester) async {
+      const raw = 'not a url';
+      String? tappedUrl;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              parsedNodes: const [UrlNode(url: raw, brackets: true)],
+              config: MfmRenderConfig(onLinkTap: (url) => tappedUrl = url),
+            ),
+          ),
+        ),
+      );
+
+      final root = _rootRichText(tester).text as TextSpan;
+      final rawSpan = _findSpanWithText(root, raw);
+      expect(rawSpan, isNotNull);
+      expect(rawSpan!.style!.color, const Color(0xFF44A4C1));
+      expect(rawSpan.style!.decoration, TextDecoration.none);
+      expect(_externalLinkIconFinder(), findsNothing);
+      (rawSpan.recognizer! as TapGestureRecognizer).onTap!.call();
+      expect(tappedUrl, raw);
     });
 
     testWidgets('メンションをリンク色でレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '@user'),
-          ),
+          home: Scaffold(body: MfmText(text: '@user')),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final mentionSpan = _findSpanWithText(textSpan, '@user');
       expect(mentionSpan, isNotNull);
+      expect(mentionSpan!.style!.color, const Color(0xFF86B300));
     });
 
     testWidgets('ハッシュタグを#付きでレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '#misskey'),
-          ),
+          home: Scaffold(body: MfmText(text: '#misskey')),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final hashtagSpan = _findSpanWithText(textSpan, '#misskey');
       expect(hashtagSpan, isNotNull);
+      expect(hashtagSpan!.style!.color, const Color(0xFFFF9156));
     });
+
+    final themedNodeCases = [
+      (
+        name: 'URL',
+        source: 'https://example.com',
+        label: 'example.com',
+        role: 'link',
+      ),
+      (
+        name: 'リンク',
+        source: '[label](https://example.com)',
+        label: 'label',
+        role: 'link',
+      ),
+      (name: 'メンション', source: '@user', label: '@user', role: 'mention'),
+      (name: 'ハッシュタグ', source: '#tag', label: '#tag', role: 'hashtag'),
+    ];
+    for (final brightness in Brightness.values) {
+      for (final testCase in themedNodeCases) {
+        testWidgets(
+          '${testCase.name}は${brightness.name} presetの${testCase.role}色を使う',
+          (
+            tester,
+          ) async {
+            await tester.pumpWidget(
+              MaterialApp(
+                home: Scaffold(
+                  body: MfmText(
+                    text: testCase.source,
+                    config: MfmRenderConfig(brightness: brightness),
+                  ),
+                ),
+              ),
+            );
+
+            final root = _rootRichText(tester).text as TextSpan;
+            final style = _effectiveStyleForText(root, testCase.label)!;
+            final scheme = brightness == Brightness.dark
+                ? const MfmColorScheme.dark()
+                : const MfmColorScheme.light();
+            final expected = switch (testCase.role) {
+              'mention' => scheme.mention,
+              'hashtag' => scheme.hashtag,
+              _ => scheme.link,
+            };
+            expect(style.color, expected);
+            if (testCase.role == 'link') {
+              expect(style.decoration, TextDecoration.none);
+            }
+          },
+        );
+      }
+    }
+
+    for (final testCase in themedNodeCases) {
+      testWidgets('${testCase.name}はカスタム配色を使う', (tester) async {
+        const scheme = MfmColorScheme.light(
+          link: Color(0xFF102030),
+          mention: Color(0xFF405060),
+          hashtag: Color(0xFF708090),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: testCase.source,
+                config: const MfmRenderConfig(lightColorScheme: scheme),
+              ),
+            ),
+          ),
+        );
+
+        final root = _rootRichText(tester).text as TextSpan;
+        final style = _effectiveStyleForText(root, testCase.label)!;
+        final expected = switch (testCase.role) {
+          'mention' => scheme.mention,
+          'hashtag' => scheme.hashtag,
+          _ => scheme.link,
+        };
+        expect(style.color, expected);
+      });
+    }
 
     testWidgets('カスタム絵文字をビルダーでレンダリングできる', (tester) async {
       await tester.pumpWidget(
@@ -229,7 +1247,7 @@ void main() {
             body: MfmText(
               text: ':custom:',
               config: MfmRenderConfig(
-                emojiBuilder: (name) => Container(
+                emojiBuilder: (name, _) => Container(
                   key: Key('emoji-$name'),
                   width: 24,
                   height: 24,
@@ -254,7 +1272,7 @@ void main() {
             body: MfmText(
               text: 'Hello :custom: World',
               config: MfmRenderConfig(
-                emojiBuilder: (name) {
+                emojiBuilder: (name, _) {
                   builderCalled = true;
                   receivedName = name;
                   return Container(
@@ -278,13 +1296,11 @@ void main() {
     testWidgets('ビルダーがない場合、カスタム絵文字をテキストとしてレンダリングする', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: ':custom:'),
-          ),
+          home: Scaffold(body: MfmText(text: ':custom:')),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final emojiSpan = _findSpanWithText(textSpan, ':custom:');
@@ -294,13 +1310,11 @@ void main() {
     testWidgets('Unicode絵文字をレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '😀'),
-          ),
+          home: Scaffold(body: MfmText(text: '😀')),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final emojiSpan = _findSpanWithText(textSpan, '😀');
@@ -314,7 +1328,7 @@ void main() {
             body: MfmText(
               text: '😀',
               config: MfmRenderConfig(
-                unicodeEmojiBuilder: (emoji) => Container(
+                unicodeEmojiBuilder: (emoji, _) => Container(
                   key: Key('unicode-$emoji'),
                   width: 24,
                   height: 24,
@@ -332,14 +1346,12 @@ void main() {
     testWidgets('plainブロック内ではMFMがパースされない', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '<plain>**not bold**</plain>'),
-          ),
+          home: Scaffold(body: MfmText(text: '<plain>**not bold**</plain>')),
         ),
       );
 
       // plainブロック内では**は太字としてパースされない
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final boldSpan = _findSpanWithStyle(
@@ -354,9 +1366,7 @@ void main() {
     testWidgets('引用ブロックを左ボーダー付きでレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '> quote'),
-          ),
+          home: Scaffold(body: MfmText(text: '> quote')),
         ),
       );
 
@@ -367,9 +1377,7 @@ void main() {
     testWidgets('中央寄せブロックをレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '<center>centered</center>'),
-          ),
+          home: Scaffold(body: MfmText(text: '<center>centered</center>')),
         ),
       );
 
@@ -382,9 +1390,7 @@ void main() {
     testWidgets('コードブロックをコード内容付きでレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '```\ncode block\n```'),
-          ),
+          home: Scaffold(body: MfmText(text: '```\ncode block\n```')),
         ),
       );
 
@@ -396,9 +1402,7 @@ void main() {
     testWidgets('コードブロックが言語指定付きでシンタックスハイライトされる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '```dart\nvoid main() {}\n```'),
-          ),
+          home: Scaffold(body: MfmText(text: '```dart\nvoid main() {}\n```')),
         ),
       );
 
@@ -411,9 +1415,7 @@ void main() {
     testWidgets('言語指定なしのコードブロックがプレーンテキストで表示される', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '```\nplain text code\n```'),
-          ),
+          home: Scaffold(body: MfmText(text: '```\nplain text code\n```')),
         ),
       );
 
@@ -429,9 +1431,7 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: '```dart\nvar x = 1;\n```',
-              config: MfmRenderConfig(
-                codeTheme: draculaTheme,
-              ),
+              config: MfmRenderConfig(codeTheme: draculaTheme),
             ),
           ),
         ),
@@ -447,9 +1447,7 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: '```dart\ncode\n```',
-              config: MfmRenderConfig(
-                showCodeBlockCopyButton: false,
-              ),
+              config: MfmRenderConfig(showCodeBlockCopyButton: false),
             ),
           ),
         ),
@@ -458,47 +1456,217 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(MfmCodeBlock),
-          matching: find.byType(IconButton),
+          matching: find.byIcon(Icons.content_copy),
         ),
         findsNothing,
       );
     });
 
-    testWidgets('数式ブロックを数式付きでレンダリングできる', (tester) async {
+    for (final testCase in [
+      (name: 'ブロック数式', source: r'\[x^2\]'),
+      (name: 'インライン数式', source: r'\(x^2\)'),
+    ]) {
+      for (final brightness in Brightness.values) {
+        testWidgets('${testCase.name}は${brightness.name}でも装飾のない等幅TextSpanになる', (
+          tester,
+        ) async {
+          tester.platformDispatcher.platformBrightnessTestValue = brightness;
+          addTearDown(
+            tester.platformDispatcher.clearPlatformBrightnessTestValue,
+          );
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: ThemeData(brightness: brightness),
+              home: Scaffold(
+                body: MfmText(
+                  text: testCase.source,
+                  config: const MfmRenderConfig(
+                    baseTextStyle: TextStyle(fontSize: 14, color: Colors.blue),
+                    lightColorScheme: MfmColorScheme.light(bg: Colors.red),
+                    darkColorScheme: MfmColorScheme.dark(bg: Colors.green),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          final richText = _rootRichText(tester);
+          final root = richText.text as TextSpan;
+          final formula = _findSpanWithStyle(
+            root,
+            (style) => style?.fontFamily == 'monospace',
+          );
+          expect(formula?.text, 'x^2');
+          expect(formula!.style!.fontSize, isNull);
+          expect(formula.style!.color, isNull);
+          final style = _effectiveStyleForText(root, 'x^2')!;
+          expect(style.fontSize, 14);
+          expect(style.color, Colors.blue);
+          expect(style.backgroundColor, isNull);
+          expect(_firstWidgetSpan(root), isNull);
+          expect(richText.textAlign, TextAlign.start);
+          expect(find.byType(Container), findsNothing);
+          expect(find.byType(Opacity), findsNothing);
+          expect(
+            find.descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(SizedBox),
+            ),
+            findsNothing,
+          );
+        });
+      }
+    }
+
+    testWidgets('サイズ関数内の数式は親の28pxを継承する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: r'\[x = y\]'),
+            body: MfmText(
+              text: r'$[x2 \(x^2\)]',
+              config: MfmRenderConfig(baseTextStyle: TextStyle(fontSize: 14)),
+            ),
           ),
         ),
       );
 
-      expect(find.text('x = y'), findsOneWidget);
+      final root = _rootRichText(tester).text as TextSpan;
+      final formula = _findSpanWithStyle(
+        root,
+        (style) => style?.fontFamily == 'monospace',
+      );
+      expect(formula?.text, 'x^2');
+      expect(formula!.style!.fontSize, isNull);
+      expect(_effectiveStyleForText(root, formula.text!)!.fontSize, 28);
+      expect(_firstWidgetSpan(root), isNull);
     });
 
-    testWidgets('インライン数式を数式付きでレンダリングできる', (tester) async {
+    for (final testCase in [
+      (name: '改行あり', separator: '\n'),
+      (name: '改行なし', separator: ''),
+    ]) {
+      testWidgets('数式ブロックは${testCase.name}のTextNodeを保持し改行を追加しない', (
+        tester,
+      ) async {
+        final nodes = [
+          TextNode('before${testCase.separator}'),
+          ...MfmParser().build().parse(r'\[x^2\]').value,
+          TextNode('${testCase.separator}after'),
+        ];
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                parsedNodes: nodes,
+                config: const MfmRenderConfig(
+                  baseTextStyle: TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final root = _rootRichText(tester).text as TextSpan;
+        expect(_findSpanWithText(root, 'x^2')!.style!.fontFamily, 'monospace');
+        expect(
+          root.toPlainText(),
+          'before${testCase.separator}x^2${testCase.separator}after',
+        );
+        expect(_firstWidgetSpan(root), isNull);
+        expect(find.byType(Container), findsNothing);
+      });
+    }
+
+    testWidgets('検索ブロックはdividerで連結した左右controlとして描画する', (tester) async {
+      const baseStyle = TextStyle(fontSize: 18, color: Colors.brown);
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: r'\(a + b\)'),
+            body: MfmText(
+              text: 'test query 検索',
+              config: MfmRenderConfig(baseTextStyle: baseStyle),
+            ),
           ),
         ),
       );
 
-      expect(find.text('a + b'), findsOneWidget);
+      final query = tester.widget<Text>(find.text('test query'));
+      final button = tester.widget<Text>(find.text('Search'));
+      expect(query.style, baseStyle);
+      expect(button.style, baseStyle);
+
+      final inputContainer = tester
+          .element(find.text('test query'))
+          .findAncestorWidgetOfExactType<Container>()!;
+      final buttonContainer = tester
+          .element(find.text('Search'))
+          .findAncestorWidgetOfExactType<Container>()!;
+      final inputDecoration = inputContainer.decoration! as BoxDecoration;
+      final buttonDecoration = buttonContainer.decoration! as BoxDecoration;
+      final inputBorder = inputDecoration.border! as Border;
+      final buttonBorder = buttonDecoration.border! as Border;
+      for (final side in [
+        inputBorder.top,
+        inputBorder.right,
+        inputBorder.bottom,
+        inputBorder.left,
+        buttonBorder.top,
+        buttonBorder.right,
+        buttonBorder.bottom,
+      ]) {
+        expect(side.color, const Color(0xFFE8E8E8));
+        expect(side.width, 1);
+        expect(side.style, BorderStyle.solid);
+      }
+      expect(buttonBorder.left.style, BorderStyle.none);
+      expect(inputDecoration.color, isNull);
+      expect(buttonDecoration.color, isNull);
+      expect(
+        inputDecoration.borderRadius,
+        const BorderRadius.only(
+          topLeft: Radius.circular(4),
+          bottomLeft: Radius.circular(4),
+        ),
+      );
+      expect(
+        buttonDecoration.borderRadius,
+        const BorderRadius.only(
+          topRight: Radius.circular(4),
+          bottomRight: Radius.circular(4),
+        ),
+      );
+
+      final row = tester
+          .element(find.text('test query'))
+          .findAncestorWidgetOfExactType<Row>()!;
+      expect(row.children, hasLength(2));
+      expect(row.children.first, isA<Expanded>());
+      expect(row.children.last, isA<GestureDetector>());
     });
 
-    testWidgets('検索ブロックをボタン付きでレンダリングできる', (tester) async {
+    testWidgets('検索ブロックはカスタムdividerを両controlへ使う', (tester) async {
+      const divider = Color(0x80112233);
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: MfmText(text: 'test query 検索'),
+            body: MfmText(
+              text: 'test query Search',
+              config: MfmRenderConfig(
+                lightColorScheme: MfmColorScheme.light(divider: divider),
+              ),
+            ),
           ),
         ),
       );
 
-      expect(find.text('test query'), findsOneWidget);
-      expect(find.text('検索'), findsOneWidget);
+      for (final label in ['test query', 'Search']) {
+        final container = tester
+            .element(find.text(label))
+            .findAncestorWidgetOfExactType<Container>()!;
+        final border =
+            (container.decoration! as BoxDecoration).border! as Border;
+        expect(border.top.color, divider);
+      }
     });
   });
 
@@ -511,23 +1679,20 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: 'https://example.com',
-              config: MfmRenderConfig(
-                onLinkTap: (url) => tappedUrl = url,
-              ),
+              config: MfmRenderConfig(onLinkTap: (url) => tappedUrl = url),
             ),
           ),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
-      // URLスパンを検索
-      final linkSpan = _findSpanWithText(textSpan, 'https://example.com');
-      expect(linkSpan, isNotNull);
+      final hostSpan = _findSpanWithText(textSpan, 'example.com');
+      expect(hostSpan, isNotNull);
 
       // recognizerを呼び出してタップをシミュレート
-      final recognizer = linkSpan?.recognizer;
+      final recognizer = hostSpan?.recognizer;
       if (recognizer is TapGestureRecognizer) {
         recognizer.onTap?.call();
       }
@@ -551,7 +1716,7 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final mentionSpan = _findSpanWithText(textSpan, '@user@example.com');
@@ -565,7 +1730,156 @@ void main() {
       expect(tappedMention, '@user@example.com');
     });
 
-    testWidgets('ハッシュタグタップ時にonHashtagTapが呼ばれる', (tester) async {
+    testWidgets('リモート投稿者のホストで省略メンションを解決する', (tester) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice',
+              config: MfmRenderConfig(
+                author: const MfmAuthorContext(host: 'remote.example'),
+                localHost: 'local.example',
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice@remote.example');
+    });
+
+    testWidgets('ローカル投稿者ではlocalHostで省略メンションを解決する', (tester) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice',
+              config: MfmRenderConfig(
+                author: const MfmAuthorContext(),
+                localHost: 'local.example',
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice@local.example');
+    });
+
+    testWidgets('投稿者情報がなくてもlocalHostで省略メンションを解決する', (tester) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice',
+              config: MfmRenderConfig(
+                localHost: 'local.example',
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice@local.example');
+    });
+
+    testWidgets('明示されたメンションホストを投稿者ホストより優先する', (tester) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice@explicit.example',
+              config: MfmRenderConfig(
+                author: const MfmAuthorContext(host: 'remote.example'),
+                localHost: 'local.example',
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice@explicit.example');
+      expect(tappedMention, '@alice@explicit.example');
+    });
+
+    testWidgets('Inherited configの投稿者ホストを明示コールバックと結合する', (tester) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MfmConfig(
+          config: const MfmRenderConfig(
+            author: MfmAuthorContext(host: 'remote.example'),
+            localHost: 'local.example',
+          ),
+          child: MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '@alice',
+                config: MfmRenderConfig(
+                  onMentionTap: (acct) => tappedMention = acct,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice@remote.example');
+    });
+
+    testWidgets('解決コンテキストがなければ省略メンションをそのまま渡す', (tester) async {
+      String? tappedMention;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '@alice',
+              config: MfmRenderConfig(
+                onMentionTap: (acct) => tappedMention = acct,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      _invokeSpanTap(tester, '@alice');
+      expect(tappedMention, '@alice');
+    });
+
+    testWidgets('onHashtagTap未設定時はハッシュタグのrecognizerがnullになる', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: MfmText(text: '#flutter'),
+          ),
+        ),
+      );
+
+      final richText = _rootRichText(tester);
+      final textSpan = richText.text as TextSpan;
+      final hashtagSpan = _findSpanWithText(textSpan, '#flutter');
+      expect(hashtagSpan, isNotNull);
+      expect(hashtagSpan!.recognizer, isNull);
+    });
+
+    testWidgets('onHashtagTap設定時はrecognizerがありタップで#なしのタグ名を渡す', (tester) async {
       String? tappedTag;
 
       await tester.pumpWidget(
@@ -573,33 +1887,32 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: '#flutter',
-              config: MfmRenderConfig(
-                onHashtagTap: (tag) => tappedTag = tag,
-              ),
+              config: MfmRenderConfig(onHashtagTap: (tag) => tappedTag = tag),
             ),
           ),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final hashtagSpan = _findSpanWithText(textSpan, '#flutter');
       expect(hashtagSpan, isNotNull);
 
-      final hashtagRecognizer = hashtagSpan?.recognizer;
-      if (hashtagRecognizer is TapGestureRecognizer) {
-        hashtagRecognizer.onTap?.call();
-      }
+      expect(hashtagSpan!.recognizer, isA<TapGestureRecognizer>());
+      expect(tappedTag, isNull);
+
+      await tester.tap(find.byType(RichText));
 
       expect(tappedTag, 'flutter');
     });
 
-    testWidgets('検索ボタンタップ時にonSearchTapが呼ばれる', (tester) async {
+    testWidgets('英語ロケールで検索ボタンにSearchを表示する', (tester) async {
       String? tappedQuery;
 
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('en'),
           home: Scaffold(
             body: MfmText(
               text: 'flutter Search',
@@ -611,11 +1924,100 @@ void main() {
         ),
       );
 
-      // 検索ボタンを検索してタップ
-      await tester.tap(find.text('検索'));
+      await tester.tap(find.text('Search'));
       await tester.pump();
 
       expect(tappedQuery, 'flutter');
+    });
+
+    testWidgets('日本語ロケールで検索ボタンに検索を表示する', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Localizations.override(
+                context: context,
+                locale: const Locale('ja'),
+                child: const MfmText(text: 'flutter Search'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('検索'), findsOneWidget);
+      expect(find.text('Search'), findsNothing);
+    });
+
+    testWidgets('検索ボタンの明示ラベルがロケールより優先される', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Localizations.override(
+                context: context,
+                locale: const Locale('ja'),
+                child: const MfmText(
+                  text: 'flutter Search',
+                  config: MfmRenderConfig(searchButtonLabel: 'Find'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Find'), findsOneWidget);
+      expect(find.text('検索'), findsNothing);
+    });
+
+    testWidgets('同じMfmTextがロケール更新を検索ラベルに反映する', (tester) async {
+      final locale = ValueNotifier(const Locale('en'));
+      addTearDown(locale.dispose);
+      const mfmText = MfmText(text: 'flutter Search');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ValueListenableBuilder<Locale>(
+              valueListenable: locale,
+              child: mfmText,
+              builder: (context, currentLocale, child) =>
+                  Localizations.override(
+                    context: context,
+                    locale: currentLocale,
+                    child: child,
+                  ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Search'), findsOneWidget);
+      expect(find.text('検索'), findsNothing);
+
+      locale.value = const Locale('ja');
+      await tester.pump();
+
+      expect(find.text('検索'), findsOneWidget);
+      expect(find.text('Search'), findsNothing);
+    });
+
+    testWidgets('ローカライズ取得不可時はSearchを表示する', (tester) async {
+      await tester.pumpWidget(
+        const MediaQuery(
+          data: MediaQueryData(),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: DefaultTextStyle(
+              style: TextStyle(),
+              child: MfmText(text: 'flutter Search'),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Search'), findsOneWidget);
     });
   });
 
@@ -624,13 +2026,11 @@ void main() {
       // パーサーがサポートする明示的なネスト構文を使用
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: MfmText(text: '**<i>bold and italic</i>**'),
-          ),
+          home: Scaffold(body: MfmText(text: '**<i>bold and italic</i>**')),
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       // 太字スタイルを持つべき
@@ -657,14 +2057,14 @@ void main() {
         ),
       );
 
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       final linkSpan = _findSpanWithStyle(
         textSpan,
         (style) =>
-            style?.decoration == TextDecoration.underline &&
-            style?.color == const Color(0xFF0066CC),
+            style?.decoration == TextDecoration.none &&
+            style?.color == const Color(0xFF44A4C1),
       );
       expect(linkSpan, isNotNull);
     });
@@ -684,7 +2084,7 @@ void main() {
       );
 
       // simpleモードでは太字がパースされない
-      final richText = tester.widget<RichText>(find.byType(RichText));
+      final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
       // simpleモードでは太字スタイルが適用されない
@@ -695,6 +2095,179 @@ void main() {
       expect(boldSpan, isNull);
     });
   });
+
+  group('MkMfm props', () {
+    testWidgets(
+      'simple preserves line breaks while plain replaces them with spaces',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: MfmText(text: 'a\nb', simple: true)),
+          ),
+        );
+        var root =
+            tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        expect(root.toPlainText(), 'a\nb');
+
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: MfmText(text: 'a\nb', plain: true)),
+          ),
+        );
+        root = tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        expect(root.toPlainText(), 'a b');
+      },
+    );
+
+    testWidgets(
+      'plain normalizes parsed line endings and nyaizes before replacing them',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                parsedNodes: [TextNode('な\r\nな\rな\nな')],
+                plain: true,
+                config: MfmRenderConfig(enableNyaize: true),
+              ),
+            ),
+          ),
+        );
+        final root =
+            tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+        expect(root.toPlainText(), 'にゃ にゃ にゃ にゃ');
+      },
+    );
+
+    testWidgets('plain uses the simple parser', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: MfmText(text: '**not bold**', plain: true)),
+        ),
+      );
+      final root =
+          tester.widget<RichText>(find.byType(RichText)).text as TextSpan;
+      expect(
+        _findSpanWithStyle(
+          root,
+          (style) => style?.fontWeight == FontWeight.bold,
+        ),
+        isNull,
+      );
+      expect(root.toPlainText(), '**not bold**');
+    });
+
+    testWidgets('rejects a non-positive or non-finite rootScale', (
+      tester,
+    ) async {
+      expect(() => MfmText(text: 'x', rootScale: 0), throwsAssertionError);
+      expect(
+        () => MfmText(text: 'x', rootScale: double.infinity),
+        throwsAssertionError,
+      );
+    });
+
+    for (final testCase in [
+      (isNote: true, path: '/tags/%E3%81%82'),
+      (isNote: false, path: '/user-tags/%E3%81%82'),
+    ]) {
+      testWidgets('onHashtagTapDetails uses ${testCase.path}', (tester) async {
+        MfmHashtagTapDetails? details;
+        var legacyCalls = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(
+                text: '#あ',
+                isNote: testCase.isNote,
+                config: MfmRenderConfig(
+                  onHashtagTap: (_) => legacyCalls++,
+                  onHashtagTapDetails: (value) => details = value,
+                ),
+              ),
+            ),
+          ),
+        );
+        _invokeSpanTap(tester, '#あ');
+        expect(details?.tag, 'あ');
+        expect(details?.isNote, testCase.isNote);
+        expect(details?.path, testCase.path);
+        expect(legacyCalls, 0);
+      });
+    }
+
+    testWidgets('onHashtagTap remains the fallback when details is absent', (
+      tester,
+    ) async {
+      String? tag;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: '#tag',
+              config: MfmRenderConfig(onHashtagTap: (value) => tag = value),
+            ),
+          ),
+        ),
+      );
+      _invokeSpanTap(tester, '#tag');
+      expect(tag, 'tag');
+    });
+  });
+}
+
+Finder _rootRichTextFinder() {
+  return find
+      .descendant(of: find.byType(MfmText), matching: find.byType(RichText))
+      .first;
+}
+
+RichText _rootRichText(WidgetTester tester) {
+  return tester.widget<RichText>(_rootRichTextFinder());
+}
+
+Finder _externalLinkIconFinder() {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Icon &&
+        widget.icon?.codePoint == 0xe45c &&
+        widget.icon?.fontFamily == 'MaterialIcons',
+  );
+}
+
+Color? _inlineCodeBackground(WidgetTester tester) {
+  final container = tester.widget<Container>(
+    find.ancestor(of: find.text('code'), matching: find.byType(Container)),
+  );
+  return (container.decoration! as BoxDecoration).color;
+}
+
+/// TextSpanの祖先から差分をマージして、対象テキストの実効スタイルを得る。
+TextStyle? _effectiveStyleForText(
+  TextSpan span,
+  String text, [
+  TextStyle inherited = const TextStyle(),
+]) {
+  final style = inherited.merge(span.style);
+  if (span.text == text) return style;
+  for (final child in span.children ?? <InlineSpan>[]) {
+    if (child is TextSpan) {
+      final found = _effectiveStyleForText(child, text, style);
+      if (found != null) return found;
+    }
+  }
+  return null;
+}
+
+WidgetSpan? _firstWidgetSpan(TextSpan span) {
+  for (final child in span.children ?? <InlineSpan>[]) {
+    if (child is WidgetSpan) return child;
+    if (child is TextSpan) {
+      final found = _firstWidgetSpan(child);
+      if (found != null) return found;
+    }
+  }
+  return null;
 }
 
 /// 特定のスタイルを持つTextSpanを検索するヘルパー関数
@@ -738,4 +2311,14 @@ TextSpan? _findSpanWithText(TextSpan parent, String text) {
   }
 
   return null;
+}
+
+void _invokeSpanTap(WidgetTester tester, String text) {
+  final richText = _rootRichText(tester);
+  final textSpan = richText.text as TextSpan;
+  final targetSpan = _findSpanWithText(textSpan, text);
+  expect(targetSpan, isNotNull);
+  final recognizer = targetSpan?.recognizer;
+  expect(recognizer, isA<TapGestureRecognizer>());
+  (recognizer! as TapGestureRecognizer).onTap?.call();
 }

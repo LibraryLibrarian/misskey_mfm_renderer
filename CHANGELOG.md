@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-beta.2] - 2026-09-12
+
+### Added
+- Mi Light / Mi Dark準拠の `MfmColorScheme` と `MfmRenderConfig.lightColorScheme` / `darkColorScheme` を追加し、リンク、メンション、ハッシュタグ、引用、検索、border fn、unixtime、インラインコードの色をlight/dark別に設定可能にした（#50）。
+- `MfmAuthorContext.isCat` と `MfmNyaizeMode`（`disabled` / `enabled` / `respectAuthor`）を追加。`nyaizeMode` が未指定の場合は既存の `enableNyaize` を後方互換で解釈し、`respectAuthor` は投稿者の `isCat` に従う（#39）。
+- `MfmText.plain`、`rootScale`、`isNote` を追加。plainは本家MkMfmと同様にsimple parser、TextNodeの改行の半角スペース化、カスタム絵文字のnormal表示を適用し、rootScaleは子孫の累積scaleを初期化する（#39）。
+- `MfmText.nowrap` を追加。1行表示、折り返し無効、はみ出し時の省略記号を有効にし、引用は余白・左罫線・opacityを保った自然なインライン幅で表示する（#39）。
+- `MfmHashtagTapDetails` と `onHashtagTapDetails` を追加。詳細コールバックはタグ、isNote、エンコード済みの `/tags/...` または `/user-tags/...` を受け取り、指定時は既存の `onHashtagTap` より優先する（#39）。
+- `MfmRenderConfig.emojiUrls`、`MfmCustomEmoji.url`、`MfmEmojiContext.host` / `url`、`MfmEmojiConfig.fromResolver(serverBaseUrl:)` を追加し、リモート投稿のカスタム絵文字の直接URLとローカルサーバー経由のフォールバックをサポート（#56）。
+- exampleアプリをmacOS / Linux / Windowsに対応させ、READMEにプラットフォームごとの注記（Web非対応、macOSのentitlement、Linux/Windowsの要件）を追加。
+
+### Fixed
+- `rainbow` のアニメーションをグラデーション走査から、本家Misskeyと同じ `hue-rotate` → `contrast(150%)` → `saturate(150%)` の3段フィルタへ修正（#40、見た目の変更）。元の文字色を起点に色相が回るため、灰色や黒の本文では色相変化は見えず、暗い灰色が少し濃くなるだけ（黒は不変）。色付きのfg・リンク・カラー絵文字では色相変化が見える。正のdelay待機中はフィルタなしとし、無効時の虹色グラデーションは維持して本家と同じ7色7ストップへ整理した。
+- `twitch` と `shake` の `ease` をアニメーション全体ではなく、本家Misskeyと同じく隣接する各キーフレーム区間へ適用するよう修正（#42）。
+- 引用を有限幅の親では行全幅のブロックとして表示し、前後のテキストと分離。幅が無制約の場合は自然幅にフォールバックする（#32）。
+- 引用の余白を本家の `QUOTE_STYLE`（四辺margin 8px、padding 上下6px・左12px・右0px）に合わせ、幅3pxの左罫線と文字に `MfmColorScheme.fg` から累積opacityを適用するよう修正（#52）。
+- 検索欄とボタンを `MfmColorScheme.divider` の枠線で隙間なく連結し、固定の青背景・白文字を削除して本家の外観に合わせた（#53）。
+
+### Changed
+- `enableAdvancedMfm` の効果範囲をx2/x3/x4の視覚的拡大、scale/position、全9種類のMFMアニメーションへ拡大。`MfmRenderConfig.useAnimation`（`enableAdvancedMfm && enableAnimation`）を追加し、advanced無効時はアニメーションも停止する。既定値は両フラグともtrueを維持する（#37）。
+- advanced無効時もx2/x3/x4の公称倍率2/3/4は絵文字の描画文脈へ伝播するが、scale fnの変形・倍率伝播は停止する。アニメーション無効時は専用アニメーションwidgetを生成せず、tadaの150%フォントサイズ、rainbowの静的グラデーション、sparkleの素の子要素を維持する（#37）。
+- `MfmEmojiContext` に `normal` を追加し、値比較、hashCode、toStringの対象を拡張。`MfmEmojiConfig` はnormal時に既定1.25em、`vertical-align: -0.25em`相当の0.25em下降量を使う。明示した `emojiSize` は高さを優先し、normalのベースライン方針は維持する（#39）。
+- `MfmCustomEmoji.resolver` を任意にし、`url`の直指定を優先するよう変更。`MfmEmojiContext`の`==`と`toString`はhost / URLを含む（#56）。
+- **Breaking:** `emojiBuilder` / `unicodeEmojiBuilder` を `Widget Function(String, MfmEmojiContext)` に変更し、実効フォントサイズと累積スケールを渡すようにした（#47、#57）。
+- **Breaking:** `MfmEmojiConfig.createDefault` / `fromResolver` の `emojiSize` の既定値を24px固定から実効フォントサイズの2倍（2em、引数はnull）に変更。固定サイズを維持する場合は `emojiSize: 24` を明示する（#47）。
+- 絵文字の `WidgetSpan` をalphabeticベースライン揃えに変更。`MfmEmojiConfig` は `MfmCustomEmoji.baselineOffset` に本家のカスタム絵文字と同じ `vertical-align: middle` 相当の下降量（`size / 2 - フォントサイズ × 0.25`）を設定し、行の下降量にも反映する。Unicode絵文字を画像で描画する場合は高さ1.25em・下降量 `フォントサイズ × 0.25`（`vertical-align: -0.25em` 相当）を指定する（#57）。
+- `scale` fnの累積倍率を `(|x| + |y|) / 2` から本家と同じ `max(|x|, |y|)` に修正。`$[scale.x=3,y=1]` の `MfmEmojiContext.scale` が2.0から3.0になり、`useOriginalSize` の判定も本家と一致する（#47）。
+- `MfmEmojiContext.useOriginalSize` に原寸画像利用の判定（scale >= 2.5）を追加。`misskey_emoji` が原寸・縮小URLを区別しないため、自動切替は行わず独自ビルダー向けのヒントとして提供する（#47）。
+- インラインコードの文字サイズ・色・太字などを親から継承し、余白と角丸をem相対に変更（#54）。
+- **Breaking:** URL / link の既定の下線を削除して本家Misskeyと同じ下線なし表示へ変更し、リンク色を固定 `#0066CC` から選択中の `MfmColorScheme.link` へ変更（#50）。
+- **Breaking:** `inlineCodeBgColorLight` / `inlineCodeBgColorDark` を削除し、インラインコード背景を `MfmColorScheme.bg` に統合。既定値はMi Light `#f9f9f9` / Mi Dark `#232323` となる。旧設定は `lightColorScheme: MfmColorScheme.light(bg: color)` / `darkColorScheme: MfmColorScheme.dark(bg: color)` へ移行する（#50）。
+- 数式のカード表示・余白・中央寄せ・全幅化を廃止し、本家Misskeyと同じ装飾のない等幅テキストに変更（#51、見た目の変更）。
+- URLをscheme・Unicode host・port・decode済みpath/query/fragmentへ分解し、外部リンクiconと`localHost`に基づくself URL短縮を追加（#48、見た目の変更）。
+- URL hostのPunycode decodeのため、`punycoder ^0.3.0`を依存関係に追加。
+- コードブロックを本家MkCodeに合わせ、theme dividerの1px枠線、8px角丸、1em余白、等幅フォントのfallback列を適用。言語なしはMFM schemeの `bg` / `fg`、ハイライト済みはハイライトテーマ背景を使用するよう変更（#55、見た目の変更）。
+
 ## [0.6.0-beta.1] - 2026-08-15
 
 ### Changed
