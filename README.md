@@ -166,7 +166,7 @@ Add the dependency to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.1
+  misskey_mfm_renderer: ^0.6.0-beta.2
   misskey_client: ^1.0.0-beta.5
 ```
 
@@ -397,7 +397,7 @@ If your project enforces direct dependencies for imported packages, add:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.1
+  misskey_mfm_renderer: ^0.6.0-beta.2
   misskey_client: ^1.0.0-beta.5
   misskey_emoji: ^2.0.0-beta.1
   path_provider: ^2.1.5

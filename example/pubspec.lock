@@ -350,7 +350,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.6.0-beta.1"
+    version: "0.6.0-beta.2"
   octo_image:
     dependency: transitive
     description:
