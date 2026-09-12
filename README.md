@@ -757,13 +757,18 @@ void main() {
 | `onHashtagTapDetails` | `void Function(MfmHashtagTapDetails)?` | null | Preferred hashtag callback with `tag`, `isNote`, and encoded route `path` |
 | `emojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Custom emoji builder |
 | `unicodeEmojiBuilder` | `Widget Function(String, MfmEmojiContext)?` | null | Unicode emoji builder |
+| `emojiUrls` | `Map<String, String>?` | null | Direct image URLs keyed by custom emoji name, used for remote posts only. Treat the map as immutable and pass a new one to update |
 | `onLinkTap` | `void Function(String)?` | null | Link tap callback |
 | `onMentionTap` | `void Function(String)?` | null | Mention tap callback |
 | `onHashtagTap` | `void Function(String)?` | null | Hashtag tap callback |
 | `onSearchTap` | `void Function(String)?` | null | Search tap callback |
+| `onClickableEvent` | `void Function(String)?` | null | `clickable` fn callback; receives the value of the `clickable.ev` argument |
+| `showCodeBlockCopyButton` | `bool?` | true | Show the copy button on code blocks |
 | `onCodeCopied` | `void Function(String)?` | null | Code copy completion callback; replaces the default SnackBar, which requires a ScaffoldMessenger ancestor |
 | `codeCopyTooltip` | `String?` | current locale | Code copy button accessibility label override (`コピー` for Japanese, `Copy` otherwise) |
 | `codeCopiedMessage` | `String?` | current locale | Default copy SnackBar message override (`コードをコピーしました` for Japanese, `Copied to clipboard` otherwise) |
+| `codeTheme` | `Map<String, TextStyle>?` | github theme | Syntax highlight theme for code blocks in light mode |
+| `codeDarkTheme` | `Map<String, TextStyle>?` | `codeTheme`, then github-dark | Syntax highlight theme for code blocks in dark mode |
 | `author` | `MfmAuthorContext?` | null | Author context (`host`, `isCat`) used for host-dependent rendering and `respectAuthor` nyaize |
 | `localHost` | `String?` | null | Local Misskey host used as a host-resolution fallback and for self-URL shortening |
 | `searchButtonLabel` | `String?` | current locale | Search button label override (`検索` for Japanese, `Search` otherwise) |
