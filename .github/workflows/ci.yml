@@ -24,10 +24,12 @@ jobs:
           # 最低サポートバージョン。pubspec.yaml の flutter 制約の下限と揃える
           - name: '3.38.1'
             flutter-version: '3.38.1'
+            cached-network-image-major: '3'
           # 最新安定版。flutter-version を空にすると channel の最新が使われる
           # (subosito/flutter-action は flutter-version に 'stable' を指定できない)
           - name: stable
             flutter-version: ''
+            cached-network-image-major: '4'
     steps:
       - uses: actions/checkout@v7
 
@@ -38,6 +40,19 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Check the resolved cached_network_image major
+        env:
+          EXPECTED_MAJOR: ${{ matrix.cached-network-image-major }}
+        run: |
+          set -euo pipefail
+          resolved="$(dart pub deps --json | python3 -c \
+            'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "cached_network_image"))')"
+          echo "cached_network_image resolved to $resolved"
+          if [ "${resolved%%.*}" != "$EXPECTED_MAJOR" ]; then
+            echo "::error::Expected cached_network_image ${EXPECTED_MAJOR}.x, got $resolved"
+            exit 1
+          fi
 
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed .
