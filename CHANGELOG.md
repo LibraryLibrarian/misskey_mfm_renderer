@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- アニメーション無効時の `rainbow` がカスタム絵文字・明示的な文字色・背景や罫線まで虹色に塗り替える問題を修正。静的グラデーションを継承色の文字だけに適用し、`fg`・リンク等の色と画像の元の色を保持する。
+
 ## [0.6.0-beta.2] - 2026-09-12
 
 ### Added

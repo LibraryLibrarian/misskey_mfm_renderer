@@ -8,6 +8,7 @@ import 'package:misskey_mfm_renderer/src/fn/animated/mfm_animated_wrapper.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_bounce_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_jelly_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_jump_widget.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_rainbow_text.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_rainbow_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_shake_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_sparkle_widget.dart';
@@ -790,10 +791,11 @@ void main() {
         ),
       );
 
-      // アニメーション無効でもShaderMaskが適用される（静的グラデーション）
-      expect(find.byType(ShaderMask), findsWidgets);
+      // 全体のマスクではなく文字だけに静的グラデーションを適用する。
+      expect(find.byType(ShaderMask), findsNothing);
+      expect(find.byType(MfmRainbowRichText), findsOneWidget);
       // テキストが含まれることを確認
-      final richTexts = tester.widgetList<RichText>(find.byType(RichText));
+      final richTexts = tester.widgetList<RichText>(find.bySubtype<RichText>());
       final hasText = richTexts.any((widget) {
         final span = widget.text;
         return _spanContainsText(span, '虹色');
@@ -952,7 +954,7 @@ void main() {
             }
             expect(find.byType(MfmAnimatedWrapper), findsNothing);
             final richTexts = tester.widgetList<RichText>(
-              find.byType(RichText),
+              find.bySubtype<RichText>(),
             );
             final text = richTexts.singleWhere(
               (widget) => widget.text.toPlainText() == 'body',
@@ -964,11 +966,8 @@ void main() {
             if (fn == 'rainbow') {
               expect(richTexts, hasLength(2));
               expect(find.byType(MfmStaticRainbowWidget), findsOneWidget);
-              expect(find.byType(ShaderMask), findsOneWidget);
-              expect(
-                tester.widget<ShaderMask>(find.byType(ShaderMask)).blendMode,
-                BlendMode.srcIn,
-              );
+              expect(find.byType(ShaderMask), findsNothing);
+              expect(find.byType(MfmRainbowRichText), findsOneWidget);
             } else {
               expect(richTexts, hasLength(1));
               expect(find.byType(ShaderMask), findsNothing);
@@ -1000,7 +999,8 @@ void main() {
         );
         expect(find.byType(MfmRainbowWidget), findsNothing);
         expect(find.byType(MfmAnimatedWrapper), findsNothing);
-        expect(find.byType(ShaderMask), findsOneWidget);
+        expect(find.byType(ShaderMask), findsNothing);
+        expect(find.byType(MfmRainbowRichText), findsOneWidget);
         await tester.pump(const Duration(seconds: 3));
         expect(tester.binding.transientCallbackCount, 0);
         expect(tester.takeException(), isNull);
