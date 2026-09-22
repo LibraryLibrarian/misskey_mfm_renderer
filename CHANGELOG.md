@@ -8,105 +8,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- アニメーション無効時の `rainbow` がカスタム絵文字・明示的な文字色・背景や罫線まで虹色に塗り替える問題を修正。静的グラデーションを継承色の文字だけに適用し、`fg`・リンク等の色と画像の元の色を保持する。
+- Fixed `rainbow` recoloring custom emoji, explicitly set text colors, backgrounds, and borders while animation is disabled. The static gradient now applies only to text that inherits its color, preserving `fg` and link colors as well as the original colors of images
 
 ## [0.6.0-beta.2] - 2026-09-12
 
 ### Added
-- Mi Light / Mi Dark準拠の `MfmColorScheme` と `MfmRenderConfig.lightColorScheme` / `darkColorScheme` を追加し、リンク、メンション、ハッシュタグ、引用、検索、border fn、unixtime、インラインコードの色をlight/dark別に設定可能にした（#50）。
-- `MfmAuthorContext.isCat` と `MfmNyaizeMode`（`disabled` / `enabled` / `respectAuthor`）を追加。`nyaizeMode` が未指定の場合は既存の `enableNyaize` を後方互換で解釈し、`respectAuthor` は投稿者の `isCat` に従う（#39）。
-- `MfmText.plain`、`rootScale`、`isNote` を追加。plainは本家MkMfmと同様にsimple parser、TextNodeの改行の半角スペース化、カスタム絵文字のnormal表示を適用し、rootScaleは子孫の累積scaleを初期化する（#39）。
-- `MfmText.nowrap` を追加。1行表示、折り返し無効、はみ出し時の省略記号を有効にし、引用は余白・左罫線・opacityを保った自然なインライン幅で表示する（#39）。
-- `MfmHashtagTapDetails` と `onHashtagTapDetails` を追加。詳細コールバックはタグ、isNote、エンコード済みの `/tags/...` または `/user-tags/...` を受け取り、指定時は既存の `onHashtagTap` より優先する（#39）。
-- `MfmRenderConfig.emojiUrls`、`MfmCustomEmoji.url`、`MfmEmojiContext.host` / `url`、`MfmEmojiConfig.fromResolver(serverBaseUrl:)` を追加し、リモート投稿のカスタム絵文字の直接URLとローカルサーバー経由のフォールバックをサポート（#56）。
-- exampleアプリをmacOS / Linux / Windowsに対応させ、READMEにプラットフォームごとの注記（Web非対応、macOSのentitlement、Linux/Windowsの要件）を追加。
+- Added `MfmColorScheme` and `MfmRenderConfig.lightColorScheme` / `darkColorScheme`, following Mi Light / Mi Dark. The colors of links, mentions, hashtags, quotes, search, the `border` fn, unixtime, and inline code can now be configured separately for light and dark (#50)
+- Added `MfmAuthorContext.isCat` and `MfmNyaizeMode` (`disabled` / `enabled` / `respectAuthor`). When `nyaizeMode` is unset, the existing `enableNyaize` is interpreted for backward compatibility; `respectAuthor` follows the author's `isCat` (#39)
+- Added `MfmText.plain`, `rootScale`, and `isNote`. As in upstream MkMfm, `plain` uses the simple parser, turns newlines in text nodes into single spaces, and renders custom emoji at normal size; `rootScale` resets the accumulated scale for descendants (#39)
+- Added `MfmText.nowrap`, which renders on a single line, disables wrapping, and enables an ellipsis on overflow. Quotes keep their margins, left border, and opacity at their natural inline width (#39)
+- Added `MfmHashtagTapDetails` and `onHashtagTapDetails`. The detailed callback receives the tag, `isNote`, and an encoded `/tags/...` or `/user-tags/...` path, and takes precedence over the existing `onHashtagTap` when supplied (#39)
+- Added `MfmRenderConfig.emojiUrls`, `MfmCustomEmoji.url`, `MfmEmojiContext.host` / `url`, and `MfmEmojiConfig.fromResolver(serverBaseUrl:)`, supporting direct custom emoji URLs from remote posts with a fallback through the local server (#56)
+- Added macOS, Linux, and Windows support to the example app, along with per-platform notes in the README covering the lack of web support, the macOS entitlement, and the Linux/Windows requirements
 
 ### Fixed
-- `rainbow` のアニメーションをグラデーション走査から、本家Misskeyと同じ `hue-rotate` → `contrast(150%)` → `saturate(150%)` の3段フィルタへ修正（#40、見た目の変更）。元の文字色を起点に色相が回るため、灰色や黒の本文では色相変化は見えず、暗い灰色が少し濃くなるだけ（黒は不変）。色付きのfg・リンク・カラー絵文字では色相変化が見える。正のdelay待機中はフィルタなしとし、無効時の虹色グラデーションは維持して本家と同じ7色7ストップへ整理した。
-- `twitch` と `shake` の `ease` をアニメーション全体ではなく、本家Misskeyと同じく隣接する各キーフレーム区間へ適用するよう修正（#42）。
-- 引用を有限幅の親では行全幅のブロックとして表示し、前後のテキストと分離。幅が無制約の場合は自然幅にフォールバックする（#32）。
-- 引用の余白を本家の `QUOTE_STYLE`（四辺margin 8px、padding 上下6px・左12px・右0px）に合わせ、幅3pxの左罫線と文字に `MfmColorScheme.fg` から累積opacityを適用するよう修正（#52）。
-- 検索欄とボタンを `MfmColorScheme.divider` の枠線で隙間なく連結し、固定の青背景・白文字を削除して本家の外観に合わせた（#53）。
+- Changed the `rainbow` animation from a gradient sweep to the same three-stage filter used by upstream Misskey: `hue-rotate`, then `contrast(150%)`, then `saturate(150%)` (#40, visual change). Because the hue rotates from the original text color, gray or black body text shows no visible hue change; dark gray only becomes slightly deeper, and black is unchanged. Colored `fg`, links, and color emoji do show the hue change. No filter is applied while a positive `delay` is pending, and the rainbow gradient used when the animation is disabled is preserved, reorganized to the same seven colors and seven stops as upstream
+- Changed the `ease` of `twitch` and `shake` to apply to each adjacent keyframe interval, as upstream Misskey does, rather than to the animation as a whole (#42)
+- Quotes now render as a full-width block inside a bounded parent, separated from the surrounding text. When the width is unconstrained, they fall back to their natural width (#32)
+- Aligned quote spacing with the upstream `QUOTE_STYLE` (8px margin on all sides; 6px top and bottom, 12px left, and 0px right padding), and used `MfmColorScheme.fg` with the accumulated opacity for both the 3px left border and the text (#52)
+- Joined the search field and its button with a `MfmColorScheme.divider` border and no gap, and removed the fixed blue background and white text to match the upstream appearance (#53)
 
 ### Changed
-- `enableAdvancedMfm` の効果範囲をx2/x3/x4の視覚的拡大、scale/position、全9種類のMFMアニメーションへ拡大。`MfmRenderConfig.useAnimation`（`enableAdvancedMfm && enableAnimation`）を追加し、advanced無効時はアニメーションも停止する。既定値は両フラグともtrueを維持する（#37）。
-- advanced無効時もx2/x3/x4の公称倍率2/3/4は絵文字の描画文脈へ伝播するが、scale fnの変形・倍率伝播は停止する。アニメーション無効時は専用アニメーションwidgetを生成せず、tadaの150%フォントサイズ、rainbowの静的グラデーション、sparkleの素の子要素を維持する（#37）。
-- `MfmEmojiContext` に `normal` を追加し、値比較、hashCode、toStringの対象を拡張。`MfmEmojiConfig` はnormal時に既定1.25em、`vertical-align: -0.25em`相当の0.25em下降量を使う。明示した `emojiSize` は高さを優先し、normalのベースライン方針は維持する（#39）。
-- `MfmCustomEmoji.resolver` を任意にし、`url`の直指定を優先するよう変更。`MfmEmojiContext`の`==`と`toString`はhost / URLを含む（#56）。
-- **Breaking:** `emojiBuilder` / `unicodeEmojiBuilder` を `Widget Function(String, MfmEmojiContext)` に変更し、実効フォントサイズと累積スケールを渡すようにした（#47、#57）。
-- **Breaking:** `MfmEmojiConfig.createDefault` / `fromResolver` の `emojiSize` の既定値を24px固定から実効フォントサイズの2倍（2em、引数はnull）に変更。固定サイズを維持する場合は `emojiSize: 24` を明示する（#47）。
-- 絵文字の `WidgetSpan` をalphabeticベースライン揃えに変更。`MfmEmojiConfig` は `MfmCustomEmoji.baselineOffset` に本家のカスタム絵文字と同じ `vertical-align: middle` 相当の下降量（`size / 2 - フォントサイズ × 0.25`）を設定し、行の下降量にも反映する。Unicode絵文字を画像で描画する場合は高さ1.25em・下降量 `フォントサイズ × 0.25`（`vertical-align: -0.25em` 相当）を指定する（#57）。
-- `scale` fnの累積倍率を `(|x| + |y|) / 2` から本家と同じ `max(|x|, |y|)` に修正。`$[scale.x=3,y=1]` の `MfmEmojiContext.scale` が2.0から3.0になり、`useOriginalSize` の判定も本家と一致する（#47）。
-- `MfmEmojiContext.useOriginalSize` に原寸画像利用の判定（scale >= 2.5）を追加。`misskey_emoji` が原寸・縮小URLを区別しないため、自動切替は行わず独自ビルダー向けのヒントとして提供する（#47）。
-- インラインコードの文字サイズ・色・太字などを親から継承し、余白と角丸をem相対に変更（#54）。
-- **Breaking:** URL / link の既定の下線を削除して本家Misskeyと同じ下線なし表示へ変更し、リンク色を固定 `#0066CC` から選択中の `MfmColorScheme.link` へ変更（#50）。
-- **Breaking:** `inlineCodeBgColorLight` / `inlineCodeBgColorDark` を削除し、インラインコード背景を `MfmColorScheme.bg` に統合。既定値はMi Light `#f9f9f9` / Mi Dark `#232323` となる。旧設定は `lightColorScheme: MfmColorScheme.light(bg: color)` / `darkColorScheme: MfmColorScheme.dark(bg: color)` へ移行する（#50）。
-- 数式のカード表示・余白・中央寄せ・全幅化を廃止し、本家Misskeyと同じ装飾のない等幅テキストに変更（#51、見た目の変更）。
-- URLをscheme・Unicode host・port・decode済みpath/query/fragmentへ分解し、外部リンクiconと`localHost`に基づくself URL短縮を追加（#48、見た目の変更）。
-- URL hostのPunycode decodeのため、`punycoder ^0.3.0`を依存関係に追加。
-- コードブロックを本家MkCodeに合わせ、theme dividerの1px枠線、8px角丸、1em余白、等幅フォントのfallback列を適用。言語なしはMFM schemeの `bg` / `fg`、ハイライト済みはハイライトテーマ背景を使用するよう変更（#55、見た目の変更）。
+- Extended the scope of `enableAdvancedMfm` to the visual enlargement of x2/x3/x4, `scale` / `position`, and all nine MFM animations. Added `MfmRenderConfig.useAnimation` (`enableAdvancedMfm && enableAnimation`), so animations also stop when advanced MFM is disabled. Both flags still default to true (#37)
+- With advanced MFM disabled, the nominal x2/x3/x4 multipliers of 2/3/4 still propagate to the emoji rendering context, but the `scale` fn transform and its multiplier propagation stop. With animation disabled, no dedicated animation widget is created, while tada's 150% font size, rainbow's static gradient, and sparkle's bare child are preserved (#37)
+- Added `normal` to `MfmEmojiContext` and included it in value equality, `hashCode`, and `toString`. For `normal`, `MfmEmojiConfig` uses a default of 1.25em and a 0.25em descent equivalent to `vertical-align: -0.25em`. An explicit `emojiSize` takes precedence for the height, while the baseline policy for `normal` is retained (#39)
+- Made `MfmCustomEmoji.resolver` optional and gave precedence to a directly specified `url`. The `==` and `toString` of `MfmEmojiContext` now include the host and URL (#56)
+- **Breaking:** Changed `emojiBuilder` / `unicodeEmojiBuilder` to `Widget Function(String, MfmEmojiContext)` so that the effective font size and accumulated scale are passed (#47, #57)
+- **Breaking:** Changed the default `emojiSize` of `MfmEmojiConfig.createDefault` / `fromResolver` from a fixed 24px to twice the effective font size (2em, with a null argument). Pass `emojiSize: 24` explicitly to keep the fixed size (#47)
+- Changed emoji `WidgetSpan`s to alphabetic baseline alignment. `MfmEmojiConfig` sets `MfmCustomEmoji.baselineOffset` to the same descent as upstream custom emoji, equivalent to `vertical-align: middle` (`size / 2 - font size * 0.25`), and reflects it in the line's descent as well. When drawing Unicode emoji as images, specify a height of 1.25em and a descent of `font size * 0.25`, equivalent to `vertical-align: -0.25em` (#57)
+- Changed the accumulated multiplier of the `scale` fn from `(|x| + |y|) / 2` to `max(|x|, |y|)`, matching upstream. `MfmEmojiContext.scale` for `$[scale.x=3,y=1]` is now 3.0 instead of 2.0, and the `useOriginalSize` decision matches upstream as well (#47)
+- Added an original-size image decision (scale >= 2.5) to `MfmEmojiContext.useOriginalSize`. Because `misskey_emoji` does not distinguish original and scaled-down URLs, no automatic switching is performed; it is exposed as a hint for custom builders (#47)
+- Inline code now inherits font size, color, and weight from its parent, and its padding and corner radius are em-relative (#54)
+- **Breaking:** Removed the default underline on URLs and links to match upstream Misskey's underline-free rendering, and changed the link color from a fixed `#0066CC` to the selected `MfmColorScheme.link` (#50)
+- **Breaking:** Removed `inlineCodeBgColorLight` / `inlineCodeBgColorDark` and consolidated the inline code background into `MfmColorScheme.bg`. The defaults become Mi Light `#f9f9f9` / Mi Dark `#232323`. Migrate the old settings to `lightColorScheme: MfmColorScheme.light(bg: color)` / `darkColorScheme: MfmColorScheme.dark(bg: color)` (#50)
+- Removed the card presentation, padding, centering, and full-width layout of math, rendering it as the same undecorated monospace text as upstream Misskey (#51, visual change)
+- URLs are now decomposed into scheme, Unicode host, port, and decoded path, query, and fragment, with an external-link icon and self-URL shortening based on `localHost` (#48, visual change)
+- Added `punycoder ^0.3.0` as a dependency for Punycode decoding of URL hosts
+- Aligned code blocks with upstream MkCode, applying a 1px theme divider border, an 8px corner radius, 1em padding, and a monospace font fallback list. Blocks without a language use the MFM scheme's `bg` / `fg`, while highlighted blocks use the highlight theme background (#55, visual change)
 
 ## [0.6.0-beta.1] - 2026-08-15
 
 ### Changed
-- **Breaking:** `MfmEmojiConfig.createDefault()` で、呼び出し元が所有する `MisskeyClient` を必須化
-  - 絵文字取得専用のHTTPクライアント生成を廃止し、アプリの接続設定・認証情報を再利用
-  - `MfmEmojiConfigHandle.dispose()` はカタログとストアのみを破棄し、渡された `MisskeyClient` は破棄しない
-- `misskey_api_core` への依存を廃止し、`misskey_client` と `misskey_emoji` 2.0の `EmojiSource` APIへ移行
+- **Breaking:** `MfmEmojiConfig.createDefault()` now requires a caller-owned `MisskeyClient`
+  - Stopped creating a dedicated HTTP client for fetching emoji, reusing the app's connection settings and credentials instead
+  - `MfmEmojiConfigHandle.dispose()` disposes only the catalog and the store, not the supplied `MisskeyClient`
+- Dropped the dependency on `misskey_api_core` and migrated to the `EmojiSource` API of `misskey_client` and `misskey_emoji` 2.0
 
 ### Removed
-- **Breaking:** `MfmEmojiConfig.quickSetup()` / `createDefault()` から `serverUrl` 引数を削除
-  - `misskey_client` 1.0.0-beta.6 で追加された `MisskeyClient.baseUrl` から導出するようになったため
-  - 従来は `client` と `serverUrl` の両方を要求しており、食い違う値を渡せてしまう問題があった
+- **Breaking:** Removed the `serverUrl` argument from `MfmEmojiConfig.quickSetup()` / `createDefault()`
+  - It is now derived from `MisskeyClient.baseUrl`, added in `misskey_client` 1.0.0-beta.6
+  - Previously both `client` and `serverUrl` were required, which allowed inconsistent values to be passed
 
-- **Breaking:** `MfmEmojiConfig.quickSetup()` を削除。`serverUrl` の廃止により `createDefault()` と同一シグネチャになったため。`createDefault()` を使用すること
+- **Breaking:** Removed `MfmEmojiConfig.quickSetup()`. Dropping `serverUrl` made its signature identical to `createDefault()`; use `createDefault()` instead
 
 ## [0.5.0] - 2026-08-10
 ### Added
-- カスタム絵文字のURL・アスペクト比キャッシュを安定した識別子で分離する `cacheScope` を追加
+- Added `cacheScope` for separating the custom emoji URL and aspect ratio caches by a stable identifier
 
 ### Fixed
-- resolverクロージャを再生成する利用方法で、判明済みのアスペクト比が再利用されない問題を修正
-- アスペクト比が未知の場合に `maxWidth` をプレースホルダの推定幅として使用し、実画像の表示後に逆方向のリフローが発生する問題を修正
-- 幅0のプレースホルダ内で描画できないローディングインジケータを生成する問題を修正
+- Fixed a known aspect ratio not being reused when the resolver closure is recreated
+- Fixed the reverse reflow that occurred after the real image appeared, caused by using `maxWidth` as the estimated placeholder width when the aspect ratio was unknown
+- Fixed generating a loading indicator that could not be drawn inside a zero-width placeholder
 
 ## [0.4.0] - 2026-08-10
 ### Added
-- `MfmEmojiConfig.quickSetup()` / `createDefault()` が返す設定に、永続ストアを解放する `dispose()` を追加
-- `emojiStoreFactory` による絵文字ストアの注入に対応
-- カスタム絵文字の既知アスペクト比を指定する `aspectRatio` を追加
+- Added `dispose()`, which releases the persistent store, to the configuration returned by `MfmEmojiConfig.quickSetup()` / `createDefault()`
+- Added support for injecting an emoji store through `emojiStoreFactory`
+- Added `aspectRatio` for specifying a known custom emoji aspect ratio
 
 ### Changed
-- `MfmEmojiConfig.quickSetup()` / `createDefault()` の戻り値を `MfmRenderConfig` のサブクラスである `MfmEmojiConfigHandle` に変更
-  - `MfmRenderConfig` として扱う既存コードは変更不要
-  - `copyWith()` で作成した設定はライフサイクルを共有し、いずれかを破棄するとすべて破棄済みになる
+- Changed the return value of `MfmEmojiConfig.quickSetup()` / `createDefault()` to `MfmEmojiConfigHandle`, a subclass of `MfmRenderConfig`
+  - Existing code that treats it as a `MfmRenderConfig` needs no change
+  - Configurations created with `copyWith()` share a lifecycle; disposing any one of them marks all of them disposed
 
 ### Fixed
-- `emoji_config_test` がユニットテスト内で実Isarを開き、ネイティブライブラリ不在やインスタンス名衝突で失敗する問題を修正
-- カスタム絵文字の読み込み中に正方形の幅を確保して本文がリフローする問題を修正
-- 判明済みのカスタム絵文字のアスペクト比を再利用し、再生成時のリフローを抑制
+- Fixed `emoji_config_test` opening a real Isar instance inside a unit test, which failed when the native library was missing or the instance name collided
+- Fixed body text reflowing because a square width was reserved while a custom emoji was loading
+- Known custom emoji aspect ratios are now reused, suppressing reflow when they are recreated
 
 ## [0.3.0] - 2026-08-08
 ### Added
-- カスタム絵文字に任意の最大幅を設定する `maxWidth` / `emojiMaxWidth` を追加
-- カタログ更新後にカスタム絵文字を再解決する `refreshListenable` / `emojiRefreshListenable` を追加
+- Added `maxWidth` / `emojiMaxWidth` for setting an optional maximum width on custom emoji
+- Added `refreshListenable` / `emojiRefreshListenable` for re-resolving custom emoji after a catalog update
 
 ### Fixed
-- 横長のカスタム絵文字が正方形領域内で極端に小さく表示される問題を修正
-- カスタム絵文字のメモリキャッシュ生成時にアスペクト比が崩れる可能性がある問題を修正
-- 親ウィジェットの再ビルド時に解決済みの同じカスタム絵文字が再解決される問題を修正
-- カタログ同期後も未解決のカスタム絵文字や更新済みメタデータが反映されない問題を修正
-- アニメーション関数の `speed` が0以下または1ms未満の場合に描画が失敗する問題を修正
-- 負の `delay` を本家Misskeyと同様に経過済み時間として反映
+- Fixed wide custom emoji being rendered extremely small inside a square area
+- Fixed a possible aspect ratio distortion when creating the custom emoji memory cache
+- Fixed already-resolved custom emoji being resolved again when the parent widget rebuilds
+- Fixed unresolved custom emoji and updated metadata not being reflected after a catalog sync
+- Fixed rendering failing when an animation function's `speed` was zero or negative, or shorter than 1ms
+- A negative `delay` is now treated as already-elapsed time, as upstream Misskey does
 
 ## [0.2.0] - 2026-05-16
 ### Added
-- Nyaize（猫モード相当のテキスト変換）に対応
-  - `nyaize(String)` 純粋関数を公開API（`misskey_mfm_renderer` から直接 import 可）
-  - 日本語 / 英語 / 韓国語の3言語で本家 Misskey と同等の変換規則
-  - `MfmRenderConfig.enableNyaize` を `true` にすると `MfmText` のテキストノードへ自動適用
-  - `link` / `quote` / `plain` 配下のサブツリーは本家挙動に準拠して変換対象外
-  - URL / メンション / ハッシュタグ / 各種コード / 数式 / 絵文字 / 検索ノードは構造上テキストノードを経由しないため自然と除外
+- Added Nyaize support, the text transformation used by cat mode
+  - The pure function `nyaize(String)` is part of the public API and can be imported directly from `misskey_mfm_renderer`
+  - Transformation rules equivalent to upstream Misskey for Japanese, English, and Korean
+  - Setting `MfmRenderConfig.enableNyaize` to `true` applies it automatically to the text nodes of `MfmText`
+  - Subtrees under `link` / `quote` / `plain` are excluded, following upstream behavior
+  - URL, mention, hashtag, code, math, emoji, and search nodes are excluded naturally because they structurally do not go through text nodes
 
 ## [0.1.0] - 2026-02-09
 Initial release of misskey_mfm_renderer - A Flutter widget library for rendering Misskey MFM (Misskey Flavored Markdown) content.
