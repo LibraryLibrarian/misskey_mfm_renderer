@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Allowed `cached_network_image` 4.x alongside 3.x while retaining support for Flutter 3.38.1 and Dart 3.10.0
+
 ### Fixed
 - Fixed `rainbow` recoloring custom emoji, explicitly set text colors, backgrounds, and borders while animation is disabled. The static gradient now applies only to text that inherits its color, preserving `fg` and link colors as well as the original colors of images
 
