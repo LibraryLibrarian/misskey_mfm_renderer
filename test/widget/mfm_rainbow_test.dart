@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_animated_wrapper.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_rainbow_text.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_rainbow_widget.dart';
 
 const _identity = <double>[
@@ -311,7 +312,7 @@ void main() {
       _expectMatrix(_matrix(_filters(tester).last.colorFilter), _quarterTurn);
     });
 
-    testWidgets('enabled切替で静的ShaderMaskとアニメーションを切り替える', (tester) async {
+    testWidgets('enabled切替で静的文字グラデーションとアニメーションを切り替える', (tester) async {
       Widget host({required bool enabled}) => Directionality(
         textDirection: TextDirection.ltr,
         child: MfmRainbowWidget(enabled: enabled, child: const Text('text')),
@@ -321,7 +322,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 250));
       await tester.pumpWidget(host(enabled: false));
       expect(find.byType(MfmStaticRainbowWidget), findsOneWidget);
-      expect(find.byType(ShaderMask), findsOneWidget);
+      expect(find.byType(ShaderMask), findsNothing);
+      expect(find.byType(MfmRainbowRichText), findsOneWidget);
       expect(find.byType(ColorFiltered), findsNothing);
       expect(find.byType(MfmAnimatedWrapper), findsNothing);
       await tester.pumpWidget(host(enabled: true));
@@ -438,16 +440,21 @@ void main() {
     ];
     const stops = <double>[0, 0.17, 0.33, 0.5, 0.67, 0.83, 1];
     await tester.pumpWidget(
-      const Directionality(
+      Directionality(
         textDirection: TextDirection.ltr,
         child: Center(
           child: RepaintBoundary(
             key: boundaryKey,
-            child: MfmStaticRainbowWidget(
-              child: SizedBox(
-                width: 1001,
-                height: 10,
-                child: ColoredBox(color: Colors.white),
+            child: MfmText(
+              text: '\$[rainbow ${'X' * 70}]',
+              config: const MfmRenderConfig(
+                enableAnimation: false,
+                baseTextStyle: TextStyle(
+                  fontFamily: 'Ahem',
+                  fontSize: 10,
+                  height: 1,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),

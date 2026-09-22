@@ -722,6 +722,9 @@ The default cycle is 1 second with linear, infinite repetition. `speed` changes
 the cycle duration; a positive `delay` leaves the original child unfiltered
 until the animation starts. When `config.useAnimation` is false, the static
 fallback remains the familiar rainbow gradient (seven colors and seven stops).
+It applies only to text using the inherited foreground color; explicit colors
+inside the rainbow (such as `fg` and links), emoji images, backgrounds, and
+borders retain their original colors.
 
 ### Localizing unixtime
 

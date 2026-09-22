@@ -6,6 +6,7 @@ import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 
 import '../config/mfm_color_scheme.dart';
 import '../config/mfm_render_config.dart';
+import '../fn/animated/mfm_rainbow_text.dart';
 import '../fn/mfm_fn_handler.dart';
 import '../utils/nyaize.dart';
 import '../utils/url_display.dart';
@@ -24,6 +25,8 @@ class MfmNodeBuilder {
     this.plain = false,
     this.nowrap = false,
     this.isNote = true,
+    this.rainbowScope,
+    this.rainbowForeground = false,
   });
 
   /// レンダリング設定
@@ -57,6 +60,14 @@ class MfmNodeBuilder {
   /// ハッシュタグをノート用の遷移先へ向けるか。
   final bool isNote;
 
+  /// 静的rainbowの範囲と継承色。fg/link等の明示色ではforegroundだけを解除する。
+  final MfmRainbowScope? rainbowScope;
+  final bool rainbowForeground;
+
+  /// 実効文字色にはsmall等の減光を反映済み。shaderでもそのalphaを維持する。
+  double get foregroundOpacity =>
+      effectiveStyle.foreground?.color.a ?? effectiveStyle.color?.a ?? opacity;
+
   MfmNodeBuilder _copyWith({
     TextStyle? effectiveStyle,
     double? scale,
@@ -66,6 +77,8 @@ class MfmNodeBuilder {
     bool? plain,
     bool? nowrap,
     bool? isNote,
+    MfmRainbowScope? rainbowScope,
+    bool? rainbowForeground,
   }) {
     return MfmNodeBuilder(
       config: config,
@@ -78,6 +91,8 @@ class MfmNodeBuilder {
       plain: plain ?? this.plain,
       nowrap: nowrap ?? this.nowrap,
       isNote: isNote ?? this.isNote,
+      rainbowScope: rainbowScope ?? this.rainbowScope,
+      rainbowForeground: rainbowForeground ?? this.rainbowForeground,
     );
   }
 
@@ -93,7 +108,15 @@ class MfmNodeBuilder {
 
   /// 差分スタイル（inherit: true）を実効スタイルに反映したビルダーを返す
   MfmNodeBuilder withStyle(TextStyle patch) {
-    return _copyWith(effectiveStyle: effectiveStyle.merge(patch));
+    return _copyWith(
+      effectiveStyle: effectiveStyle.merge(patch),
+      rainbowForeground:
+          rainbowForeground && patch.color == null && patch.foreground == null,
+    );
+  }
+
+  MfmNodeBuilder withRainbow(MfmRainbowScope scope) {
+    return _copyWith(rainbowScope: scope, rainbowForeground: true);
   }
 
   /// nyaize 変換を抑止したサブツリー用ビルダーを返す
@@ -109,11 +132,16 @@ class MfmNodeBuilder {
     List<MfmNode> nodes, {
     GestureRecognizer? recognizer,
   }) {
-    return TextSpan(
-      style: patch,
-      children: withStyle(patch).buildNodes(nodes),
-      recognizer: recognizer,
-    );
+    final styled = withStyle(patch);
+    final children = styled.buildNodes(nodes);
+    return styled.rainbowForeground
+        ? MfmRainbowSpan(
+            opacity: styled.foregroundOpacity,
+            style: patch,
+            children: children,
+            recognizer: recognizer,
+          )
+        : TextSpan(style: patch, children: children, recognizer: recognizer);
   }
 
   /// 実効スタイルの色が届かないウィジェットだけを減光する
@@ -135,10 +163,17 @@ class MfmNodeBuilder {
     List<InlineSpan> children, {
     TextAlign textAlign = TextAlign.start,
   }) {
-    return RichText(
-      textAlign: textAlign,
-      text: TextSpan(style: effectiveStyle, children: children),
-    );
+    final text = rainbowForeground
+        ? MfmRainbowSpan(
+            opacity: foregroundOpacity,
+            style: effectiveStyle,
+            children: children,
+          )
+        : TextSpan(style: effectiveStyle, children: children);
+    final scope = rainbowScope;
+    return scope == null
+        ? RichText(textAlign: textAlign, text: text)
+        : MfmRainbowRichText(scope: scope, textAlign: textAlign, text: text);
   }
 
   /// 現在の文脈で nyaize 変換を適用すべきか
@@ -219,13 +254,23 @@ class MfmNodeBuilder {
   InlineSpan _buildSmall(SmallNode node) {
     final color = effectiveStyle.color;
 
-    return _copyWith(opacity: opacity * 0.7).buildStyledSpan(
-      TextStyle(
-        fontSize: effectiveStyle.fontSize! * 0.8,
-        color: color?.withValues(alpha: color.a * 0.7),
-      ),
-      node.children,
+    final patch = TextStyle(
+      fontSize: effectiveStyle.fontSize! * 0.8,
+      color: color?.withValues(alpha: color.a * 0.7),
     );
+    final smaller = _copyWith(opacity: opacity * 0.7);
+    if (rainbowForeground) {
+      // smallは色の指定ではなく減光なので、虹色の継承を解除しない。
+      final styled = smaller
+          .withStyle(patch)
+          ._copyWith(rainbowForeground: true);
+      return MfmRainbowSpan(
+        opacity: styled.foregroundOpacity,
+        style: patch,
+        children: styled.buildNodes(node.children),
+      );
+    }
+    return smaller.buildStyledSpan(patch, node.children);
   }
 
   InlineSpan _buildQuote(QuoteNode node) {
@@ -300,6 +345,18 @@ class MfmNodeBuilder {
   InlineSpan _buildInlineCode(InlineCodeNode node) {
     final fontSize = effectiveStyle.fontSize!;
     final backgroundColor = colorScheme.bg;
+    final text = Text(
+      node.code,
+      style: effectiveStyle.copyWith(
+        fontFamily: 'Consolas',
+        fontFamilyFallback: const [
+          'Monaco',
+          'Andale Mono',
+          'Ubuntu Mono',
+          'monospace',
+        ],
+      ),
+    );
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
@@ -311,18 +368,13 @@ class MfmNodeBuilder {
           color: backgroundColor.withValues(alpha: backgroundColor.a * opacity),
           borderRadius: BorderRadius.circular(fontSize * 0.3),
         ),
-        child: Text(
-          node.code,
-          style: effectiveStyle.copyWith(
-            fontFamily: 'Consolas',
-            fontFamilyFallback: const [
-              'Monaco',
-              'Andale Mono',
-              'Ubuntu Mono',
-              'monospace',
-            ],
-          ),
-        ),
+        child: rainbowScope == null
+            ? text
+            : MfmRainbowText(
+                scope: rainbowScope!,
+                text: text,
+                rainbowForeground: rainbowForeground,
+              ),
       ),
     );
   }
