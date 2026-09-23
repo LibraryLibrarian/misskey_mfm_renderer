@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking:** Updated `misskey_emoji` to 2.0.0-beta.2, which replaces its Isar persistence with Drift (SQLite). Because this package re-exports `misskey_emoji`, `IsarEmojiStore`, `openEmojiIsarForServer`, and the other Isar APIs are no longer available, and custom `EmojiStore` implementations passed through `emojiStoreFactory` must implement the new `load` / `save` / `clear` / `count` / `sizeInBytes` contract. Use `openEmojiStoreForServer` in place of `openEmojiIsarForServer` and `IsarEmojiStore`
+- `MfmEmojiConfig.createDefault` now stores emoji metadata in a per-server `misskey_emoji_<serverKey>_<hash8>.sqlite` file. Existing Isar cache files are no longer read and emoji metadata is fetched again on the first sync; see the README for removing the old files
+- Creating a second default store for the same server and directory while another handle still holds it now throws a `StateError` instead of an `IsarError`. The same server can now be opened concurrently from different `storagePath` directories
+
 ## [0.6.0-beta.3] - 2026-09-23
 
 ### Changed
