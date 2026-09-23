@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-beta.4] - 2026-09-23
+
 ### Changed
 - **Breaking:** Updated `misskey_emoji` to 2.0.0-beta.2, which replaces its Isar persistence with Drift (SQLite). Because this package re-exports `misskey_emoji`, `IsarEmojiStore`, `openEmojiIsarForServer`, and the other Isar APIs are no longer available, and custom `EmojiStore` implementations passed through `emojiStoreFactory` must implement the new `load` / `save` / `clear` / `count` / `sizeInBytes` contract. Use `openEmojiStoreForServer` in place of `openEmojiIsarForServer` and `IsarEmojiStore`
 - **Breaking:** Through the re-exported `misskey_emoji`, `EmojiCatalogBase.afterFetch` now takes `afterFetch(List<EmojiRecord>, {required DateTime syncedAt})`. Add the `syncedAt` parameter to overrides and pass it on in `super` calls. The `beforeSync` and `afterFetch` hooks are now `@protected`
