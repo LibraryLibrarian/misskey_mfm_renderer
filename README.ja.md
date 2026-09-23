@@ -162,7 +162,7 @@ Flutter 3.38.7 を使用していますが、パッケージの対応下限は F
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.3
+  misskey_mfm_renderer: ^0.6.0-beta.4
   misskey_client: ^1.0.0-beta.5
 ```
 
@@ -195,8 +195,8 @@ await config.dispose();
 `createDefault` は、`MfmRenderConfig` としてそのまま使える
 `MfmEmojiConfigHandle` を返します。このハンドルは永続ストアを所有するため、
 不要になったら `dispose()` を呼んでください。ユニットテストでは
-`emojiStoreFactory` にテストダブルを注入すると、Isarのネイティブライブラリを
-ロードせずに構成処理を検証できます。`copyWith` で作成した設定は同じ
+`emojiStoreFactory` にテストダブルを注入すると、SQLiteのDBを
+開かずに構成処理を検証できます。`copyWith` で作成した設定は同じ
 ライフサイクルを共有し、いずれかを破棄するとすべて破棄済みになります。
 渡した `MisskeyClient` の所有権はアプリ側に残り、ハンドルと一緒には破棄されません。
 永続絵文字ストアは `MisskeyClient.baseUrl` を用いてサーバーごとに分離されるため、
@@ -392,9 +392,9 @@ import対象パッケージを直接依存に置きたい場合は追加して�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.3
+  misskey_mfm_renderer: ^0.6.0-beta.4
   misskey_client: ^1.0.0-beta.5
-  misskey_emoji: ^2.0.0-beta.1
+  misskey_emoji: ^2.0.0-beta.2
   path_provider: ^2.1.5
 ```
 
@@ -416,14 +416,14 @@ final client = MisskeyClient(
 // Misskeyクライアントを使用する絵文字ソースを作成
 final emojiSource = MisskeyClientEmojiSource(client);
 
-// 絵文字メタデータ保存用のIsarをオープン
+// 絵文字メタデータ保存用のサーバー別SQLiteストアをオープン
 final dir = await getApplicationDocumentsDirectory();
-final isar = await openEmojiIsarForServer(baseUrl, directory: dir.path);
+final store = await openEmojiStoreForServer(baseUrl, directory: dir.path);
 
-// 永続化カタログとリゾルバーを作成
+// 永続化カタログとリゾルバーを作成（ストアはカタログが所有する）
 final catalog = PersistentEmojiCatalog(
   source: emojiSource,
-  store: IsarEmojiStore(isar, ownsIsar: true),
+  store: store,
 );
 final resolver = MisskeyEmojiResolver(catalog);
 final emojiRefreshNotifier = ValueNotifier(0);
@@ -498,7 +498,7 @@ MfmCustomEmoji(
 - `normal`: `MfmText(plain: true)` のカスタム絵文字だけでtrueになります。
   ビルダーは本家の1.25em `.normal` 表示を選ぶために使えます。
 - `useOriginalSize`: 本家と同じ `scale >= 2.5` による原寸画像利用のヒント。
-  `misskey_emoji` 2.0.0-beta.1 は `EmojiImage.url` を1つだけ公開し、原寸／縮小版を
+  `misskey_emoji` 2.0.0-beta.2 は `EmojiImage.url` を1つだけ公開し、原寸／縮小版を
   区別しません。自動切替には依存パッケージ側の対応が必要なため、現時点では
   `MfmCustomEmoji.useOriginalSize` は追加していません。両URLを取得できる
   独自ビルダーでこのヒントを利用できます。advanced MFM無効時もx系の倍率は
@@ -780,15 +780,39 @@ void main() {
 
 ### プラットフォームに関する注記
 
-パッケージ本体はAndroid、iOS、macOS、Linux、Windowsで動作します。現行バージョンは
-Webビルドに対応していません。パッケージが `misskey_emoji` を再exportしており、その
-Isar生成コードがdart2js / dart2wasmでコンパイルできないため、`MfmText` だけを使う
-アプリでもWeb向けのビルドに失敗します。
+パッケージ本体はAndroid、iOS、macOS、Linux、Windowsで動作します。Webには
+対応していません。Web向けのビルドは通りますが、`misskey_emoji` がWeb用の
+ストアをまだ提供していないため、`MfmEmojiConfig.createDefault` は使えません。
+Web上での描画は検証していません。
+
+カスタム絵文字のメタデータはDrift経由でSQLiteに保存します。SQLiteのネイティブ
+ライブラリは `sqlite3` 3.x のbuild hooksが供給し、キャッシュのないビルドでは
+GitHub Releasesからビルド済みバイナリをダウンロードします。オフラインビルドや
+社内ミラーを使う場合は、アプリの `pubspec.yaml`（pub workspaceではworkspace
+ルートの `pubspec.yaml`）で `hooks.user_defines` を設定してください。設定項目は
+`misskey_emoji` のREADMEを参照してください。
 
 macOSのApp Sandboxを使うアプリでは、`MfmEmojiConfig` と画像取得のために
-`com.apple.security.network.client` entitlementが必要です。Linuxはx86-64かつ
-glibc 2.38以上でのみ対応します。Windowsはx64のみ対応し、Microsoft Visual C++
-Runtime（`VCRUNTIME140.dll`）が必要です。
+`com.apple.security.network.client` entitlementが必要です。Windowsでは
+Microsoft Visual C++ Runtime（`VCRUNTIME140.dll`）が必要です。
+
+### Isarのキャッシュファイルからの移行
+
+`misskey_emoji` 2.0.0-beta.1以前に依存するバージョンは、絵文字メタデータを
+Isarに保存していました。現行版は
+サーバーごとに別名の `misskey_emoji_<serverKey>_<hash8>.sqlite` を使い、古い
+ファイルは読み込まないため、初回の同期で絵文字メタデータを再取得します。古い
+ファイルはディスク容量を占めるだけです。削除する場合は、古いハンドルをすべて
+破棄した後に、`MfmEmojiConfig.createDefault` に渡した `storagePath`（省略時は
+アプリのドキュメントディレクトリ）から次のファイルを削除してください。
+
+```
+<directory>/misskey_emoji_*.isar
+<directory>/misskey_emoji_*.isar-lck
+```
+
+同じディレクトリにアプリ独自のIsar DBが置かれている場合があるため、必ず
+`misskey_emoji_` の接頭辞で絞り込んでください。
 
 ### テキスト選択について
 

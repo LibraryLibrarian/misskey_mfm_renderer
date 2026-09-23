@@ -166,7 +166,7 @@ Add the dependency to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.3
+  misskey_mfm_renderer: ^0.6.0-beta.4
   misskey_client: ^1.0.0-beta.5
 ```
 
@@ -199,7 +199,7 @@ await config.dispose();
 `createDefault` returns an `MfmEmojiConfigHandle`, which can be
 used anywhere an `MfmRenderConfig` is accepted. The handle owns its persistent
 store and must be disposed. Unit tests can pass `emojiStoreFactory` to inject a
-test double without loading Isar's native library. Configurations created with
+test double without opening a SQLite database. Configurations created with
 `copyWith` share the same lifecycle; disposing any copy disposes them all.
 The provided `MisskeyClient` remains owned by the application and is not
 disposed with the handle. The persistent emoji store is partitioned per server
@@ -397,9 +397,9 @@ If your project enforces direct dependencies for imported packages, add:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.3
+  misskey_mfm_renderer: ^0.6.0-beta.4
   misskey_client: ^1.0.0-beta.5
-  misskey_emoji: ^2.0.0-beta.1
+  misskey_emoji: ^2.0.0-beta.2
   path_provider: ^2.1.5
 ```
 
@@ -421,14 +421,14 @@ final client = MisskeyClient(
 // Create an emoji source backed by the Misskey client
 final emojiSource = MisskeyClientEmojiSource(client);
 
-// Open Isar for emoji metadata storage
+// Open the per-server SQLite store for emoji metadata
 final dir = await getApplicationDocumentsDirectory();
-final isar = await openEmojiIsarForServer(baseUrl, directory: dir.path);
+final store = await openEmojiStoreForServer(baseUrl, directory: dir.path);
 
-// Create persistent catalog and resolver
+// Create persistent catalog and resolver (the catalog owns the store)
 final catalog = PersistentEmojiCatalog(
   source: emojiSource,
-  store: IsarEmojiStore(isar, ownsIsar: true),
+  store: store,
 );
 final resolver = MisskeyEmojiResolver(catalog);
 final emojiRefreshNotifier = ValueNotifier(0);
@@ -503,7 +503,7 @@ widget). The publicly exported immutable `MfmEmojiContext` contains:
 - `normal`: true only for custom emoji in `MfmText(plain: true)`. Builders can use
   it to select Misskey's 1.25em `.normal` appearance.
 - `useOriginalSize`: `scale >= 2.5`, matching Misskey's original-image hint.
-  `misskey_emoji` 2.0.0-beta.1 exposes only one `EmojiImage.url`, with no
+  `misskey_emoji` 2.0.0-beta.2 exposes only one `EmojiImage.url`, with no
   original/thumbnail distinction. Automatic original-URL switching requires
   support in that dependency; no `MfmCustomEmoji.useOriginalSize` option is
   provided yet. A custom builder with access to both URLs can use the hint.
@@ -787,16 +787,40 @@ corresponding clear flag in the same call throws `ArgumentError`.
 
 ### Platform notes
 
-The package works on Android, iOS, macOS, Linux, and Windows. Web builds are
-not supported in the current version: the package re-exports `misskey_emoji`,
-whose Isar generated code cannot be compiled by dart2js or dart2wasm, so even an
-app that only uses `MfmText` fails to build for Web.
+The package works on Android, iOS, macOS, Linux, and Windows. Web is not
+supported. Web builds compile, but `misskey_emoji` does not provide a Web store
+yet, so `MfmEmojiConfig.createDefault` cannot be used there. Rendering on Web
+has not been tested.
+
+Custom emoji metadata is stored in SQLite through Drift. The native SQLite
+library is supplied by the build hooks of `sqlite3` 3.x, which download
+prebuilt binaries from GitHub Releases on a clean build. For offline builds or
+an internal mirror, configure `hooks.user_defines` in the application's
+`pubspec.yaml` (in the workspace root's `pubspec.yaml` when using a pub
+workspace). See the `misskey_emoji` README for the available settings.
 
 Apps using the macOS App Sandbox need the
 `com.apple.security.network.client` entitlement for `MfmEmojiConfig` and image
-loading. Linux is supported only on x86-64 with glibc 2.38 or later. Windows is
-supported only on x64 and requires the Microsoft Visual C++ Runtime
+loading. Windows apps require the Microsoft Visual C++ Runtime
 (`VCRUNTIME140.dll`).
+
+### Migrating from Isar cache files
+
+Versions depending on `misskey_emoji` 2.0.0-beta.1 or earlier stored emoji
+metadata in Isar. The current version uses a differently named
+`misskey_emoji_<serverKey>_<hash8>.sqlite` file for each server and does not
+read the old files, so emoji metadata is fetched again on the first sync. The old files only consume disk space. To remove them, delete
+the following files from the `storagePath` passed to
+`MfmEmojiConfig.createDefault` (the application documents directory when
+omitted), after every old handle has been disposed:
+
+```
+<directory>/misskey_emoji_*.isar
+<directory>/misskey_emoji_*.isar-lck
+```
+
+Filter by the `misskey_emoji_` prefix, because the application may keep its own
+unrelated Isar databases in the same directory.
 
 ### Text Selection
 
