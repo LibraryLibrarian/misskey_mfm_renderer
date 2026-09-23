@@ -1,0 +1,108 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'beta = x.y.z-beta.n を出す / stable = 開いているプレリリース列を正式版へ昇格する'
+        required: true
+        default: beta
+        type: choice
+        options: [beta, stable]
+      version:
+        description: '算出結果を使わずバージョンを指定する場合のみ入力（例: 2.0.0）'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v7
+        with:
+          ref: develop
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.7'
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # バージョンは CHANGELOG の [Unreleased] から導く。コミットメッセージから
+      # 推測しないのは、このプロジェクトの履歴で破壊的変更が docs: として記録
+      # されていた実績があるため。
+      - name: Resolve the version
+        id: resolve
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          OVERRIDE: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "$OVERRIDE" ]; then
+            version="$OVERRIDE"
+            echo "Using the version given by the operator: $version"
+          else
+            dart run tool/next_version.dart "$CHANNEL" "$RUNNER_TEMP/version.txt"
+            version="$(cat "$RUNNER_TEMP/version.txt")"
+            echo "Derived from CHANGELOG.md: $version"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # プレリリースから安定版への昇格では、同じベースの全プレリリースと
+      # [Unreleased] の内容が統合される。結果はリリースPRで推敲する。
+      - name: Bump version
+        env:
+          TZ: Asia/Tokyo
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          dart run tool/bump_version.dart "$VERSION"
+          dart run tool/verify_release.dart "$VERSION"
+
+      - name: Create release branch
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "release/$VERSION"
+          git commit -am "chore(release): $VERSION"
+          git push -u origin "release/$VERSION"
+
+      - name: Open pull request
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          OVERRIDE: ${{ inputs.version }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+          RELEASE_ACTOR: ${{ github.actor }}
+        run: |
+          if [ -n "$OVERRIDE" ]; then
+            ORIGIN="実行者が指定したバージョンです。"
+          else
+            ORIGIN="\`CHANGELOG.md\` の \`[Unreleased]\` から算出したバージョンです（チャンネル: \`$CHANNEL\`）。"
+          fi
+
+          gh pr create \
+            --assignee "$RELEASE_ACTOR" \
+            --base main \
+            --head "release/$VERSION" \
+            --title "release: $VERSION" \
+            --body "$ORIGIN マージすると \`v$VERSION\` タグが作成され、pub.dev への公開と GitHub Release の作成まで自動で進みます。"

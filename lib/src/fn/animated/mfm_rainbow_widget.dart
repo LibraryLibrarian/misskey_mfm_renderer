@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 
 import 'mfm_animated_wrapper.dart';
+import 'mfm_rainbow_text.dart';
 
 class MfmRainbowWidget extends StatelessWidget {
   const MfmRainbowWidget({
@@ -128,40 +129,23 @@ class MfmRainbowWidget extends StatelessWidget {
 }
 
 class MfmStaticRainbowWidget extends StatelessWidget {
-  const MfmStaticRainbowWidget({super.key, required this.child});
+  const MfmStaticRainbowWidget({
+    super.key,
+    required this.child,
+    this.scope,
+  });
 
   final Widget child;
-
-  // 本家の_mfm_rainbow_fallback_と同じ色と停止位置。
-  static const _rainbowColors = <Color>[
-    Color(0xFFFF0000),
-    Color(0xFFFFA500),
-    Color(0xFFFFFF00),
-    Color(0xFF00FF00),
-    Color(0xFF00FFFF),
-    Color(0xFF0000FF),
-    Color(0xFFFF00FF),
-  ];
-
-  static const _staticStops = <double>[
-    0,
-    0.17,
-    0.33,
-    0.5,
-    0.67,
-    0.83,
-    1,
-  ];
+  final MfmRainbowScope? scope;
 
   @override
   Widget build(BuildContext context) {
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) => const LinearGradient(
-        colors: _rainbowColors,
-        stops: _staticStops,
-      ).createShader(bounds),
-      child: child,
-    );
+    final scope = this.scope ?? MfmRainbowScope();
+    var content = child;
+    // MfmRainbowWidgetを直接使う場合も、画像等をマスクせず文字だけを着色する。
+    if (this.scope == null && child is Text) {
+      content = MfmRainbowText(scope: scope, text: child as Text);
+    }
+    return MfmRainbowViewport(scope: scope, child: content);
   }
 }

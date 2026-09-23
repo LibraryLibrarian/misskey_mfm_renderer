@@ -166,7 +166,7 @@ Add the dependency to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.2
+  misskey_mfm_renderer: ^0.6.0-beta.3
   misskey_client: ^1.0.0-beta.5
 ```
 
@@ -397,7 +397,7 @@ If your project enforces direct dependencies for imported packages, add:
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.2
+  misskey_mfm_renderer: ^0.6.0-beta.3
   misskey_client: ^1.0.0-beta.5
   misskey_emoji: ^2.0.0-beta.1
   path_provider: ^2.1.5
@@ -722,6 +722,9 @@ The default cycle is 1 second with linear, infinite repetition. `speed` changes
 the cycle duration; a positive `delay` leaves the original child unfiltered
 until the animation starts. When `config.useAnimation` is false, the static
 fallback remains the familiar rainbow gradient (seven colors and seven stops).
+It applies only to text using the inherited foreground color; explicit colors
+inside the rainbow (such as `fg` and links), emoji images, backgrounds, and
+borders retain their original colors.
 
 ### Localizing unixtime
 

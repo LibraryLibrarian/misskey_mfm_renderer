@@ -162,7 +162,7 @@ Flutter 3.38.7 を使用していますが、パッケージの対応下限は F
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.2
+  misskey_mfm_renderer: ^0.6.0-beta.3
   misskey_client: ^1.0.0-beta.5
 ```
 
@@ -392,7 +392,7 @@ import対象パッケージを直接依存に置きたい場合は追加して�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.2
+  misskey_mfm_renderer: ^0.6.0-beta.3
   misskey_client: ^1.0.0-beta.5
   misskey_emoji: ^2.0.0-beta.1
   path_provider: ^2.1.5
@@ -714,7 +714,9 @@ MfmText(text: r'$[rainbow $[fg.color=ff0000 カラフル]]')
 既定周期は1秒で、等速・無限に繰り返します。`speed` で周期を変更でき、
 正の `delay` の待機中は元の子要素にフィルタを掛けません。
 `config.useAnimation` がfalseの場合は、従来どおり虹色グラデーションの
-静的フォールバック（7色・7ストップ）を表示します。
+静的フォールバック（7色・7ストップ）を表示します。グラデーションは継承色の
+文字だけに適用し、内側の `fg`・リンク等の明示色、絵文字画像、背景・罫線の
+元の色は保持します。
 
 ### unixtime のローカライズ
 

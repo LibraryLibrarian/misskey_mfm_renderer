@@ -12,6 +12,7 @@ import 'animated/mfm_animated_wrapper.dart';
 import 'animated/mfm_bounce_widget.dart';
 import 'animated/mfm_jelly_widget.dart';
 import 'animated/mfm_jump_widget.dart';
+import 'animated/mfm_rainbow_text.dart';
 import 'animated/mfm_rainbow_widget.dart';
 import 'animated/mfm_shake_widget.dart';
 import 'animated/mfm_sparkle_widget.dart';
@@ -303,6 +304,19 @@ class MfmFnHandler {
   }
 
   static InlineSpan _buildRainbow(FnNode node, MfmNodeBuilder builder) {
+    if (!builder.config.useAnimation) {
+      final scope = MfmRainbowScope();
+      final rainbow = builder.withRainbow(scope);
+      return WidgetSpan(
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        child: MfmStaticRainbowWidget(
+          scope: scope,
+          child: rainbow.buildInlineRichText(rainbow.buildNodes(node.children)),
+        ),
+      );
+    }
+
     final args = node.args;
     final duration =
         MfmAnimatedWrapper.parseTime(args['speed']) ??
@@ -319,16 +333,11 @@ class MfmFnHandler {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: builder.config.useAnimation
-          ? MfmRainbowWidget(
-              duration: duration,
-              delay: delay,
-              enabled: builder.config.useAnimation,
-              child: builder.buildInlineRichText(children),
-            )
-          : MfmStaticRainbowWidget(
-              child: builder.buildInlineRichText(children),
-            ),
+      child: MfmRainbowWidget(
+        duration: duration,
+        delay: delay,
+        child: builder.buildInlineRichText(children),
+      ),
     );
   }
 
@@ -802,7 +811,9 @@ class MfmFnHandler {
       }
     }
 
-    final baseStyle = builder.config.baseTextStyle;
+    final baseStyle = builder.rainbowScope == null
+        ? builder.config.baseTextStyle
+        : builder.effectiveStyle;
     final baseFontSize = baseStyle?.fontSize ?? 14.0;
     final rubyFontSize = baseFontSize * 0.5;
     final rubyStyle = (baseStyle ?? const TextStyle()).copyWith(
@@ -810,18 +821,22 @@ class MfmFnHandler {
       height: 1,
     );
 
+    final ruby = _RubyTextWidget(
+      baseSpan: baseSpan,
+      rubyText: rubyText,
+      baseStyle: baseStyle,
+      rubyStyle: rubyStyle,
+      rubyFontSize: rubyFontSize,
+      rainbowScope: builder.rainbowScope,
+      rainbowOpacity: builder.rainbowForeground
+          ? builder.foregroundOpacity
+          : null,
+    );
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: builder.wrapOpacity(
-        _RubyTextWidget(
-          baseSpan: baseSpan,
-          rubyText: rubyText,
-          baseStyle: baseStyle,
-          rubyStyle: rubyStyle,
-          rubyFontSize: rubyFontSize,
-        ),
-      ),
+      // 静的rainbowの文字色は既にsmallのalphaを含んでいる。
+      child: builder.rainbowScope == null ? builder.wrapOpacity(ruby) : ruby,
     );
   }
 
@@ -940,6 +955,8 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
     required this.baseStyle,
     required this.rubyStyle,
     required this.rubyFontSize,
+    this.rainbowScope,
+    this.rainbowOpacity,
   });
 
   final InlineSpan baseSpan;
@@ -947,6 +964,8 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
   final TextStyle? baseStyle;
   final TextStyle rubyStyle;
   final double rubyFontSize;
+  final MfmRainbowScope? rainbowScope;
+  final double? rainbowOpacity;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -956,6 +975,8 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
       baseStyle: baseStyle,
       rubyStyle: rubyStyle,
       rubyFontSize: rubyFontSize,
+      rainbowScope: rainbowScope,
+      rainbowOpacity: rainbowOpacity,
     );
   }
 
@@ -969,7 +990,9 @@ class _RubyTextWidget extends LeafRenderObjectWidget {
       ..rubyText = rubyText
       ..baseStyle = baseStyle
       ..rubyStyle = rubyStyle
-      ..rubyFontSize = rubyFontSize;
+      ..rubyFontSize = rubyFontSize
+      ..rainbowScope = rainbowScope
+      ..rainbowOpacity = rainbowOpacity;
   }
 }
 
@@ -980,7 +1003,11 @@ class _RenderRubyText extends RenderBox {
     required TextStyle? baseStyle,
     required TextStyle rubyStyle,
     required double rubyFontSize,
-  }) : _baseSpan = baseSpan,
+    MfmRainbowScope? rainbowScope,
+    double? rainbowOpacity,
+  }) : _rainbowScope = rainbowScope,
+       _rainbowOpacity = rainbowOpacity,
+       _baseSpan = baseSpan,
        _rubyText = rubyText,
        _baseStyle = baseStyle,
        _rubyStyle = rubyStyle,
@@ -1035,6 +1062,24 @@ class _RenderRubyText extends RenderBox {
     }
   }
 
+  MfmRainbowScope? _rainbowScope;
+  MfmRainbowScope? get rainbowScope => _rainbowScope;
+  set rainbowScope(MfmRainbowScope? value) {
+    if (identical(value, _rainbowScope)) return;
+    _rainbowScope = value;
+    _basePainter = null;
+    _rubyPainter = null;
+    markNeedsLayout();
+  }
+
+  double? _rainbowOpacity;
+  double? get rainbowOpacity => _rainbowOpacity;
+  set rainbowOpacity(double? value) {
+    if (value == _rainbowOpacity) return;
+    _rainbowOpacity = value;
+    markNeedsPaint();
+  }
+
   TextPainter? _basePainter;
   TextPainter? _rubyPainter;
 
@@ -1078,14 +1123,50 @@ class _RenderRubyText extends RenderBox {
 
     final maxWidth = math.max(basePainter.width, rubyPainter.width);
 
-    // ルビテキストを上部中央に配置
-    final rubyX = offset.dx + (maxWidth - rubyPainter.width) / 2;
-    rubyPainter.paint(context.canvas, Offset(rubyX, offset.dy));
-
-    // ベーステキストをルビの下に中央配置
-    final baseX = offset.dx + (maxWidth - basePainter.width) / 2;
-    final baseY = offset.dy + rubyPainter.height;
-    basePainter.paint(context.canvas, Offset(baseX, baseY));
+    final rubyOrigin = Offset((maxWidth - rubyPainter.width) / 2, 0);
+    final baseOrigin = Offset(
+      (maxWidth - basePainter.width) / 2,
+      rubyPainter.height,
+    );
+    final scope = _rainbowScope;
+    if (scope != null) {
+      final opacity = _rainbowOpacity;
+      final base = opacity == null
+          ? TextSpan(style: _baseStyle, children: [_baseSpan])
+          : MfmRainbowSpan(
+              opacity: opacity,
+              style: _baseStyle,
+              children: [_baseSpan],
+            );
+      final ruby = opacity == null
+          ? TextSpan(text: _rubyText, style: _rubyStyle)
+          : MfmRainbowSpan(
+              opacity: opacity,
+              text: _rubyText,
+              style: _rubyStyle,
+            );
+      basePainter
+        ..text = scope.colorize(base, this, origin: baseOrigin)
+        ..layout(maxWidth: constraints.maxWidth);
+      rubyPainter
+        ..text = scope.colorize(ruby, this, origin: rubyOrigin)
+        ..layout(maxWidth: constraints.maxWidth);
+    } else {
+      rubyPainter.paint(context.canvas, offset + rubyOrigin);
+      basePainter.paint(context.canvas, offset + baseOrigin);
+      return;
+    }
+    // ルビを上部中央に、ベーステキストをその下に配置する。
+    final canvas = context.canvas
+      ..save()
+      ..translate(offset.dx + rubyOrigin.dx, offset.dy + rubyOrigin.dy);
+    rubyPainter.paint(canvas, Offset.zero);
+    canvas
+      ..restore()
+      ..save()
+      ..translate(offset.dx + baseOrigin.dx, offset.dy + baseOrigin.dy);
+    basePainter.paint(canvas, Offset.zero);
+    canvas.restore();
   }
 
   @override
