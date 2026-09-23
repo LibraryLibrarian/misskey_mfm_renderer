@@ -148,6 +148,35 @@ void main() {
     expect(store.disposeCalls, 1);
   });
 
+  test('既定ストアはSQLiteのDBを作成し、disposeで解放する', () async {
+    final dir = await Directory.systemTemp.createTemp('mfm_emoji_default');
+    addTearDown(() => dir.delete(recursive: true));
+
+    Future<MfmEmojiConfigHandle> open() => MfmEmojiConfig.createDefault(
+      client: _createClient(),
+      storagePath: dir.path,
+      autoSync: false,
+    );
+
+    final config = await open();
+    addTearDown(config.dispose);
+    final files = dir.listSync().map((e) => e.uri.pathSegments.last).toList();
+    expect(
+      files,
+      contains(
+        matches(
+          RegExp(r'^misskey_emoji_https_example_com_[0-9a-f]{8}\.sqlite$'),
+        ),
+      ),
+    );
+    // 開いている間は同じサーバーのストアを二重に開けない
+    await expectLater(open(), throwsStateError);
+
+    await config.dispose();
+    final reopened = await open();
+    await reopened.dispose();
+  });
+
   test('ハンドルのcopyWithがコードコピー設定を保持し上書きできる', () async {
     final dir = await Directory.systemTemp.createTemp('mfm_emoji_code_copy');
     addTearDown(() => dir.delete(recursive: true));
@@ -450,10 +479,23 @@ class _FakeEmojiStore implements EmojiStore {
   int disposeCalls = 0;
 
   @override
-  Future<List<EmojiRecord>> loadAll() async => [];
+  Future<EmojiSnapshot> load() async =>
+      const EmojiSnapshot(records: [], syncedAt: null);
 
   @override
-  Future<void> saveAll(List<EmojiRecord> all) async {}
+  Future<void> save(
+    List<EmojiRecord> all, {
+    required DateTime syncedAt,
+  }) async {}
+
+  @override
+  Future<void> clear() async {}
+
+  @override
+  Future<int> count() async => 0;
+
+  @override
+  Future<int?> sizeInBytes() async => null;
 
   @override
   Future<void> dispose() async {

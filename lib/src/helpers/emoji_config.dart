@@ -23,7 +23,7 @@ typedef MfmEmojiStoreFactory =
 /// 永続ストアのライフサイクルを所有するMFMレンダリング設定
 ///
 /// [MfmRenderConfig]としてそのまま利用できる。
-/// 不要になったら[dispose]を呼び、Isarなどのリソースを解放すること。
+/// 不要になったら[dispose]を呼び、SQLiteのDB接続などのリソースを解放すること。
 class MfmEmojiConfigHandle extends MfmRenderConfig {
   MfmEmojiConfigHandle._({
     required MfmRenderConfig config,
@@ -197,7 +197,7 @@ class MfmEmojiConfig {
   /// 絵文字の縦位置は本家の`vertical-align: middle`相当（下端の下降量は
   /// `size / 2 - フォントサイズ × 0.25`）に揃える。
   /// [emojiRefreshListenable]が通知すると絵文字メタデータを再解決する。
-  /// [emojiStoreFactory]を指定すると、Isarを開かずに任意のストアを利用できる。
+  /// [emojiStoreFactory]を指定すると、SQLiteのDBを開かずに任意のストアを利用できる。
   static Future<MfmEmojiConfigHandle> createDefault({
     required MisskeyClient client,
     String? storagePath,
@@ -346,8 +346,5 @@ class MfmEmojiConfig {
   static Future<EmojiStore> _createDefaultStore({
     required Uri serverUrl,
     required String directory,
-  }) async {
-    final isar = await openEmojiIsarForServer(serverUrl, directory: directory);
-    return IsarEmojiStore(isar, ownsIsar: true);
-  }
+  }) => openEmojiStoreForServer(serverUrl, directory: directory);
 }
