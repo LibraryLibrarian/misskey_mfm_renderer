@@ -333,7 +333,7 @@ void main() {
       }
     }
 
-    testWidgets('継承色が未指定なら色patchを追加しない', (tester) async {
+    testWidgets('継承色が未指定でもRichText既定の黒をsmallで減光する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -348,7 +348,7 @@ void main() {
       final richText = _rootRichText(tester);
       final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
       expect(style!.fontSize, closeTo(11.2, 0.000001));
-      expect(style.color, isNull);
+      expect(style.color, const Color(0xFF000000).withValues(alpha: 0.7));
     });
 
     for (final emoji in [':emoji:', '😀']) {
@@ -485,7 +485,25 @@ void main() {
             of: find.byWidget(child is Opacity ? child.child! : child),
             matching: find.byType(Opacity),
           );
-          if (depth == 0) {
+          if (testCase.name == '日時' || testCase.name == 'ルビ') {
+            expect(child, isNot(isA<Opacity>()));
+            expect(opacityFinder, findsNothing);
+            final TextStyle style;
+            if (testCase.name == '日時') {
+              style = tester
+                  .widget<Text>(
+                    find.descendant(
+                      of: find.byWidget(child),
+                      matching: find.byType(Text),
+                    ),
+                  )
+                  .style!;
+            } else {
+              final renderObject = tester.renderObject(find.byWidget(child));
+              style = (renderObject as dynamic).baseStyle as TextStyle;
+            }
+            expect(style.color!.a, closeTo([1.0, 0.7, 0.49][depth], 0.000001));
+          } else if (depth == 0) {
             // コードブロックのコピーボタン内にあるOpacityは対象外。
             expect(child, isNot(isA<Opacity>()));
             expect(opacityFinder, findsNothing);

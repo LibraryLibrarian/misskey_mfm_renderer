@@ -587,6 +587,12 @@ MfmText(
 )
 ```
 
+`ruby` and `unixtime` inherit surrounding MFM font sizes, colors, fonts, and
+text decorations. Ruby annotations use half of the current font size, and
+unixtime uses 90%. `position` offsets are measured in the current font's em,
+so `$[x2 $[position.x=1 text]]` moves by twice the root font size. Nested
+`small` opacity is applied once, including across these widget boundaries.
+
 ### MFM Color Schemes
 
 `MfmColorScheme` controls the Misskey theme colors used by URL/link, mention,

@@ -251,12 +251,43 @@ class MfmNodeBuilder {
     );
   }
 
-  InlineSpan _buildSmall(SmallNode node) {
-    final color = effectiveStyle.color;
+  // 前景以外のTextStyleの色も減光し、WidgetSpan境界で全体Opacityを不要にする。
+  TextStyle _dimmedSecondaryColors(double factor) {
+    Color dim(Color color) => color.withValues(alpha: color.a * factor);
+    final background = effectiveStyle.background;
+    final backgroundColor = effectiveStyle.backgroundColor;
+    final decorationColor = effectiveStyle.decorationColor;
+    return TextStyle(
+      backgroundColor: backgroundColor == null ? null : dim(backgroundColor),
+      background: background == null
+          ? null
+          : (Paint.from(background)..color = dim(background.color)),
+      decorationColor: decorationColor == null ? null : dim(decorationColor),
+      shadows: effectiveStyle.shadows
+          ?.map(
+            (shadow) => Shadow(
+              color: dim(shadow.color),
+              offset: shadow.offset,
+              blurRadius: shadow.blurRadius,
+            ),
+          )
+          .toList(),
+    );
+  }
 
-    final patch = TextStyle(
+  InlineSpan _buildSmall(SmallNode node) {
+    final foreground = effectiveStyle.foreground;
+    final color = effectiveStyle.color ?? const Color(0xFF000000);
+
+    final patch = _dimmedSecondaryColors(0.7).copyWith(
       fontSize: effectiveStyle.fontSize! * 0.8,
-      color: color?.withValues(alpha: color.a * 0.7),
+      color: foreground == null ? color.withValues(alpha: color.a * 0.7) : null,
+      foreground: foreground == null
+          ? null
+          : (Paint.from(foreground)
+              ..color = foreground.color.withValues(
+                alpha: foreground.color.a * 0.7,
+              )),
     );
     final smaller = _copyWith(opacity: opacity * 0.7);
     if (rainbowForeground) {
@@ -281,7 +312,9 @@ class MfmNodeBuilder {
     // 引用は独自の色で上書きするため、累積不透明度を色のalphaに反映し直す。
     // Container全体を減光すると内側の文字や絵文字が二重に薄くなる。
     final quoteBuilder = quoted.withStyle(
-      TextStyle(color: quoted.applyOpacity(baseColor)),
+      _dimmedSecondaryColors(
+        0.7,
+      ).copyWith(color: quoted.applyOpacity(baseColor)),
     );
     final children = quoteBuilder.buildNodes(node.children);
 

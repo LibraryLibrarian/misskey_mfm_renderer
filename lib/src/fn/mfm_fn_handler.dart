@@ -552,8 +552,8 @@ class MfmFnHandler {
 
     final children = builder.buildNodes(node.children);
 
-    // emをピクセルに変換（ベースフォントサイズを使用）
-    final baseSize = builder.config.baseTextStyle?.fontSize ?? 14.0;
+    // emをピクセルに変換（祖先のサイズ変更を含む実効サイズを使用）
+    final baseSize = builder.effectiveStyle.fontSize!;
     final offsetX = x * baseSize;
     final offsetY = y * baseSize;
 
@@ -811,12 +811,9 @@ class MfmFnHandler {
       }
     }
 
-    final baseStyle = builder.rainbowScope == null
-        ? builder.config.baseTextStyle
-        : builder.effectiveStyle;
-    final baseFontSize = baseStyle?.fontSize ?? 14.0;
-    final rubyFontSize = baseFontSize * 0.5;
-    final rubyStyle = (baseStyle ?? const TextStyle()).copyWith(
+    final baseStyle = builder.effectiveStyle;
+    final rubyFontSize = baseStyle.fontSize! * 0.5;
+    final rubyStyle = baseStyle.copyWith(
       fontSize: rubyFontSize,
       height: 1,
     );
@@ -835,8 +832,8 @@ class MfmFnHandler {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      // 静的rainbowの文字色は既にsmallのalphaを含んでいる。
-      child: builder.rainbowScope == null ? builder.wrapOpacity(ruby) : ruby,
+      // 実効スタイルの文字色は既にsmallのalphaを含んでいる。
+      child: ruby,
     );
   }
 
@@ -858,36 +855,76 @@ class MfmFnHandler {
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
     final formattedTime = _formatUnixTime(dateTime);
 
-    final baseStyle = builder.config.baseTextStyle;
-    final fontSize = (baseStyle?.fontSize ?? 14.0) * 0.9;
-    final textStyle = (baseStyle ?? const TextStyle()).copyWith(
-      fontSize: fontSize,
-    );
+    final fontSize = builder.effectiveStyle.fontSize! * 0.9;
+    final timeBuilder = builder.withStyle(TextStyle(fontSize: fontSize));
+    final textStyle = timeBuilder.effectiveStyle;
+    const clock = IconData(0xe8b5, fontFamily: 'MaterialIcons');
+    final Widget icon;
+    if (builder.rainbowScope != null && builder.rainbowForeground) {
+      // Iconの独立したRichTextにも、本文と同じ静的rainbowを適用する。
+      final iconBuilder = timeBuilder.withStyle(
+        const TextStyle(
+          fontFamily: 'MaterialIcons',
+          fontWeight: FontWeight.normal,
+          fontStyle: FontStyle.normal,
+          decoration: TextDecoration.none,
+          height: 1,
+        ),
+      );
+      icon = ExcludeSemantics(
+        child: SizedBox.square(
+          dimension: fontSize,
+          child: Center(
+            child: iconBuilder.buildInlineRichText([
+              TextSpan(text: String.fromCharCode(clock.codePoint)),
+            ]),
+          ),
+        ),
+      );
+    } else {
+      icon = Icon(
+        clock,
+        size: fontSize,
+        color: textStyle.foreground?.color ?? textStyle.color,
+      );
+    }
 
+    // 周囲のDefaultTextStyleではなくMFMの実効スタイルを使い、
+    // Textのアクセシビリティ倍率・localeの解決は維持する。
+    final label = Text(
+      formattedTime,
+      style: textStyle.copyWith(inherit: false),
+    );
+    final scope = builder.rainbowScope;
+    final Widget timeText = scope == null
+        ? label
+        : MfmRainbowText(
+            scope: scope,
+            text: label,
+            rainbowForeground: builder.rainbowForeground,
+          );
+
+    // 文字・アイコンは実効スタイルで減光済みなので、枠線だけ別途減光する。
     // 本家はdisplay: inline-blockでvertical-align未指定のため、
     // ピル内テキストのベースラインで周囲と揃う。
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: builder.wrapOpacity(
-        Container(
-          padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
-          decoration: BoxDecoration(
-            border: Border.all(color: builder.colorScheme.divider),
-            borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: builder.applyOpacity(builder.colorScheme.divider),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                const IconData(0xe8b5, fontFamily: 'MaterialIcons'),
-                size: fontSize,
-                color: textStyle.color,
-              ),
-              const SizedBox(width: 4),
-              Text(formattedTime, style: textStyle),
-            ],
-          ),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            const SizedBox(width: 4),
+            timeText,
+          ],
         ),
       ),
     );

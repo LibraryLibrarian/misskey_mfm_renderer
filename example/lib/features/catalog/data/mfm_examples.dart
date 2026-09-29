@@ -500,6 +500,24 @@ class MfmExamples {
           mfm: r'$[ruby 漢字 かんじ]',
         ),
         MfmExample(
+          name: 'Ruby (装飾の継承)',
+          syntax: r'$[x2 $[fg.color=ff6600 $[ruby 漢字 かんじ]]]',
+          mfm: r'$[x2 $[fg.color=ff6600 $[ruby 漢字 かんじ]]]',
+          description: '本文は2倍、読みは本文の半分のサイズ。どちらも外側の色を継承',
+        ),
+        MfmExample(
+          name: 'Position (現在の文字サイズ)',
+          syntax: r'$[x2 $[position.x=1 text]]',
+          mfm: r'$[x2 $[position.x=1 移動]]',
+          description: '現在の文字サイズの1em分だけ右へ移動',
+        ),
+        MfmExample(
+          name: 'Unixtime (装飾の継承)',
+          syntax: r'<small>$[fg.color=ff6600 $[unixtime 1700000000]]</small>',
+          mfm: r'<small>$[fg.color=ff6600 $[unixtime 1700000000]]</small>',
+          description: 'smallのサイズ・透明度と外側の色を継承',
+        ),
+        MfmExample(
           name: 'Unixtime (過去)',
           syntax: r'$[unixtime 1700000000]',
           mfm: r'$[unixtime 1700000000]',
