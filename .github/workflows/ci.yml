@@ -61,10 +61,34 @@ jobs:
         run: flutter analyze --fatal-infos
 
       - name: Run tests
-        run: flutter test
+        run: flutter test --exclude-tags golden
 
       - name: Validate package
         run: dart pub publish --dry-run
+
+  golden:
+    name: Golden (Flutter 3.38.7 / Linux amd64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Match the baseline generation environment, including architecture.
+    container:
+      image: ghcr.io/cirruslabs/flutter@sha256:0e6b31fba1e9849cf54939ad76cbbff3e10ad8a1ca3d5b34ea274921343a5eae
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Compare goldens
+        run: flutter test --tags golden --concurrency=1
+
+      - name: Upload golden failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: test/**/failures/
+          if-no-files-found: ignore
 
   example:
     name: Example (${{ matrix.target }})
@@ -210,7 +234,7 @@ jobs:
 
   gate:
     name: all checks passed
-    needs: [quality, example]
+    needs: [quality, example, golden]
     if: always()
     runs-on: ubuntu-latest
     steps:
