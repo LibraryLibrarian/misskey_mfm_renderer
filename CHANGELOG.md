@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Preserved inherited font size, color, font family, and text decorations in `ruby` and `unixtime`, including nested `small` opacity and static rainbow text. Text and icons now use the attenuated inherited color without a second opacity layer, while borders retain their attenuation
+- Calculated `position` offsets from the current inherited font size instead of the root font size
+- Preserved `small` opacity for foreground paints and text without an explicit color, and `small`/quote opacity for text backgrounds, explicit decoration colors, and shadows, without mutating shared paints
+
 ## [0.6.0-beta.4] - 2026-09-23
 
 ### Changed

@@ -116,12 +116,12 @@ Future<ui.Image> _emojiImage(WidgetTester tester) async {
   }))!;
 }
 
-Widget _directHost(Widget child) => Directionality(
+Widget _directHost(Widget child, {double width = 80}) => Directionality(
   textDirection: TextDirection.ltr,
   child: Center(
     child: RepaintBoundary(
       key: _boundaryKey,
-      child: SizedBox(width: 80, child: child),
+      child: SizedBox(width: width, child: child),
     ),
   ),
 );
@@ -527,6 +527,117 @@ void main() {
       expect(base[3], 255);
       expect(annotation, isNot([34, 34, 34, 255]));
       expect(annotation[3], 255);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('rubyとunixtimeの文字背景はsmallで一度だけ減光する', (tester) async {
+    for (final text in [r'$[ruby AB CD]', r'$[unixtime 1700000000]']) {
+      await tester.pumpWidget(
+        _host(
+          '<small>$text</small>',
+          style: _style.copyWith(
+            color: const Color(0x00000000),
+            backgroundColor: const Color(0x80FF0000),
+          ),
+        ),
+      );
+      // WidgetSpanの外側にも同じ背景が描かれるので、内側の描画だけを測る。
+      final root =
+          tester.widget<RichText>(find.byType(RichText).first).text as TextSpan;
+      final small = root.children!.single as TextSpan;
+      final span = small.children!.single as WidgetSpan;
+      await tester.pumpWidget(_directHost(span.child, width: 400));
+      final Offset point;
+      if (text.contains('ruby')) {
+        final ruby = find.byWidgetPredicate(
+          (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+        );
+        point = tester.getRect(ruby).topLeft + const Offset(8, 16);
+      } else {
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find
+              .descendant(
+                of: find.byType(Row),
+                matching: find.byWidgetPredicate(
+                  (widget) => widget is RichText,
+                ),
+              )
+              .last,
+        );
+        point = _letterCenter(paragraph, 0);
+      }
+      _expectColor(
+        await _pixel(tester, point),
+        _red.withValues(alpha: 128 / 255 * 0.7),
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('rubyのx2・smallは本文と読みのサイズと半透明alphaを維持する', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        r'$[rainbow $[x2 <small>$[ruby BB CC]</small>]]',
+        style: _style.copyWith(color: const Color(0x80222222)),
+      ),
+    );
+    final ruby = find.byWidgetPredicate(
+      (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+    );
+    final renderObject = tester.renderObject(ruby);
+    final baseStyle = (renderObject as dynamic).baseStyle as TextStyle;
+    final rubyStyle = (renderObject as dynamic).rubyStyle as TextStyle;
+    expect(baseStyle.fontSize, 32);
+    expect(rubyStyle.fontSize, 16);
+    final rect = tester.getRect(ruby);
+    for (final offset in [const Offset(16, 32), const Offset(24, 8)]) {
+      final pixel = await _pixel(tester, rect.topLeft + offset);
+      expect(pixel[3], closeTo(128 * 0.7, 2));
+      expect(pixel.take(3).toSet().length, greaterThan(1));
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('unixtimeの静的rainbowは文字と時計を着色しsmallとfgを保持する', (tester) async {
+    for (final explicit in [false, true]) {
+      final time = explicit
+          ? r'$[fg.color=ff0000 $[unixtime 1700000000]]'
+          : r'$[unixtime 1700000000]';
+      await tester.pumpWidget(
+        _host(
+          '\$[rainbow <small>$time</small>]',
+          style: _style.copyWith(color: const Color(0x80222222)),
+        ),
+      );
+      final row = find.byType(Row);
+      final textFinder = find
+          .descendant(
+            of: row,
+            matching: find.byWidgetPredicate((widget) => widget is RichText),
+          )
+          .last;
+      final paragraph = tester.renderObject<RenderParagraph>(textFinder);
+      final pixel = await _pixel(tester, _letterCenter(paragraph, 0));
+      if (explicit) {
+        _expectColor(pixel, _red.withValues(alpha: 0.7));
+        final icon = tester.widget<Icon>(find.byType(Icon));
+        expect(icon.color, _red.withValues(alpha: 0.7));
+      } else {
+        expect(pixel[3], closeTo(128 * 0.7, 2));
+        expect(pixel.take(3).toSet().length, greaterThan(1));
+        final iconText = tester.widget<MfmRainbowRichText>(
+          find
+              .descendant(of: row, matching: find.byType(MfmRainbowRichText))
+              .first,
+        );
+        expect(iconText.text, isA<MfmRainbowSpan>());
+        expect(
+          (iconText.text as MfmRainbowSpan).opacity,
+          closeTo(128 / 255 * 0.7, 1e-6),
+        );
+        expect(iconText.text.style!.fontSize, closeTo(20 * 0.8 * 0.9, 1e-6));
+      }
       expect(tester.takeException(), isNull);
     }
   });
