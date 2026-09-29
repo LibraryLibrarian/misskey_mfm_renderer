@@ -189,12 +189,12 @@ void main() {
             url: network == null ? null : Uri.parse(url),
             resolver: network != null
                 ? null
-                : (_) async {
+                : (_) {
                     if (isLoading) return pending.future;
                     if (branch.startsWith('resolver')) {
-                      throw StateError('failed');
+                      return Future<EmojiImage?>.error(StateError('failed'));
                     }
-                    return null;
+                    return Future<EmojiImage?>.value();
                   },
             fallbackBuilder: (_, _) => custom,
             errorBuilder: branch.endsWith('error') ? (_, _, _) => custom : null,
