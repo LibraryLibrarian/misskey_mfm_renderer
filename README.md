@@ -484,6 +484,32 @@ MfmCustomEmoji(
 )
 ```
 
+The standard `:name:` fallback uses the surrounding text's **1em size and natural
+alphabetic baseline**, including in plain mode, when resolution fails, or when an
+image cannot be decoded. `emojiSize` and `emojiMaxWidth` affect images, not this
+text. `MfmEmojiConfig` supplies the inherited font, weight, decoration and colors.
+Standalone `MfmCustomEmoji` uses `fallbackTextStyle` when provided, otherwise
+`DefaultTextStyle`. Custom fallback/error/loading builders keep the image baseline
+policy; their signatures and the successful image sizing defaults are unchanged.
+
+**Migration for the previous standalone appearance:** explicitly request the old
+`size * 0.6` text size in `fallbackBuilder`. The existing `baselineOffset` still
+applies to this custom builder; do not add another baseline wrapper.
+
+```dart
+const size = 24.0;
+MfmCustomEmoji(
+  name: 'emoji_name',
+  resolver: resolver,
+  size: size,
+  baselineOffset: 8.5, // Keep your existing image baseline offset.
+  fallbackBuilder: (context, name) => Text(
+    ':$name:',
+    style: DefaultTextStyle.of(context).style.copyWith(fontSize: size * 0.6),
+  ),
+)
+```
+
 ### Emoji Builder Context and Unicode Images
 
 Both `emojiBuilder` and `unicodeEmojiBuilder` now take two arguments. Migrate
@@ -492,6 +518,13 @@ widget). The publicly exported immutable `MfmEmojiContext` contains:
 
 - `fontSize`: the current effective font size in logical pixels, including
   size functions, `tada` (150%), and `<small>` (80%).
+- `textStyle`: optional inherited text style before cumulative `small`/quote
+  opacity, including the current size/font/decoration/colors. Original root alpha,
+  foreground/background paints and shadows are preserved. The renderer applies
+  cumulative opacity outside the returned widget, so do not attenuate it again.
+  Renderer-created contexts always supply it; manually constructed contexts may
+  omit it. For a text widget, use
+  `context.textStyle ?? TextStyle(fontSize: context.fontSize)`.
 - `scale`: the cumulative x2/x3/x4/scale-function multiplier. `tada` and
   `<small>` do not change it. `MfmText.rootScale` supplies the initial value.
   For a 14px base, x2 gives `(28, 2)`, x4 gives `(84, 4)`, `scale.x=3,y=3`
@@ -538,6 +571,7 @@ MfmRenderConfig(
     resolver: unicodeImageResolver, // App-provided EmojiResolver
     size: context.fontSize * 1.25,
     baselineOffset: context.fontSize * 0.25,
+    fallbackTextStyle: context.textStyle,
   ),
 )
 ```

@@ -20,6 +20,7 @@ class MfmCustomEmoji extends StatefulWidget {
     this.cacheScope,
     this.refreshListenable,
     this.fallbackBuilder,
+    this.fallbackTextStyle,
     this.errorBuilder,
     this.loadingBuilder,
   }) : assert(resolver != null || url != null),
@@ -60,6 +61,7 @@ class MfmCustomEmoji extends StatefulWidget {
   /// which happens with a small fixed [size] and a large font size. When
   /// omitted, the child's natural baseline is used. MfmEmojiConfig supplies the
   /// custom emoji value automatically, even with a fixed emojiSize.
+  /// Standard shortcode fallback text always uses its natural baseline.
   final double? baselineOffset;
 
   /// The optional maximum displayed width of the emoji in logical pixels.
@@ -94,6 +96,13 @@ class MfmCustomEmoji extends StatefulWidget {
   /// otherwise invalidated. Successful results are retained across ordinary
   /// parent rebuilds until this signal is notified.
   final Listenable? refreshListenable;
+
+  /// Style for the standard `:name:` fallback, independent of image [size].
+  ///
+  /// Defaults to DefaultTextStyle at its natural 1em size and alphabetic
+  /// baseline. [baselineOffset] applies only to images and custom builders.
+  final TextStyle? fallbackTextStyle;
+
   final Widget Function(BuildContext context, String name)? fallbackBuilder;
   final Widget Function(BuildContext context, String name, Object error)?
   errorBuilder;
@@ -186,7 +195,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 
   @override
   Widget build(BuildContext context) {
-    final child = FutureBuilder<Uri?>(
+    return FutureBuilder<Uri?>(
       future: _emojiFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
@@ -207,36 +216,56 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
           }
           _observeAspectRatio(context, url);
 
-          final image = CachedNetworkImage(
+          return CachedNetworkImage(
             imageUrl: url,
             height: widget.size,
             fit: BoxFit.contain,
+            imageBuilder: (context, provider) => _imageLayout(
+              Image(
+                image: ResizeImage.resizeIfNeeded(
+                  null,
+                  _memCacheHeight(context),
+                  provider,
+                ),
+                height: widget.size,
+                fit: BoxFit.contain,
+              ),
+            ),
             memCacheHeight: _memCacheHeight(context),
             placeholder: (BuildContext context, String _) =>
-                _loadingWidget(context, _aspectRatios[url]),
+                _constrainImage(_loadingWidget(context, _aspectRatios[url])),
             errorWidget: (BuildContext context, String url, Object error) =>
-                _errorWidget(context, error),
+                _errorWidget(context, error, imageError: true),
             fadeInDuration: const Duration(milliseconds: 150),
             fadeOutDuration: const Duration(milliseconds: 100),
-          );
-
-          final maxWidth = widget.maxWidth;
-          if (maxWidth == null) {
-            return image;
-          }
-          return ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: image,
           );
         }
 
         return _loadingWidget(context, _knownAspectRatio);
       },
     );
-    final baselineOffset = widget.baselineOffset;
-    return baselineOffset == null
+  }
+
+  // Keep image constraints and baselines inside the CachedNetworkImage
+  // branches so standard error text retains its natural dimensions
+  // and baseline.
+  Widget _constrainImage(Widget child) {
+    final maxWidth = widget.maxWidth;
+    return maxWidth == null
         ? child
-        : _EmojiBaseline(offset: baselineOffset, child: child);
+        : ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: child,
+          );
+  }
+
+  Widget _imageLayout(Widget child) => _constrainImage(_withBaseline(child));
+
+  Widget _withBaseline(Widget child) {
+    final offset = widget.baselineOffset;
+    return offset == null
+        ? child
+        : _EmojiBaseline(offset: offset, child: child);
   }
 
   _EmojiCacheKey get _cacheKey => _EmojiCacheKey(
@@ -304,8 +333,10 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   }
 
   Widget _loadingWidget(BuildContext context, double? aspectRatio) {
-    return widget.loadingBuilder?.call(context) ??
-        _defaultLoadingWidget(aspectRatio);
+    return _withBaseline(
+      widget.loadingBuilder?.call(context) ??
+          _defaultLoadingWidget(aspectRatio),
+    );
   }
 
   Widget _defaultLoadingWidget(double? aspectRatio) {
@@ -332,19 +363,27 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     );
   }
 
-  Widget _fallbackWidget(BuildContext context) {
-    return widget.fallbackBuilder?.call(context, widget.name) ??
-        Text(
-          ':${widget.name}:',
-          style: DefaultTextStyle.of(
-            context,
-          ).style.copyWith(fontSize: widget.size * 0.6),
-        );
+  Widget _fallbackWidget(BuildContext context, {bool imageError = false}) {
+    final custom = widget.fallbackBuilder?.call(context, widget.name);
+    if (custom != null) {
+      return imageError ? _imageLayout(custom) : _withBaseline(custom);
+    }
+    return Text(
+      ':${widget.name}:',
+      style: widget.fallbackTextStyle ?? DefaultTextStyle.of(context).style,
+    );
   }
 
-  Widget _errorWidget(BuildContext context, Object error) {
-    return widget.errorBuilder?.call(context, widget.name, error) ??
-        _fallbackWidget(context);
+  Widget _errorWidget(
+    BuildContext context,
+    Object error, {
+    bool imageError = false,
+  }) {
+    final custom = widget.errorBuilder?.call(context, widget.name, error);
+    if (custom != null) {
+      return imageError ? _imageLayout(custom) : _withBaseline(custom);
+    }
+    return _fallbackWidget(context, imageError: imageError);
   }
 }
 

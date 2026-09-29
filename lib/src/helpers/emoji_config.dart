@@ -318,8 +318,10 @@ class MfmEmojiConfig {
       final url = isRemote
           ? context.url ?? serverBaseUrl?.resolve('/emoji/$name@$host.webp')
           : null;
+      final fallbackStyle =
+          context.textStyle ?? TextStyle(fontSize: context.fontSize);
       if (isRemote && url == null) {
-        return Text(':$name:', style: TextStyle(fontSize: context.fontSize));
+        return Text(':$name:', style: fallbackStyle);
       }
       final size = emojiSize ?? context.fontSize * (context.normal ? 1.25 : 2);
       return MfmCustomEmoji(
@@ -339,6 +341,7 @@ class MfmEmojiConfig {
         maxWidth: emojiMaxWidth,
         refreshListenable: emojiRefreshListenable,
         fallbackBuilder: fallbackBuilder,
+        fallbackTextStyle: fallbackStyle,
       );
     };
   }

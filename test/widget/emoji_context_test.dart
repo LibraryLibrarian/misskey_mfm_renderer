@@ -21,7 +21,7 @@ void main() {
       expect(
         context.toString(),
         'MfmEmojiContext(fontSize: 14.0, scale: 1.0, normal: false, '
-        'host: null, url: null)',
+        'host: null, url: null, textStyle: null)',
       );
     });
 
@@ -76,7 +76,7 @@ void main() {
       expect(
         context.toString(),
         'MfmEmojiContext(fontSize: 14.0, scale: 1.0, normal: false, '
-        'host: remote.example, url: https://cdn.example/wave.png)',
+        'host: remote.example, url: https://cdn.example/wave.png, textStyle: null)',
       );
     });
 
@@ -201,8 +201,16 @@ void main() {
           );
 
           expect(contexts, [
-            MfmEmojiContext(fontSize: testCase.fontSize, scale: testCase.scale),
-            const MfmEmojiContext(fontSize: 14, scale: 1),
+            MfmEmojiContext(
+              fontSize: testCase.fontSize,
+              scale: testCase.scale,
+              textStyle: TextStyle(fontSize: testCase.fontSize),
+            ),
+            const MfmEmojiContext(
+              fontSize: 14,
+              scale: 1,
+              textStyle: TextStyle(fontSize: 14),
+            ),
           ]);
           expect(contexts.first.useOriginalSize, testCase.scale >= 2.5);
           expect(
@@ -269,8 +277,16 @@ void main() {
           );
 
           expect(contexts, [
-            const MfmEmojiContext(fontSize: 40, scale: 2),
-            const MfmEmojiContext(fontSize: 20, scale: 1),
+            const MfmEmojiContext(
+              fontSize: 40,
+              scale: 2,
+              textStyle: TextStyle(fontSize: 40),
+            ),
+            const MfmEmojiContext(
+              fontSize: 20,
+              scale: 1,
+              textStyle: TextStyle(fontSize: 20),
+            ),
           ]);
         },
       );
@@ -342,6 +358,13 @@ void main() {
         ),
       ),
     );
-    expect(received, const MfmEmojiContext(fontSize: 14, scale: 1));
+    expect(
+      received,
+      const MfmEmojiContext(
+        fontSize: 14,
+        scale: 1,
+        textStyle: TextStyle(fontSize: 14, color: Colors.red),
+      ),
+    );
   });
 }

@@ -54,6 +54,7 @@ class MfmEmojiContext {
     required this.fontSize,
     required this.scale,
     this.normal = false,
+    this.textStyle,
     this.host,
     this.url,
   });
@@ -67,6 +68,13 @@ class MfmEmojiContext {
   /// advanced MFMが無効でもx2/x3/x4の公称倍率は伝播するが、
   /// scale fnの倍率は伝播しない。
   final double scale;
+
+  /// 現在の文字スタイル。small / quoteの累積opacityを掛ける前の値。
+  ///
+  /// rootのalphaやPaint、背景、影はそのまま保持する。ビルダーが返す
+  /// Widgetには外側で累積opacityが適用されるため、再度減光しない。
+  /// 直接構築する場合は省略でき、その場合はfontSizeを基準に描画する。
+  final TextStyle? textStyle;
 
   /// plain表示用の通常サイズを使うか。
   final bool normal;
@@ -90,16 +98,18 @@ class MfmEmojiContext {
       other.fontSize == fontSize &&
       other.scale == scale &&
       other.normal == normal &&
+      other.textStyle == textStyle &&
       other.host == host &&
       other.url == url;
 
   @override
-  int get hashCode => Object.hash(fontSize, scale, normal, host, url);
+  int get hashCode =>
+      Object.hash(fontSize, scale, normal, host, url, textStyle);
 
   @override
   String toString() =>
       'MfmEmojiContext(fontSize: $fontSize, scale: $scale, normal: $normal, '
-      'host: $host, url: $url)';
+      'host: $host, url: $url, textStyle: $textStyle)';
 }
 
 /// MFMレンダリングの設定クラス

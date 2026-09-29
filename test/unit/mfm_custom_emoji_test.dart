@@ -84,7 +84,7 @@ void main() {
       expect(image.fit, BoxFit.contain);
       expect(image.memCacheWidth, isNull);
       expect(image.memCacheHeight, 64);
-      expect(image.imageBuilder, isNull);
+      expect(image.imageBuilder, isNotNull);
     });
 
     for (final fontSize in [14.0, 28.0, 84.0]) {

@@ -302,7 +302,13 @@ class MfmExamples {
           name: 'Custom Emoji (存在しない)',
           syntax: ':not_exist_emoji:',
           mfm: ':not_exist_emoji:',
-          description: '存在しない絵文字はショートコードのまま表示されます',
+          description: '未取得時は周囲の1emサイズと自然な文字ベースラインで表示します',
+        ),
+        MfmExample(
+          name: 'Custom Emoji (フォールバックの継承)',
+          syntax: '<small>**:not_exist_emoji:**</small>',
+          mfm: '本文 :not_exist_emoji: <small>**:not_exist_emoji:**</small>',
+          description: '未取得時も太字・smallのサイズと不透明度を継承します。plain表示とも比較できます',
         ),
         MfmExample(
           name: 'Custom Emoji (リモート)',

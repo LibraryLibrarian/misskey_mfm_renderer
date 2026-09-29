@@ -609,6 +609,7 @@ class MfmFnHandler {
     return builder.buildStyledSpan(
       TextStyle(color: builder.applyOpacity(color)),
       node.children,
+      unattenuatedPatch: TextStyle(color: color),
     );
   }
 
