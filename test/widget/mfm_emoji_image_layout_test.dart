@@ -117,7 +117,7 @@ void main() {
           );
         }
 
-        Widget build(TextStyle style) => _host(
+        Widget build(TextStyle style, {bool customError = false}) => _host(
           MfmCustomEmoji(
             name: 'missing',
             resolver: resolver,
@@ -126,6 +126,9 @@ void main() {
             maxWidth: 5,
             baselineOffset: 35,
             fallbackTextStyle: style,
+            errorBuilder: customError
+                ? (_, _, _) => const SizedBox(width: 30, height: 40)
+                : null,
           ),
         );
         await tester.pumpWidget(build(_style));
@@ -136,6 +139,7 @@ void main() {
         expect(find.byType(CachedNetworkImage), findsOneWidget);
         expect(find.text(':missing:'), findsOneWidget);
         _expectNaturalBaseline(tester, ':missing:');
+        expect(tester.getSize(find.text(':missing:')).height, 20);
         expect(tester.getSize(find.text(':missing:')).width, greaterThan(5));
         final nextStyle = _style.copyWith(
           fontSize: 30,
@@ -146,6 +150,13 @@ void main() {
         expect(calls, direct ? 0 : 1);
         expect(tester.widget<Text>(find.text(':missing:')).style, nextStyle);
         _expectNaturalBaseline(tester, ':missing:');
+        expect(tester.getSize(find.text(':missing:')).height, 30);
+        await tester.pumpWidget(build(nextStyle, customError: true));
+        _expectImageBaseline(tester, const Size(5, 40), 35);
+        await tester.pumpWidget(build(nextStyle));
+        _expectNaturalBaseline(tester, ':missing:');
+        expect(tester.getSize(find.text(':missing:')).height, 30);
+        expect(calls, direct ? 0 : 1);
         expect(tester.takeException(), isNull);
       },
     );
@@ -203,6 +214,71 @@ void main() {
       expect(customBox.size, const Size(30, 40));
       expect(tester.takeException(), isNull);
     });
+  }
+
+  for (final placeholderHeight in [12.0, 80.0]) {
+    testWidgets(
+      'whole transition baseline with $placeholderHeight-pixel placeholder',
+      (tester) async {
+        const url = 'https://fixture.test/transition.png';
+        final image = await _cachedImage(url, 40);
+        var calls = 0;
+        Future<EmojiImage?> resolver(String _) async {
+          calls++;
+          return EmojiImage(
+            url: Uri.parse(url),
+            animated: false,
+            isSensitive: false,
+          );
+        }
+
+        await tester.pumpWidget(
+          _host(
+            MfmCustomEmoji(
+              name: 'transition',
+              resolver: resolver,
+              size: 40,
+              baselineOffset: 9,
+              loadingBuilder: (_) => SizedBox(
+                key: _custom,
+                width: 12,
+                height: placeholderHeight,
+              ),
+            ),
+          ),
+        );
+        _expectImageBaseline(tester, Size(12, placeholderHeight), 9);
+        await tester.pump();
+        _expectImageBaseline(tester, Size(12, placeholderHeight), 9);
+        final decoded = (await tester.runAsync(() async {
+          final recorder = ui.PictureRecorder();
+          Canvas(recorder).drawRect(
+            const Rect.fromLTWH(0, 0, 40, 40),
+            Paint()..color = Colors.red,
+          );
+          final picture = recorder.endRecording();
+          try {
+            return await picture.toImage(40, 40);
+          } finally {
+            picture.dispose();
+          }
+        }))!;
+        image.complete(ImageInfo(image: decoded));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(find.byKey(_custom), findsOneWidget);
+        _expectImageBaseline(
+          tester,
+          Size(40, placeholderHeight > 40 ? placeholderHeight : 40),
+          9,
+        );
+        await tester.pumpAndSettle();
+        expect(find.byKey(_custom), findsNothing);
+        _expectImageBaseline(tester, const Size(40, 40), 9);
+        expect(calls, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   for (final maxWidth in [null, 60.0]) {

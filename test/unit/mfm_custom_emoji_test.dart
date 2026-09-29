@@ -80,7 +80,11 @@ void main() {
       );
       expect(image.imageUrl, 'https://example.com/emoji.png');
       expect(image.width, isNull);
-      expect(image.height, 32.0);
+      expect(image.height, isNull);
+      expect(
+        tester.widget<MfmCustomEmoji>(find.byType(MfmCustomEmoji)).size,
+        32,
+      );
       expect(image.fit, BoxFit.contain);
       expect(image.memCacheWidth, isNull);
       expect(image.memCacheHeight, 64);
@@ -235,7 +239,11 @@ void main() {
         final image = tester.widget<CachedNetworkImage>(
           find.byType(CachedNetworkImage),
         );
-        expect(image.height, testCase.height);
+        expect(image.height, isNull);
+        expect(
+          tester.widget<MfmCustomEmoji>(find.byType(MfmCustomEmoji)).size,
+          testCase.height,
+        );
         expect(image.memCacheHeight, (testCase.height * 2).ceil());
         expect(image.memCacheWidth, isNull);
         expect(resolveCount, 1);
@@ -268,7 +276,11 @@ void main() {
         find.byType(CachedNetworkImage),
       );
       expect(image.width, isNull);
-      expect(image.height, 24);
+      expect(image.height, isNull);
+      expect(
+        tester.widget<MfmCustomEmoji>(find.byType(MfmCustomEmoji)).size,
+        24,
+      );
 
       final widthConstraint = find.byWidgetPredicate(
         (widget) =>
