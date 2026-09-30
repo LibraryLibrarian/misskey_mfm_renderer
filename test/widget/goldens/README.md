@@ -1,6 +1,6 @@
-# Emoji fallback golden
+# Renderer goldens
 
-`emoji_fallback.png` is generated and compared with Flutter **3.38.7** on
+`emoji_fallback.png` and `mentions.png` are generated and compared with Flutter **3.38.7** on
 **Linux amd64 / Ubuntu 24.04**, using the same container digest as the `golden`
 CI job. Do not update it using a macOS, Windows, ARM64, or different SDK render.
 
@@ -21,6 +21,29 @@ network request is involved. Rows from top to bottom:
 The golden covers composed size, baseline and opacity. Unit/widget tests also
 assert the individual style values and baseline geometry, including image,
 loading and error branches; the image is not a substitute for those assertions.
+
+## Mention presentation
+
+`mentions.png` uses Ahem at 20px, a white background, fixed role colors,
+disabled animation and a deterministic blue/teal memory image. Rows:
+
+1. Local mention with hidden host
+2. Remote mention with translucent host
+3. Viewer mention with the self role color
+4. Hostless mention resolved against its remote author
+5. Offline placeholder with no avatar provider
+6. Inline text presentation
+7. `small`
+8. `small` inside a quote
+9. Explicit foreground that does not replace the mention role color
+10. Long account constrained to 180px
+11. Ambient text scaling of 2 (including the avatar)
+12. Bold mention with an italic base style
+
+These images verify this renderer's composition, not pixel equality with an
+official Misskey browser. Identity/port rules, actual taps, semantics, provider
+precedence, loading/error geometry and paragraph lifecycle are also covered by
+unit/widget tests.
 
 ## Generate or compare
 
