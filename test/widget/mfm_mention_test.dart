@@ -150,6 +150,28 @@ void main() {
       'https://local.test:8443/avatar/@a@remote.test',
     );
   });
+  test('built-in provider converts a Unicode origin to a DNS host', () {
+    final builder = MfmNodeBuilder(
+      config: base.copyWith(
+        mentionOptions: const MfmMentionOptions(
+          localOrigin: 'https://bücher.example:8443',
+        ),
+      ),
+      colorScheme: const MfmColorScheme.light(),
+      effectiveStyle: style,
+    );
+    final span =
+        builder.buildNode(
+              const MentionNode(username: 'a', acct: '@a'),
+            )
+            as WidgetSpan;
+    final image = (span.child as MfmMention).avatar! as NetworkImage;
+    final uri = Uri.parse(image.url);
+    expect(uri.host, 'xn--bcher-kva.example');
+    expect(uri.port, 8443);
+    expect(uri.pathSegments, ['avatar', '@a@bücher.example:8443']);
+  });
+
   testWidgets('text presentation taps both actual name and host glyphs once', (
     tester,
   ) async {

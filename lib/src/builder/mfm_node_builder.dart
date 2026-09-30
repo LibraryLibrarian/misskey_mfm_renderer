@@ -632,11 +632,7 @@ class MfmNodeBuilder {
         ? provider(resolvedAcct)
         : origin == null
         ? null
-        : NetworkImage(
-            Uri.parse(
-              origin,
-            ).replace(pathSegments: ['avatar', display.avatarAcct]).toString(),
-          );
+        : NetworkImage(mentionAvatarUri(origin, display.avatarAcct).toString());
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
