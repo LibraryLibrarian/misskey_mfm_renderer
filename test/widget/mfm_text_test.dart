@@ -305,7 +305,12 @@ void main() {
               home: Scaffold(
                 body: MfmText(
                   text: text,
-                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                  config: const MfmRenderConfig(
+                    baseTextStyle: baseStyle,
+                    mentionOptions: MfmMentionOptions(
+                      presentation: MfmMentionPresentation.text,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1149,7 +1154,16 @@ void main() {
     testWidgets('メンションをリンク色でレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(body: MfmText(text: '@user')),
+          home: Scaffold(
+            body: MfmText(
+              text: '@user',
+              config: MfmRenderConfig(
+                mentionOptions: MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
+              ),
+            ),
+          ),
         ),
       );
 
@@ -1204,7 +1218,12 @@ void main() {
                 home: Scaffold(
                   body: MfmText(
                     text: testCase.source,
-                    config: MfmRenderConfig(brightness: brightness),
+                    config: MfmRenderConfig(
+                      brightness: brightness,
+                      mentionOptions: const MfmMentionOptions(
+                        presentation: MfmMentionPresentation.text,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1241,7 +1260,12 @@ void main() {
             home: Scaffold(
               body: MfmText(
                 text: testCase.source,
-                config: const MfmRenderConfig(lightColorScheme: scheme),
+                config: const MfmRenderConfig(
+                  lightColorScheme: scheme,
+                  mentionOptions: MfmMentionOptions(
+                    presentation: MfmMentionPresentation.text,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1727,6 +1751,9 @@ void main() {
             body: MfmText(
               text: '@user@example.com',
               config: MfmRenderConfig(
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1737,7 +1764,7 @@ void main() {
       final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
-      final mentionSpan = _findSpanWithText(textSpan, '@user@example.com');
+      final mentionSpan = _findSpanWithText(textSpan, '@user');
       expect(mentionSpan, isNotNull);
 
       final mentionRecognizer = mentionSpan?.recognizer;
@@ -1759,6 +1786,9 @@ void main() {
               config: MfmRenderConfig(
                 author: const MfmAuthorContext(host: 'remote.example'),
                 localHost: 'local.example',
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1781,6 +1811,9 @@ void main() {
               config: MfmRenderConfig(
                 author: const MfmAuthorContext(),
                 localHost: 'local.example',
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1802,6 +1835,9 @@ void main() {
               text: '@alice',
               config: MfmRenderConfig(
                 localHost: 'local.example',
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1824,6 +1860,9 @@ void main() {
               config: MfmRenderConfig(
                 author: const MfmAuthorContext(host: 'remote.example'),
                 localHost: 'local.example',
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1831,7 +1870,7 @@ void main() {
         ),
       );
 
-      _invokeSpanTap(tester, '@alice@explicit.example');
+      _invokeSpanTap(tester, '@alice');
       expect(tappedMention, '@alice@explicit.example');
     });
 
@@ -1849,6 +1888,9 @@ void main() {
               body: MfmText(
                 text: '@alice',
                 config: MfmRenderConfig(
+                  mentionOptions: const MfmMentionOptions(
+                    presentation: MfmMentionPresentation.text,
+                  ),
                   onMentionTap: (acct) => tappedMention = acct,
                 ),
               ),
@@ -1870,6 +1912,9 @@ void main() {
             body: MfmText(
               text: '@alice',
               config: MfmRenderConfig(
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),

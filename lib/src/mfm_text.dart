@@ -7,6 +7,7 @@ import 'builder/mfm_node_builder.dart';
 import 'config/mfm_color_scheme.dart';
 import 'config/mfm_inherited_config.dart';
 import 'config/mfm_render_config.dart';
+import 'utils/mention_display.dart';
 
 /// MFMテキストをレンダリングするウィジェット
 class MfmText extends StatelessWidget {
@@ -61,6 +62,7 @@ class MfmText extends StatelessWidget {
     // InheritedWidgetから設定を取得（なければnull）
     final inheritedConfig = MfmConfig.maybeOf(context);
     final mergedConfig = _mergeConfigs(inheritedConfig, config);
+    validateMentionConfig(mergedConfig);
 
     final brightness = _resolveBrightness(context, mergedConfig.brightness);
     final colorScheme = brightness == Brightness.dark
@@ -163,6 +165,7 @@ MfmRenderConfig _mergeConfigs(
     author: explicit.author ?? inherited.author,
     emojiUrls: explicit.emojiUrls ?? inherited.emojiUrls,
     localHost: explicit.localHost ?? inherited.localHost,
+    mentionOptions: explicit.mentionOptions ?? inherited.mentionOptions,
     searchButtonLabel: explicit.useLocaleSearchButtonLabel
         ? null
         : explicit.searchButtonLabel ?? inherited.searchButtonLabel,
@@ -204,6 +207,7 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.author == defaults.author &&
       config.emojiUrls == defaults.emojiUrls &&
       config.localHost == defaults.localHost &&
+      config.mentionOptions == defaults.mentionOptions &&
       config.searchButtonLabel == defaults.searchButtonLabel &&
       config.useLocaleSearchButtonLabel ==
           defaults.useLocaleSearchButtonLabel &&

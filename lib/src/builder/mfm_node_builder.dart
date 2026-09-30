@@ -5,12 +5,15 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 
 import '../config/mfm_color_scheme.dart';
+import '../config/mfm_mention_options.dart';
 import '../config/mfm_render_config.dart';
 import '../fn/animated/mfm_rainbow_text.dart';
 import '../fn/mfm_fn_handler.dart';
+import '../utils/mention_display.dart';
 import '../utils/nyaize.dart';
 import '../utils/url_display.dart';
 import '../widgets/mfm_code_block.dart';
+import '../widgets/mfm_mention.dart';
 
 /// MfmNodeをWidgetに変換するビルダー
 class MfmNodeBuilder {
@@ -580,12 +583,63 @@ class MfmNodeBuilder {
   InlineSpan _buildMention(MentionNode node) {
     final onMentionTap = config.onMentionTap;
     final resolvedAcct = _resolveMentionAcct(node);
-    return TextSpan(
-      text: node.acct,
-      style: TextStyle(color: applyOpacity(colorScheme.mention)),
-      recognizer: onMentionTap == null
+    final display = resolveMentionDisplay(
+      username: node.username,
+      nodeHost: node.host,
+      config: config,
+    );
+    final color = display.isSelf ? colorScheme.mentionMe : colorScheme.mention;
+    final onTap = onMentionTap == null
+        ? null
+        : () => onMentionTap(resolvedAcct);
+    final options = config.mentionOptions;
+    if (options?.presentation == MfmMentionPresentation.text) {
+      final recognizer = onTap == null
           ? null
-          : (TapGestureRecognizer()..onTap = () => onMentionTap(resolvedAcct)),
+          : (TapGestureRecognizer()..onTap = onTap);
+      return TextSpan(
+        children: [
+          TextSpan(
+            text: display.name,
+            style: mentionRoleStyle(effectiveStyle, applyOpacity(color)),
+            recognizer: recognizer,
+          ),
+          if (display.host.isNotEmpty)
+            TextSpan(
+              text: display.host,
+              style: mentionRoleStyle(
+                effectiveStyle,
+                applyOpacity(color.withValues(alpha: color.a * .5)),
+              ),
+              recognizer: recognizer,
+            ),
+        ],
+      );
+    }
+    final provider = options?.avatarProvider;
+    final origin = options?.localOrigin;
+    final avatar = provider != null
+        ? provider(resolvedAcct)
+        : origin == null
+        ? null
+        : NetworkImage(
+            Uri.parse(
+              origin,
+            ).replace(pathSegments: ['avatar', display.avatarAcct]).toString(),
+          );
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: wrapOpacity(
+        MfmMention(
+          name: display.name,
+          host: display.host,
+          style: unattenuatedStyle,
+          color: color,
+          avatar: avatar,
+          onTap: onTap,
+        ),
+      ),
     );
   }
 

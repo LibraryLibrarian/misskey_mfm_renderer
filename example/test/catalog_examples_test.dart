@@ -1,9 +1,67 @@
+import 'package:example/core/settings/example_settings.dart';
+import 'package:example/core/widgets/mfm_preview_card.dart';
 import 'package:example/features/catalog/data/mfm_examples.dart';
+import 'package:example/features/catalog/presentation/widgets/catalog_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 void main() {
+  testWidgets(
+    'catalog forwards config/plain/nowrap while retaining app config',
+    (tester) async {
+      final settings = ExampleSettings();
+      addTearDown(settings.dispose);
+      final example = MfmExamples.categories
+          .expand((c) => c.examples)
+          .singleWhere((e) => e.name == 'Display Name');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ExampleSettingsScope(
+            settings: settings,
+            child: MfmConfig(
+              config: const MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 23),
+              ),
+              child: Scaffold(
+                body: CatalogSection(
+                  category: MfmCategory(title: 'fixture', examples: [example]),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final card = tester.widget<MfmPreviewCard>(find.byType(MfmPreviewCard));
+      expect(card.config, same(example.config));
+      expect(card.plain, isTrue);
+      expect(card.nowrap, isTrue);
+      final text = tester.widget<MfmText>(find.byType(MfmText));
+      expect(text.plain, isTrue);
+      expect(text.nowrap, isTrue);
+      final rich = tester.widget<RichText>(
+        find
+            .descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(RichText),
+            )
+            .first,
+      );
+      expect(rich.text.style!.fontSize, 23);
+    },
+  );
+
+  testWidgets('display name is plain, nowrap and offline', (tester) async {
+    await _pumpExample(tester, 'Display Name');
+    final widget = tester.widget<MfmText>(find.byType(MfmText));
+    expect(widget.plain, isTrue);
+    expect(widget.nowrap, isTrue);
+    expect(widget.config.author!.host, 'remote.test');
+    expect(widget.config.emojiUrls, contains('offline'));
+    expect(_richTextPlainText(tester), contains('@alice'));
+    expect(find.byType(Image), findsNothing);
+  });
+
   final examples = MfmExamples.categories
       .expand((category) => category.examples)
       .toList(growable: false);
@@ -20,7 +78,7 @@ void main() {
 
   testWidgets('全サンプルを構文どおりに描画できる', (tester) async {
     for (final example in examples) {
-      await _pumpMfm(tester, example.mfm);
+      await _pumpMfm(tester, example.mfm, example: example);
 
       final plainText = _richTextPlainText(tester);
       if (example.name == 'Plain') {
@@ -113,16 +171,25 @@ Future<void> _pumpExample(WidgetTester tester, String name) {
   final example = MfmExamples.categories
       .expand((category) => category.examples)
       .singleWhere((example) => example.name == name);
-  return _pumpMfm(tester, example.mfm);
+  return _pumpMfm(tester, example.mfm, example: example);
 }
 
-Future<void> _pumpMfm(WidgetTester tester, String mfm) async {
+Future<void> _pumpMfm(
+  WidgetTester tester,
+  String mfm, {
+  MfmExample? example,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: SizedBox(
           width: 400,
-          child: MfmText(text: mfm),
+          child: MfmText(
+            text: mfm,
+            config: example?.config ?? const MfmRenderConfig(),
+            plain: example?.plain ?? false,
+            nowrap: example?.nowrap ?? false,
+          ),
         ),
       ),
     ),

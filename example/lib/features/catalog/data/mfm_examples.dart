@@ -1,3 +1,6 @@
+import 'package:flutter/widgets.dart';
+import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+
 /// MFMサンプルのカテゴリ
 class MfmCategory {
   const MfmCategory({
@@ -16,6 +19,9 @@ class MfmExample {
     required this.syntax,
     required this.mfm,
     this.description,
+    this.config,
+    this.plain,
+    this.nowrap,
   });
 
   /// サンプル名
@@ -29,6 +35,9 @@ class MfmExample {
 
   /// 説明（オプション）
   final String? description;
+  final MfmRenderConfig? config;
+  final bool? plain;
+  final bool? nowrap;
 }
 
 /// 全MFMサンプルデータ
@@ -768,5 +777,50 @@ $[x2 $[rainbow 完了！]] ?[関連リンク](https://example.org/docs)''',
         ),
       ],
     ),
+    MfmCategory(
+      title: 'メンション・表示名',
+      examples: [
+        MfmExample(
+          name: 'Mention Capsule',
+          syntax: '@alice @bob@remote.test',
+          mfm: '@alice @bob@remote.test',
+          config: MfmRenderConfig(
+            localHost: 'local.test',
+            mentionOptions: MfmMentionOptions(viewerAcct: '@alice'),
+          ),
+        ),
+        MfmExample(
+          name: 'Mention Text',
+          syntax: '@alice @bob@remote.test',
+          mfm: '@alice @bob@remote.test',
+          config: MfmRenderConfig(
+            localHost: 'local.test',
+            mentionOptions: MfmMentionOptions(
+              presentation: MfmMentionPresentation.text,
+            ),
+          ),
+        ),
+        MfmExample(
+          name: 'Display Name',
+          syntax: 'plain + nowrap + author + emojiUrls',
+          mfm: 'Alice :offline: @alice',
+          plain: true,
+          nowrap: true,
+          description: 'オフライン絵文字fixture。@aliceはメンションではなく文字列。',
+          config: MfmRenderConfig(
+            author: MfmAuthorContext(host: 'remote.test'),
+            emojiUrls: {'offline': 'https://fixture.invalid/offline.png'},
+            emojiBuilder: _offlineDisplayEmoji,
+          ),
+        ),
+      ],
+    ),
   ];
 }
+
+// A local fixture builder consumes the same author/URL context without fetching.
+Widget _offlineDisplayEmoji(String name, MfmEmojiContext context) =>
+    SizedBox.square(
+      dimension: context.fontSize,
+      child: const ColoredBox(color: Color(0xFF86B300)),
+    );

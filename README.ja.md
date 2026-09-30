@@ -17,6 +17,86 @@ MFMのカスタム絵文字を含むレンダリングを一通り提供しま�
 カスタム絵文字の描画はMFMの中核機能です。追加の統合作業なしで
 MFMを完全に描画できるようにするため、`misskey_emoji` を依存関係として含めています。
 
+## メンションと表示名
+
+`mentionOptions` が null の場合も既定はカプセル表示です。円形の1.5emアバター／
+placeholder、0.2emの間隔、1行のacctを表示し、既定では画像通信しません。
+省略表示でも完全な表示acctを支援技術へ一度だけ提供し、`onMentionTap` があれば
+アバター・名前・host・余白を含めた全体をタップできます。
+
+```dart
+const config = MfmRenderConfig(
+  localHost: 'local.example',
+  mentionOptions: MfmMentionOptions(
+    viewerAcct: '@alice', // 投稿者とは別の閲覧者
+    // このローカルサーバーへの画像通信を許可する場合だけ指定
+    localOrigin: 'https://local.example',
+  ),
+);
+
+// 移行: 従来のインライン文字配置を選択
+const textConfig = MfmRenderConfig(
+  mentionOptions: MfmMentionOptions(
+    presentation: MfmMentionPresentation.text,
+  ),
+);
+```
+
+- `viewerAcct` は `@username` または `@username@authority`、usernameは
+  `[A-Za-z0-9_]+`。host省略時には `localHost` または `localOrigin` が必要で、
+  authorのhostを流用しません。閲覧者に一致する場合だけ `mentionMe` 色を使用します。
+- 表示hostはノード→`author.host`→`localHost` の順で解決します。明示originの
+  authorityは表示・自己判定・組込みアバターだけの最終補完です。local hostを隠し、
+  remote IDNはUnicode表示します。比較は大小文字を無視し、DNS末尾ドット1個を除去、
+  IPv6はアドレス値で比較します。mentionの省略portと明示portは別です。
+  本家のlocal host表示抑制はraw比較ですが、本実装は意図的に正規化比較を採用します。
+  不正なコンテンツhostはraw表示を保ち、local/selfと推測しません。
+- `localOrigin` は `Uri` の正規化で失われる情報を保持するため **String** です。
+  設定を継承合成したbuild時に検証し、絶対HTTP(S) origin、有効なDNS/IDN・IPv4・
+  角括弧付きIPv6、任意の数値port 1–65535だけを受け付けます。credentials・空白・
+  query/fragment（空の区切りも含む）・空または `/` 以外のpathは `ArgumentError`。
+  merged `localHost` とも整合している必要があります。この整合検証だけscheme既定portを
+  補完します。不正viewerも、text表示・mentionなしの文書でも例外です。従来の不正な
+  `localHost` だけを新たに一律例外にはしません。
+- `avatarProvider: (String acct) => ImageProvider<Object>?` ではasset・memory・
+  明示NetworkImageなどを渡せます。最優先で、nullはplaceholderを意味し、originへの
+  fallbackは行いません。provider自体が未指定のときだけ、明示originの
+  `/avatar/@username@host` を `Uri.pathSegments` で安全に組み立てます。
+  remote mentionのhostへ自動接続しません。loading/errorでも寸法は同じです。
+  text表示ではproviderを呼ばず、画像widgetも生成しません。
+- `onMentionTap` とproviderには従来の未正規化の解決済acctを渡します。
+  Unicode化・大小文字変換・originだけによる補完は含みません。optionsは丸ごと継承し、
+  `const MfmMentionOptions()` で祖先の設定を置換できます。`copyWith` のnullは維持、
+  `clearMentionOptions: true` は自身の値だけを削除して継承を再開します。
+  値とclearの同時指定は例外です。
+
+**配置変更の移行:** カプセルは `WidgetSpan` のため行分割・行高が変わり、
+`InlineSpan.toPlainText()` はacctではなくobject replacement characterを返します。
+文字抽出には元ソース／ASTを使うか、`text` 表示を選択してください。textでもhost表示の
+正規化を行い、名前とhostの双方から同じcallbackを呼びます。カプセルは周囲の書式を継承し、
+small/quote opacityを一度だけ適用、mention色はfg/static rainbowより優先します。
+animated rainbowは従来どおりsubtree全体にfilterを適用します。内側の文字とアバターへ
+ambient text scalerを一度適用し、font20ならavatar30/gap4、scale2なら60/8です。
+既存root RichTextのtext scaling制約は変更しておらず、MFM全体の再設計ではありません。
+
+表示名には既存のplain解析を使用できます。
+
+```dart
+MfmText(
+  text: 'Alice :wave: @alice',
+  plain: true,
+  nowrap: true,
+  config: emojiConfig.copyWith(
+    author: const MfmAuthorContext(host: 'remote.example'),
+    emojiUrls: remoteUserEmojiUrls,
+  ),
+)
+```
+
+`@alice` はメンションではなく文字列のままです。閲覧者ではなく対象ユーザーの
+投稿者情報と絵文字辞書を渡します。exampleには通信しない固定fixtureの表示名と、
+capsule/text比較例を用意しています。
+
 ## 特徴
 
 ### 対応ノードタイプ
