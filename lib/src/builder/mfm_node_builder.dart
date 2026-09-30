@@ -18,6 +18,7 @@ class MfmNodeBuilder {
     required this.config,
     required this.colorScheme,
     required this.effectiveStyle,
+    TextStyle? unattenuatedStyle,
     this.scale = 1.0,
     this.sizeDepth = 0,
     this.opacity = 1.0,
@@ -27,7 +28,7 @@ class MfmNodeBuilder {
     this.isNote = true,
     this.rainbowScope,
     this.rainbowForeground = false,
-  });
+  }) : unattenuatedStyle = unattenuatedStyle ?? effectiveStyle;
 
   /// レンダリング設定
   final MfmRenderConfig config;
@@ -37,6 +38,9 @@ class MfmNodeBuilder {
 
   /// 祖先ノードの差分スタイルを反映した現在の実効スタイル
   final TextStyle effectiveStyle;
+
+  /// ウィジェット用。small / quoteの累積opacityを適用する前のスタイル。
+  final TextStyle unattenuatedStyle;
 
   /// 現在のスケール（ネストしたscale fnで使用）
   final double scale;
@@ -70,6 +74,7 @@ class MfmNodeBuilder {
 
   MfmNodeBuilder _copyWith({
     TextStyle? effectiveStyle,
+    TextStyle? unattenuatedStyle,
     double? scale,
     int? sizeDepth,
     double? opacity,
@@ -84,6 +89,7 @@ class MfmNodeBuilder {
       config: config,
       colorScheme: colorScheme,
       effectiveStyle: effectiveStyle ?? this.effectiveStyle,
+      unattenuatedStyle: unattenuatedStyle ?? this.unattenuatedStyle,
       scale: scale ?? this.scale,
       sizeDepth: sizeDepth ?? this.sizeDepth,
       opacity: opacity ?? this.opacity,
@@ -107,9 +113,10 @@ class MfmNodeBuilder {
   }
 
   /// 差分スタイル（inherit: true）を実効スタイルに反映したビルダーを返す
-  MfmNodeBuilder withStyle(TextStyle patch) {
+  MfmNodeBuilder withStyle(TextStyle patch, {TextStyle? unattenuatedPatch}) {
     return _copyWith(
       effectiveStyle: effectiveStyle.merge(patch),
+      unattenuatedStyle: unattenuatedStyle.merge(unattenuatedPatch ?? patch),
       rainbowForeground:
           rainbowForeground && patch.color == null && patch.foreground == null,
     );
@@ -131,8 +138,9 @@ class MfmNodeBuilder {
     TextStyle patch,
     List<MfmNode> nodes, {
     GestureRecognizer? recognizer,
+    TextStyle? unattenuatedPatch,
   }) {
-    final styled = withStyle(patch);
+    final styled = withStyle(patch, unattenuatedPatch: unattenuatedPatch);
     final children = styled.buildNodes(nodes);
     return styled.rainbowForeground
         ? MfmRainbowSpan(
@@ -289,11 +297,12 @@ class MfmNodeBuilder {
                 alpha: foreground.color.a * 0.7,
               )),
     );
+    final rawPatch = TextStyle(fontSize: unattenuatedStyle.fontSize! * 0.8);
     final smaller = _copyWith(opacity: opacity * 0.7);
     if (rainbowForeground) {
       // smallは色の指定ではなく減光なので、虹色の継承を解除しない。
       final styled = smaller
-          .withStyle(patch)
+          .withStyle(patch, unattenuatedPatch: rawPatch)
           ._copyWith(rainbowForeground: true);
       return MfmRainbowSpan(
         opacity: styled.foregroundOpacity,
@@ -301,7 +310,11 @@ class MfmNodeBuilder {
         children: styled.buildNodes(node.children),
       );
     }
-    return smaller.buildStyledSpan(patch, node.children);
+    return smaller.buildStyledSpan(
+      patch,
+      node.children,
+      unattenuatedPatch: rawPatch,
+    );
   }
 
   InlineSpan _buildQuote(QuoteNode node) {
@@ -315,6 +328,7 @@ class MfmNodeBuilder {
       _dimmedSecondaryColors(
         0.7,
       ).copyWith(color: quoted.applyOpacity(baseColor)),
+      unattenuatedPatch: TextStyle(color: baseColor),
     );
     final children = quoteBuilder.buildNodes(node.children);
 
@@ -553,6 +567,10 @@ class MfmNodeBuilder {
         decoration: TextDecoration.none,
       ),
       node.children,
+      unattenuatedPatch: TextStyle(
+        color: colorScheme.link,
+        decoration: TextDecoration.none,
+      ),
       recognizer: onLinkTap == null
           ? null
           : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url)),
@@ -701,6 +719,7 @@ class MfmNodeBuilder {
           node.name,
           MfmEmojiContext(
             fontSize: effectiveStyle.fontSize!,
+            textStyle: unattenuatedStyle,
             scale: scale,
             normal: plain,
             host: host,
@@ -722,6 +741,7 @@ class MfmNodeBuilder {
             node.emoji,
             MfmEmojiContext(
               fontSize: effectiveStyle.fontSize!,
+              textStyle: unattenuatedStyle,
               scale: scale,
             ),
           ),

@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
@@ -20,6 +21,7 @@ class MfmCustomEmoji extends StatefulWidget {
     this.cacheScope,
     this.refreshListenable,
     this.fallbackBuilder,
+    this.fallbackTextStyle,
     this.errorBuilder,
     this.loadingBuilder,
   }) : assert(resolver != null || url != null),
@@ -60,6 +62,7 @@ class MfmCustomEmoji extends StatefulWidget {
   /// which happens with a small fixed [size] and a large font size. When
   /// omitted, the child's natural baseline is used. MfmEmojiConfig supplies the
   /// custom emoji value automatically, even with a fixed emojiSize.
+  /// Standard shortcode fallback text always uses its natural baseline.
   final double? baselineOffset;
 
   /// The optional maximum displayed width of the emoji in logical pixels.
@@ -94,6 +97,13 @@ class MfmCustomEmoji extends StatefulWidget {
   /// otherwise invalidated. Successful results are retained across ordinary
   /// parent rebuilds until this signal is notified.
   final Listenable? refreshListenable;
+
+  /// Style for the standard `:name:` fallback, independent of image [size].
+  ///
+  /// Defaults to DefaultTextStyle at its natural 1em size and alphabetic
+  /// baseline. [baselineOffset] applies only to images and custom builders.
+  final TextStyle? fallbackTextStyle;
+
   final Widget Function(BuildContext context, String name)? fallbackBuilder;
   final Widget Function(BuildContext context, String name, Object error)?
   errorBuilder;
@@ -117,6 +127,11 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 
   late Future<Uri?> _emojiFuture;
   bool _retryOnUpdate = false;
+
+  // Image callbacks rebuild below this State. Notify the render wrapper
+  // directly when the error branch changes its baseline policy, without
+  // rebuilding or re-resolving the image during a descendant build.
+  final ValueNotifier<bool> _imageUsesNaturalBaseline = ValueNotifier(false);
 
   static void _debugClearCaches() {
     _cacheGeneration++;
@@ -151,6 +166,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   @override
   void dispose() {
     widget.refreshListenable?.removeListener(_refresh);
+    _imageUsesNaturalBaseline.dispose();
     super.dispose();
   }
 
@@ -186,7 +202,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 
   @override
   Widget build(BuildContext context) {
-    final child = FutureBuilder<Uri?>(
+    return FutureBuilder<Uri?>(
       future: _emojiFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
@@ -207,36 +223,78 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
           }
           _observeAspectRatio(context, url);
 
-          final image = CachedNetworkImage(
-            imageUrl: url,
-            height: widget.size,
-            fit: BoxFit.contain,
-            memCacheHeight: _memCacheHeight(context),
-            placeholder: (BuildContext context, String _) =>
-                _loadingWidget(context, _aspectRatios[url]),
-            errorWidget: (BuildContext context, String url, Object error) =>
-                _errorWidget(context, error),
-            fadeInDuration: const Duration(milliseconds: 150),
-            fadeOutDuration: const Duration(milliseconds: 100),
-          );
-
-          final maxWidth = widget.maxWidth;
-          if (maxWidth == null) {
-            return image;
-          }
-          return ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: image,
+          return _withBaseline(
+            CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.contain,
+              imageBuilder: (context, provider) {
+                _imageUsesNaturalBaseline.value = false;
+                return _constrainImage(
+                  Image(
+                    image: ResizeImage.resizeIfNeeded(
+                      null,
+                      _memCacheHeight(context),
+                      provider,
+                    ),
+                    height: widget.size,
+                    fit: BoxFit.contain,
+                  ),
+                );
+              },
+              memCacheHeight: _memCacheHeight(context),
+              placeholder: (BuildContext context, String _) {
+                _imageUsesNaturalBaseline.value = false;
+                return _constrainImage(
+                  _loadingWidget(
+                    context,
+                    _aspectRatios[url],
+                    imageLoading: true,
+                  ),
+                );
+              },
+              errorWidget: (BuildContext context, String url, Object error) {
+                _imageUsesNaturalBaseline.value =
+                    widget.errorBuilder == null &&
+                    widget.fallbackBuilder == null;
+                return _errorWidget(context, error, imageError: true);
+              },
+              fadeInDuration: const Duration(milliseconds: 150),
+              fadeOutDuration: const Duration(milliseconds: 100),
+            ),
+            useNaturalBaseline: _imageUsesNaturalBaseline,
           );
         }
 
         return _loadingWidget(context, _knownAspectRatio);
       },
     );
-    final baselineOffset = widget.baselineOffset;
-    return baselineOffset == null
+  }
+
+  // Keep image constraints inside each branch. The baseline instead wraps the
+  // whole cross-fade, whose height can differ from either child's height.
+  // Standard error text opts out of that image baseline.
+  Widget _constrainImage(Widget child) {
+    final maxWidth = widget.maxWidth;
+    return maxWidth == null
         ? child
-        : _EmojiBaseline(offset: baselineOffset, child: child);
+        : ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: child,
+          );
+  }
+
+  Widget _withBaseline(
+    Widget child, {
+    ValueListenable<bool>? useNaturalBaseline,
+  }) {
+    final offset = widget.baselineOffset;
+    return offset == null
+        ? child
+        : _EmojiBaseline(
+            offset: offset,
+            useNaturalBaseline: useNaturalBaseline,
+            child: child,
+          );
   }
 
   _EmojiCacheKey get _cacheKey => _EmojiCacheKey(
@@ -303,9 +361,15 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     return (widget.size * devicePixelRatio).ceil();
   }
 
-  Widget _loadingWidget(BuildContext context, double? aspectRatio) {
-    return widget.loadingBuilder?.call(context) ??
+  Widget _loadingWidget(
+    BuildContext context,
+    double? aspectRatio, {
+    bool imageLoading = false,
+  }) {
+    final child =
+        widget.loadingBuilder?.call(context) ??
         _defaultLoadingWidget(aspectRatio);
+    return imageLoading ? child : _withBaseline(child);
   }
 
   Widget _defaultLoadingWidget(double? aspectRatio) {
@@ -332,19 +396,27 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     );
   }
 
-  Widget _fallbackWidget(BuildContext context) {
-    return widget.fallbackBuilder?.call(context, widget.name) ??
-        Text(
-          ':${widget.name}:',
-          style: DefaultTextStyle.of(
-            context,
-          ).style.copyWith(fontSize: widget.size * 0.6),
-        );
+  Widget _fallbackWidget(BuildContext context, {bool imageError = false}) {
+    final custom = widget.fallbackBuilder?.call(context, widget.name);
+    if (custom != null) {
+      return imageError ? _constrainImage(custom) : _withBaseline(custom);
+    }
+    return Text(
+      ':${widget.name}:',
+      style: widget.fallbackTextStyle ?? DefaultTextStyle.of(context).style,
+    );
   }
 
-  Widget _errorWidget(BuildContext context, Object error) {
-    return widget.errorBuilder?.call(context, widget.name, error) ??
-        _fallbackWidget(context);
+  Widget _errorWidget(
+    BuildContext context,
+    Object error, {
+    bool imageError = false,
+  }) {
+    final custom = widget.errorBuilder?.call(context, widget.name, error);
+    if (custom != null) {
+      return imageError ? _constrainImage(custom) : _withBaseline(custom);
+    }
+    return _fallbackWidget(context, imageError: imageError);
   }
 }
 
@@ -352,27 +424,57 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 // image a baseline above its bottom. Report a baseline without moving or
 // resizing the box, so the paragraph reserves the descent as well as ascent.
 class _EmojiBaseline extends SingleChildRenderObjectWidget {
-  const _EmojiBaseline({required this.offset, required super.child});
+  const _EmojiBaseline({
+    required this.offset,
+    this.useNaturalBaseline,
+    required super.child,
+  });
 
   final double offset;
+  final ValueListenable<bool>? useNaturalBaseline;
 
   @override
   _RenderEmojiBaseline createRenderObject(BuildContext context) =>
-      _RenderEmojiBaseline(offset);
+      _RenderEmojiBaseline(offset, useNaturalBaseline);
 
   @override
   void updateRenderObject(
     BuildContext context,
     _RenderEmojiBaseline renderObject,
   ) {
-    renderObject.offset = offset;
+    renderObject
+      ..offset = offset
+      ..useNaturalBaseline = useNaturalBaseline;
   }
 }
 
 class _RenderEmojiBaseline extends RenderProxyBox {
-  _RenderEmojiBaseline(this._offset);
+  _RenderEmojiBaseline(this._offset, this._useNaturalBaseline);
 
   double _offset;
+  ValueListenable<bool>? _useNaturalBaseline;
+
+  ValueListenable<bool>? get useNaturalBaseline => _useNaturalBaseline;
+
+  set useNaturalBaseline(ValueListenable<bool>? value) {
+    if (identical(_useNaturalBaseline, value)) return;
+    if (attached) _useNaturalBaseline?.removeListener(markNeedsLayout);
+    _useNaturalBaseline = value;
+    if (attached) _useNaturalBaseline?.addListener(markNeedsLayout);
+    markNeedsLayout();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _useNaturalBaseline?.addListener(markNeedsLayout);
+  }
+
+  @override
+  void detach() {
+    _useNaturalBaseline?.removeListener(markNeedsLayout);
+    super.detach();
+  }
 
   double get offset => _offset;
 
@@ -391,13 +493,18 @@ class _RenderEmojiBaseline extends RenderProxyBox {
   }
 
   @override
-  double computeDistanceToActualBaseline(TextBaseline baseline) => _baseline;
+  double? computeDistanceToActualBaseline(TextBaseline baseline) =>
+      _useNaturalBaseline?.value ?? false
+      ? super.computeDistanceToActualBaseline(baseline)
+      : _baseline;
 
   @override
-  double computeDryBaseline(
+  double? computeDryBaseline(
     BoxConstraints constraints,
     TextBaseline baseline,
-  ) => getDryLayout(constraints).height - _offset;
+  ) => _useNaturalBaseline?.value ?? false
+      ? super.computeDryBaseline(constraints, baseline)
+      : getDryLayout(constraints).height - _offset;
 }
 
 class _EmojiCacheKey {

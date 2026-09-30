@@ -479,6 +479,32 @@ MfmCustomEmoji(
 )
 ```
 
+標準の `:name:` フォールバックは、plain表示・解決失敗・画像デコード失敗のいずれも
+**周囲の1emサイズと自然なalphabeticベースライン**を使います。`emojiSize` と
+`emojiMaxWidth` は画像にのみ適用され、標準テキストには影響しません。
+`MfmEmojiConfig` は継承したフォント・太さ・装飾・色を渡します。
+単独の `MfmCustomEmoji` は `fallbackTextStyle`、未指定なら `DefaultTextStyle` を
+使用します。カスタムfallback/error/loadingビルダーには従来どおり画像用の
+ベースラインが適用され、コールバックの引数や画像サイズのデフォルトは変わりません。
+
+**単独利用で従来の表示を維持する場合:** `fallbackBuilder` で旧サイズの
+`size * 0.6` を明示してください。既存の `baselineOffset` はカスタムビルダーにも
+適用されるため、ベースライン用のラッパーを重ねないでください。
+
+```dart
+const size = 24.0;
+MfmCustomEmoji(
+  name: 'emoji_name',
+  resolver: resolver,
+  size: size,
+  baselineOffset: 8.5, // 既存の画像用baselineOffsetを維持
+  fallbackBuilder: (context, name) => Text(
+    ':$name:',
+    style: DefaultTextStyle.of(context).style.copyWith(fontSize: size * 0.6),
+  ),
+)
+```
+
 ### 絵文字ビルダーの描画文脈とUnicode画像
 
 `emojiBuilder` / `unicodeEmojiBuilder` はともに引数が2つになりました。
@@ -487,6 +513,11 @@ MfmCustomEmoji(
 
 - `fontSize`: サイズ関数・`tada`（150%）・`<small>`（80%）を反映した
   現在の実効フォントサイズ（論理px）。
+- `textStyle`: `small` / quoteの累積opacityを掛ける前の、現在のサイズ・フォント・
+  装飾・色を持つ任意のスタイル。rootのalpha、前景・背景のPaint、影を保持します。
+  ビルダーの返すWidgetには外側で累積opacityを適用するため、再度減光しないでください。
+  レンダラーが生成する文脈には必ず設定されますが、手動構築時は省略できます。
+  テキストには `context.textStyle ?? TextStyle(fontSize: context.fontSize)` を使えます。
 - `scale`: x2/x3/x4/scale関数の累積倍率。`tada` と `<small>` では変わりません。
   `MfmText.rootScale` が初期値になります。
   advanced MFMが有効で基準14pxなら、x2は `(28, 2)`、x4は `(84, 4)`、
@@ -531,6 +562,7 @@ MfmRenderConfig(
     resolver: unicodeImageResolver, // アプリ側で用意したEmojiResolver
     size: context.fontSize * 1.25,
     baselineOffset: context.fontSize * 0.25,
+    fallbackTextStyle: context.textStyle,
   ),
 )
 ```
