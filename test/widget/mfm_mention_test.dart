@@ -22,22 +22,80 @@ const style = TextStyle(fontSize: 20);
 const base = MfmRenderConfig(baseTextStyle: style);
 
 void main() {
-  testWidgets('document changes retain valid mention semantics', (
+  for (final template in [
+    'BODY',
+    '> BODY',
+    '<center>BODY</center>',
+    r'$[x2 BODY]',
+    r'$[rainbow BODY]',
+  ]) {
+    for (final animation in [false, true]) {
+      testWidgets('document semantics: $template, animation=$animation', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          final config = base.copyWith(
+            enableAnimation: animation,
+            onLinkTap: (_) {},
+            onMentionTap: (_) {},
+          );
+          for (final source in [
+            'plain',
+            '@a',
+            'https://example.org',
+            '@a',
+            '#tag',
+            '@a',
+          ]) {
+            await tester.pumpWidget(
+              host(
+                MfmText(
+                  text: template.replaceAll('BODY', source),
+                  config: config,
+                ),
+              ),
+            );
+            expect(tester.takeException(), isNull, reason: source);
+          }
+        } finally {
+          semantics.dispose();
+        }
+      });
+    }
+  }
+
+  testWidgets('same boundary retains paragraph on style and callback update', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
-    final config = base.copyWith(onLinkTap: (_) {}, onMentionTap: (_) {});
-    for (final source in [
-      'plain',
-      '@a',
-      'https://example.org',
-      '@a',
-      '#tag',
-      '@a',
-    ]) {
-      await tester.pumpWidget(host(MfmText(text: source, config: config)));
-      expect(tester.takeException(), isNull, reason: source);
+    try {
+      for (final source in ['@a', 'https://example.org @a']) {
+        final config = base.copyWith(onLinkTap: (_) {}, onMentionTap: (_) {});
+        await tester.pumpWidget(host(MfmText(text: source, config: config)));
+        final root = find
+            .descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(RichText),
+            )
+            .first;
+        final paragraph = tester.renderObject<RenderParagraph>(root);
+        await tester.pumpWidget(
+          host(
+            MfmText(
+              text: source,
+              config: config.copyWith(
+                baseTextStyle: style.copyWith(fontSize: 24),
+                onMentionTap: (_) {},
+              ),
+            ),
+          ),
+        );
+        expect(tester.renderObject<RenderParagraph>(root), same(paragraph));
+        expect(tester.takeException(), isNull);
+      }
+    } finally {
+      semantics.dispose();
     }
   });
 

@@ -11,6 +11,7 @@ import '../fn/animated/mfm_rainbow_text.dart';
 import '../fn/mfm_fn_handler.dart';
 import '../utils/mention_display.dart';
 import '../utils/nyaize.dart';
+import '../utils/paragraph_semantics.dart';
 import '../utils/url_display.dart';
 import '../widgets/mfm_code_block.dart';
 import '../widgets/mfm_mention.dart';
@@ -183,8 +184,17 @@ class MfmNodeBuilder {
         : TextSpan(style: effectiveStyle, children: children);
     final scope = rainbowScope;
     return scope == null
-        ? RichText(textAlign: textAlign, text: text)
-        : MfmRainbowRichText(scope: scope, textAlign: textAlign, text: text);
+        ? RichText(
+            key: paragraphSemanticsKey(text),
+            textAlign: textAlign,
+            text: text,
+          )
+        : MfmRainbowRichText(
+            key: paragraphSemanticsKey(text),
+            scope: scope,
+            textAlign: textAlign,
+            text: text,
+          );
   }
 
   /// 現在の文脈で nyaize 変換を適用すべきか

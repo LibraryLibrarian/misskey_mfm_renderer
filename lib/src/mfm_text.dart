@@ -8,6 +8,7 @@ import 'config/mfm_color_scheme.dart';
 import 'config/mfm_inherited_config.dart';
 import 'config/mfm_render_config.dart';
 import 'utils/mention_display.dart';
+import 'utils/paragraph_semantics.dart';
 
 /// MFMテキストをレンダリングするウィジェット
 class MfmText extends StatelessWidget {
@@ -98,14 +99,13 @@ class MfmText extends StatelessWidget {
     final spans = builder.buildNodes(nodes);
 
     // RichTextでレンダリング
+    final textSpan = TextSpan(style: rootStyle, children: spans);
     return RichText(
+      key: paragraphSemanticsKey(textSpan),
       maxLines: nowrap ? 1 : null,
       softWrap: !nowrap,
       overflow: nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
-      text: TextSpan(
-        style: rootStyle,
-        children: spans,
-      ),
+      text: textSpan,
     );
   }
 

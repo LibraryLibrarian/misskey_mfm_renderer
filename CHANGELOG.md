@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** Standalone `MfmCustomEmoji` standard shortcode fallbacks now use ambient 1em text and its natural alphabetic baseline instead of `size * 0.6` and the image baseline. To retain the old appearance, supply `fallbackBuilder` with an explicit `TextStyle(fontSize: size * 0.6)`; the widget still supplies the image baseline for custom builders, so do not add it again
 
 ### Fixed
+- Keep accessibility semantics valid when switching between tappable links and mention capsules, including nested and rainbow paragraphs, without recreating paragraphs for ordinary style or callback updates
 - Resolve mention display hosts from node, author, then local context; hide normalized local authorities, display remote IDNs in Unicode, and preserve raw callback/provider accounts and explicit port distinctions
 - Kept custom emoji baselines stable across image/loading cross-fades with differently sized placeholders, while allowing standard image-error text to retain its natural height as well as its baseline
 - Rendered standard missing/resolver-error/image-error emoji fallbacks at the surrounding 1em size and natural text baseline, preserving inherited styles and applying cumulative small/quote opacity only once, regardless of plain mode or fixed image size
