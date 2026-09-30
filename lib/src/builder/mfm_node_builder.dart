@@ -15,6 +15,7 @@ import '../utils/paragraph_semantics.dart';
 import '../utils/url_display.dart';
 import '../widgets/mfm_code_block.dart';
 import '../widgets/mfm_mention.dart';
+import '../widgets/mfm_mention_text_span.dart';
 
 /// MfmNodeをWidgetに変換するビルダー
 class MfmNodeBuilder {
@@ -607,7 +608,8 @@ class MfmNodeBuilder {
       final recognizer = onTap == null
           ? null
           : (TapGestureRecognizer()..onTap = onTap);
-      return TextSpan(
+      return MfmMentionTextSpan(
+        recognizer: recognizer,
         children: [
           TextSpan(
             text: display.name,
