@@ -854,19 +854,114 @@ It applies only to text using the inherited foreground color; explicit colors
 inside the rainbow (such as `fg` and links), emoji images, backgrounds, and
 borders retain their original colors.
 
-### Localizing unixtime
+### Unixtime display and localization
 
-`$[unixtime]` uses the [timeago](https://pub.dev/packages/timeago) package for relative time display. Set locale at app startup for localization:
+`$[unixtime 1700000000]` defaults to **local absolute date + relative time**
+(`11/14/2023, 10:13:20 PM (3y ago)` in UTC, for example). The synchronous built-in
+formatter needs no initialization or extra dependency. Locale priority is
+`options.locale` → Flutter `Localizations` → English. Japanese uses
+`2026/10/2 0:04:05`; all other languages/regions (including en-GB) fall back to
+English/US order. Custom formatters receive the original resolved locale.
 
 ```dart
-import 'package:timeago/timeago.dart' as timeago;
+MfmText(
+  text: r'$[unixtime 1700000000]',
+  config: const MfmRenderConfig(
+    unixtimeOptions: MfmUnixtimeOptions(
+      locale: Locale('ja'),
+      mode: MfmUnixtimeMode.detail, // relative / absolute also available
+    ),
+  ),
+)
+```
 
-void main() {
-  // Set Japanese locale
-  timeago.setLocaleMessages('ja', timeago.JaMessages());
-  timeago.setDefaultLocale('ja');
-  
-  runApp(MyApp());
+Options inherit **as one object**: null inherits, `const MfmUnixtimeOptions()`
+resets to defaults, and `copyWith(clearUnixtimeOptions: true)` removes only the
+local value, allowing inheritance again. Setting and clearing together throws
+`ArgumentError`.
+
+Only the first child is parsed, and only if it is text. Integer prefixes follow
+ECMAScript whitespace/sign/hex rules: `1700000000foo` is accepted, `1e3` and `1.5`
+mean 1, `0x10` means 16, and `0b11` means 0. Dates beyond ±8640000000000 seconds,
+empty/non-text first children and invalid input retain the pill with “None”
+(Japanese: “日時の解析に失敗”); later children are not a fallback. Years ≤ 0 display
+as `1 - year` without an era label. This is not full Intl/CLDR or historical
+timezone equivalence, nor arbitrary IANA timezone conversion.
+
+Relative labels distinguish past and future using fixed-length years/months.
+The intentionally asymmetric boundaries include exactly 60 seconds ahead →
+“In 0s”, exactly 3600 seconds ahead → “In 60m”, and up to 3 seconds ahead →
+“Just now”. Fractional milliseconds are considered before choosing the unit.
+
+Valid detail/relative labels share one 10-second timer while mounted. It stops
+when the app is hidden/paused/detached, refreshes immediately on resume, and is
+released with its final subscriber. Inactive/unknown lifecycle states remain
+active. `enableAnimation` and `TickerMode` do not disable date updates; individual
+node visibility is not tracked. `now: () => appClock.now` can supply an
+application-managed clock, read once per format. `autoUpdate: false` disables
+periodic updates, not ordinary rebuild/config/locale refreshes. Absolute and
+invalid labels never subscribe, **even when a custom formatter reads `now`**.
+Local timezone is re-evaluated on formatting; absolute/disabled-update labels
+need an ordinary rebuild rather than just resume to reflect timezone changes.
+No MaterialApp, Localizations or MediaQuery ancestor is required.
+
+Labels wrap within finite available width. With `MfmText(nowrap: true)` they use
+one-line ellipsis while semantics retain the full current label. The clock is
+decorative. Allow at least enough width for the pill padding, icon and gap;
+arbitrarily tiny constraints cannot display it without overflow.
+
+#### Migrating the previous relative labels
+
+For the previous **valid-input** timeago labels (global/default locale and
+legacy future wording) without automatic updates:
+
+```dart
+const MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(
+    mode: MfmUnixtimeMode.relative,
+    formatter: mfmLegacyUnixtimeFormatter,
+    autoUpdate: false,
+  ),
+)
+```
+
+Configure timeago's global locale in your app if needed. The built-in formatter
+does not read or modify it. This migration does **not** restore old parsing or
+invalid fallback behavior; relative mode alone uses the new short labels.
+
+#### Custom formatting with intl
+
+A formatter replaces the **whole label** and receives nullable local `dateTime`,
+`now`, resolved `locale`, and `mode`. Add `intl` as a **direct dependency of your
+app**, not this library. Complete its asynchronous date-symbol initialization
+before using the formatter (and initialize every locale your app supplies):
+
+```dart
+import 'package:flutter/widgets.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
+import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('ja_JP');
+  runApp(Directionality(
+    textDirection: TextDirection.ltr,
+    child: MfmText(
+      text: r'$[unixtime 1700000000]',
+      config: MfmRenderConfig(
+        unixtimeOptions: MfmUnixtimeOptions(
+          locale: const Locale('ja', 'JP'),
+          mode: MfmUnixtimeMode.absolute,
+          formatter: (context) => context.dateTime == null
+              ? '—'
+              : DateFormat.yMMMMd(context.locale.toString())
+                  .add_Hms()
+                  .format(context.dateTime!),
+        ),
+      ),
+    ),
+  ));
 }
 ```
 
@@ -876,6 +971,7 @@ void main() {
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
+| `unixtimeOptions` | `MfmUnixtimeOptions?` | null | Whole-object date display/locale/formatter/clock inheritance |
 | `baseTextStyle` | `TextStyle?` | null | Base text style |
 | `lightColorScheme` | `MfmColorScheme?` | Mi Light preset | MFM colors used in light mode |
 | `darkColorScheme` | `MfmColorScheme?` | Mi Dark preset | MFM colors used in dark mode |

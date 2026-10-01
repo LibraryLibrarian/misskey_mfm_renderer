@@ -533,14 +533,68 @@ class MfmExamples {
           description: 'smallのサイズ・透明度と外側の色を継承',
         ),
         MfmExample(
-          name: 'Unixtime (過去)',
+          name: 'Unixtime (過去・detail)',
+          description: '端末localの絶対日時＋相対日時。日英locale対応・10秒共有更新',
           syntax: r'$[unixtime 1700000000]',
           mfm: r'$[unixtime 1700000000]',
         ),
         MfmExample(
           name: 'Unixtime (未来)',
+          description: '未来は「〜後」。表示設定はMfmUnixtimeOptionsで変更可能',
           syntax: r'$[unixtime 2000000000]',
           mfm: r'$[unixtime 2000000000]',
+        ),
+        MfmExample(
+          name: 'Unixtime (日本語)',
+          syntax: r'$[unixtime 2000000000]',
+          mfm: r'$[unixtime 2000000000]',
+          config: MfmRenderConfig(
+            unixtimeOptions: MfmUnixtimeOptions(locale: Locale('ja')),
+          ),
+        ),
+        MfmExample(
+          name: 'Unixtime (English・absolute)',
+          syntax: r'$[unixtime 2000000000]',
+          mfm: r'$[unixtime 2000000000]',
+          config: MfmRenderConfig(
+            unixtimeOptions: MfmUnixtimeOptions(
+              locale: Locale('en'),
+              mode: MfmUnixtimeMode.absolute,
+            ),
+          ),
+        ),
+        MfmExample(
+          name: 'Unixtime (relative)',
+          syntax: r'$[unixtime 2000000000]',
+          mfm: r'$[unixtime 2000000000]',
+          config: MfmRenderConfig(
+            unixtimeOptions: MfmUnixtimeOptions(mode: MfmUnixtimeMode.relative),
+          ),
+        ),
+        MfmExample(
+          name: 'Unixtime (legacy・更新なし)',
+          syntax: r'$[unixtime 1700000000]',
+          mfm: r'$[unixtime 1700000000]',
+          description: '有効入力の従来timeago表示。解析・invalidは新仕様',
+          config: MfmRenderConfig(
+            unixtimeOptions: MfmUnixtimeOptions(
+              mode: MfmUnixtimeMode.relative,
+              formatter: mfmLegacyUnixtimeFormatter,
+              autoUpdate: false,
+            ),
+          ),
+        ),
+        MfmExample(
+          name: 'Unixtime (整数prefix)',
+          syntax: r'$[unixtime 1700000000suffix]',
+          mfm: r'$[unixtime 1700000000suffix]',
+          description: '最初のtextの整数prefixを解析',
+        ),
+        MfmExample(
+          name: 'Unixtime (invalid)',
+          syntax: r'$[unixtime invalid]',
+          mfm: r'$[unixtime invalid]',
+          description: 'ピルを維持して解析失敗を表示',
         ),
         MfmExample(
           name: 'Clickable',

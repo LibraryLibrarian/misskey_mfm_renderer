@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'mfm_color_scheme.dart';
 import 'mfm_mention_options.dart';
+import 'mfm_unixtime_options.dart';
 
 /// MFMを含むコンテンツの投稿者情報。
 ///
@@ -132,6 +133,7 @@ class MfmRenderConfig {
     this.emojiUrls,
     this.localHost,
     this.mentionOptions,
+    this.unixtimeOptions,
     String? searchButtonLabel,
     this.useLocaleSearchButtonLabel = false,
     this.onClickableEvent,
@@ -237,6 +239,9 @@ class MfmRenderConfig {
   /// メンション表示設定。nullは継承し、未設定の既定表示はcapsule。
   final MfmMentionOptions? mentionOptions;
 
+  /// 日時の表示設定。nullは祖先から継承し、空のoptionsは既定値へ置換する。
+  final MfmUnixtimeOptions? unixtimeOptions;
+
   /// 検索ボタンのラベル
   ///
   /// nullの場合は現在のロケールから解決し、解決できない場合は"Search"を使用
@@ -327,6 +332,7 @@ class MfmRenderConfig {
   /// 値を削除する場合は、対応する[clearAuthor]、[clearEmojiUrls]、[clearLocalHost]を
   /// `true`にする。値の指定と削除を同時に要求すると[ArgumentError]を投げる。
   /// [mentionOptions]も同様に維持し、[clearMentionOptions]で自身の値だけを削除する。
+  /// [unixtimeOptions]も同様で、[clearUnixtimeOptions]で削除する。
   /// 削除は祖先からの継承を禁止しない。
   /// {@endtemplate}
   MfmRenderConfig copyWith({
@@ -347,6 +353,8 @@ class MfmRenderConfig {
     String? localHost,
     MfmMentionOptions? mentionOptions,
     bool clearMentionOptions = false,
+    MfmUnixtimeOptions? unixtimeOptions,
+    bool clearUnixtimeOptions = false,
     bool clearAuthor = false,
     bool clearEmojiUrls = false,
     bool clearLocalHost = false,
@@ -364,6 +372,13 @@ class MfmRenderConfig {
     String? codeCopyTooltip,
     String? codeCopiedMessage,
   }) {
+    if (clearUnixtimeOptions && unixtimeOptions != null) {
+      throw ArgumentError.value(
+        unixtimeOptions,
+        'unixtimeOptions',
+        'clearUnixtimeOptionsがtrueの場合は指定できません',
+      );
+    }
     if (clearMentionOptions && mentionOptions != null) {
       throw ArgumentError.value(
         mentionOptions,
@@ -412,6 +427,9 @@ class MfmRenderConfig {
       author: clearAuthor ? null : author ?? this.author,
       emojiUrls: clearEmojiUrls ? null : emojiUrls ?? this.emojiUrls,
       localHost: clearLocalHost ? null : localHost ?? this.localHost,
+      unixtimeOptions: clearUnixtimeOptions
+          ? null
+          : unixtimeOptions ?? this.unixtimeOptions,
       mentionOptions: clearMentionOptions
           ? null
           : mentionOptions ?? this.mentionOptions,

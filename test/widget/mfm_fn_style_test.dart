@@ -130,6 +130,7 @@ void main() {
       );
       expect(_insideMfm(find.byType(Opacity)), findsNothing);
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
     });
   }
 
@@ -184,6 +185,7 @@ void main() {
       expect(paint.color, originalColor);
       expect(_insideMfm(find.byType(Opacity)), findsNothing);
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
     });
   }
 
@@ -237,6 +239,7 @@ void main() {
         }
         expect(paint.color, originalColor);
         expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
       });
     }
   }

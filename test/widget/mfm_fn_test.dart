@@ -83,6 +83,7 @@ void main() {
       expect(spans, hasLength(1));
       expect(spans.single.alignment, PlaceholderAlignment.baseline);
       expect(spans.single.baseline, TextBaseline.alphabetic);
+      await tester.pumpWidget(const SizedBox.shrink());
     });
 
     testWidgets('通常テキストとspinの描画ベースラインが混在行で一致する', (tester) async {
@@ -1815,6 +1816,7 @@ void main() {
             ? const MfmColorScheme.dark().divider
             : const MfmColorScheme.light().divider;
         expect(border.top.color, expected);
+        await tester.pumpWidget(const SizedBox.shrink());
       });
     }
 
@@ -1838,6 +1840,7 @@ void main() {
           .findAncestorWidgetOfExactType<Container>()!;
       final border = (container.decoration! as BoxDecoration).border! as Border;
       expect(border.top.color, divider);
+      await tester.pumpWidget(const SizedBox.shrink());
     });
   });
 

@@ -264,6 +264,7 @@ void main() {
     final copied = config.copyWith(
       enableAnimation: false,
       mentionOptions: const MfmMentionOptions(viewerAcct: '@a@local.example'),
+      unixtimeOptions: const MfmUnixtimeOptions(locale: Locale('ja')),
       author: author,
       localHost: 'local.example',
       searchButtonLabel: 'Find',
@@ -272,6 +273,23 @@ void main() {
     );
 
     expect(copied, isA<MfmEmojiConfigHandle>());
+    expect(copied.unixtimeOptions!.locale, const Locale('ja'));
+    expect(copied.copyWith().unixtimeOptions, same(copied.unixtimeOptions));
+    expect(copied.copyWith(clearUnixtimeOptions: true).unixtimeOptions, isNull);
+    expect(
+      copied
+          .copyWith(unixtimeOptions: const MfmUnixtimeOptions())
+          .unixtimeOptions!
+          .locale,
+      isNull,
+    );
+    expect(
+      () => copied.copyWith(
+        unixtimeOptions: const MfmUnixtimeOptions(),
+        clearUnixtimeOptions: true,
+      ),
+      throwsArgumentError,
+    );
     expect(copied.mentionOptions!.viewerAcct, '@a@local.example');
     expect(copied.copyWith().mentionOptions, same(copied.mentionOptions));
     expect(copied.copyWith(clearMentionOptions: true).mentionOptions, isNull);
