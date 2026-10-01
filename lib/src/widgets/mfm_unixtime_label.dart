@@ -32,17 +32,18 @@ class _MfmUnixtimeLabelState extends State<MfmUnixtimeLabel> {
   Locale _locale = const Locale('en');
   String _label = '';
   bool _subscribed = false;
+  bool _needsRefresh = true;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _refresh();
+    _needsRefresh = true;
   }
 
   @override
   void didUpdateWidget(MfmUnixtimeLabel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _refresh();
+    _needsRefresh = true;
   }
 
   void _refresh() {
@@ -88,6 +89,12 @@ class _MfmUnixtimeLabelState extends State<MfmUnixtimeLabel> {
 
   @override
   Widget build(BuildContext context) {
+    // widgetと依存関係の同時更新をまとめ、利用者のclock/formatterを一度だけ呼ぶ。
+    // tick後のbuildでは計算済みのlabelを使い、二重にformatしない。
+    if (_needsRefresh) {
+      _needsRefresh = false;
+      _refresh();
+    }
     final text = Text(
       _label,
       style: widget.style.copyWith(inherit: false),

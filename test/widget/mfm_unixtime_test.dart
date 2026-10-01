@@ -134,6 +134,82 @@ void main() {
     },
   );
 
+  testWidgets('locale and widget updates format once per frame', (
+    tester,
+  ) async {
+    var reads = 0;
+    final formatted = <String>[];
+    MfmUnixtimeOptions options(MfmUnixtimeMode mode) => MfmUnixtimeOptions(
+      mode: mode,
+      autoUpdate: false,
+      now: () => DateTime.fromMillisecondsSinceEpoch(++reads * 1000),
+      formatter: (context) {
+        final label =
+            '${context.locale.languageCode}:${context.mode.name}:'
+            '${context.now.millisecondsSinceEpoch}';
+        formatted.add(label);
+        return label;
+      },
+    );
+    final detail = options(MfmUnixtimeMode.detail);
+    addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+
+    await tester.pumpWidget(host(options: detail, locale: const Locale('en')));
+    expect(formatted, ['en:detail:1000']);
+    final state = tester.state(find.byType(MfmUnixtimeLabel));
+
+    // localeはMfmTextとlabel両方の依存関係を同時に変更する。
+    await tester.pumpWidget(host(options: detail, locale: const Locale('ja')));
+    expect(formatted, ['en:detail:1000', 'ja:detail:2000']);
+    expect(tester.state(find.byType(MfmUnixtimeLabel)), same(state));
+
+    await tester.pumpWidget(
+      host(
+        options: options(MfmUnixtimeMode.absolute),
+        locale: const Locale('ja'),
+      ),
+    );
+    expect(formatted, ['en:detail:1000', 'ja:detail:2000', 'ja:absolute:3000']);
+    expect(reads, 3);
+    expect(find.text('ja:absolute:3000'), findsOneWidget);
+  });
+
+  testWidgets('dependencies-only update formats a retained label once', (
+    tester,
+  ) async {
+    var reads = 0;
+    var formats = 0;
+    final label = MfmUnixtimeLabel(
+      timestamp: 0,
+      options: MfmUnixtimeOptions(
+        autoUpdate: false,
+        now: () => DateTime.fromMillisecondsSinceEpoch(++reads * 1000),
+        formatter: (context) {
+          formats++;
+          return '${context.locale.languageCode}:$formats';
+        },
+      ),
+      style: const TextStyle(fontSize: 14),
+      nowrap: false,
+      rainbowScope: null,
+      rainbowForeground: false,
+    );
+    Widget localized(Locale locale) => Localizations(
+      locale: locale,
+      delegates: const [DefaultWidgetsLocalizations.delegate],
+      child: Directionality(textDirection: TextDirection.ltr, child: label),
+    );
+    addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+
+    await tester.pumpWidget(localized(const Locale('en')));
+    expect(find.text('en:1'), findsOneWidget);
+    await tester.pumpWidget(localized(const Locale('ja')));
+    expect(find.text('ja:2'), findsOneWidget);
+    expect(reads, 2);
+    expect(formats, 2);
+    expect(tester.widget(find.byType(MfmUnixtimeLabel)), same(label));
+  });
+
   testWidgets(
     'options inherit whole, explicit empty resets, clear inherits again',
     (tester) async {

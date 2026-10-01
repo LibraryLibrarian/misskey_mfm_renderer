@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** Standalone `MfmCustomEmoji` standard shortcode fallbacks now use ambient 1em text and its natural alphabetic baseline instead of `size * 0.6` and the image baseline. To retain the old appearance, supply `fallbackBuilder` with an explicit `TextStyle(fontSize: size * 0.6)`; the widget still supplies the image baseline for custom builders, so do not add it again
 
 ### Fixed
+- Coalesce simultaneous unixtime widget/locale refreshes so application clocks and custom formatters run only once per rebuild
 - Distinguish past/future unixtime thresholds with millisecond precision, safely reject out-of-range timestamps, and wrap/ellipsize date labels without losing their full accessibility text or inherited styling
 - Keep `twitch` and `shake` untransformed during positive delays, preserving child state and nested animation timing when playback starts
 - Expose text-presentation mentions as one complete accessibility label and tap action while keeping separate name/host colors and glyph taps
