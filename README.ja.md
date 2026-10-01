@@ -917,7 +917,7 @@ formatterはラベル全体を置換し、nullableなlocal `dateTime`、`now`、
 ```dart
 import 'package:flutter/widgets.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' as intl;
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 Future<void> main() async {
@@ -933,7 +933,7 @@ Future<void> main() async {
           mode: MfmUnixtimeMode.absolute,
           formatter: (context) => context.dateTime == null
               ? '—'
-              : DateFormat.yMMMMd(context.locale.toString())
+              : intl.DateFormat.yMMMMd(context.locale.toString())
                   .add_Hms()
                   .format(context.dateTime!),
         ),
