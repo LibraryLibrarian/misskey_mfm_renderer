@@ -632,6 +632,12 @@ class MfmExamples {
           description: '震えるアニメーション',
         ),
         MfmExample(
+          name: 'Shake (開始遅延)',
+          syntax: r'$[shake.delay=2s text]',
+          mfm: r'$[shake.delay=2s 2秒待ってから動く]',
+          description: '待機中は変形せず、2秒後にアニメーションを開始します',
+        ),
+        MfmExample(
           name: 'Shake (速度調整)',
           syntax: r'$[shake.speed=0.3s text]',
           mfm: r'$[shake.speed=0.3s 激しく震える]',
@@ -641,6 +647,12 @@ class MfmExamples {
           syntax: r'$[twitch text]',
           mfm: r'$[twitch ビクビク]',
           description: 'ランダムに動くアニメーション',
+        ),
+        MfmExample(
+          name: 'Twitch (開始遅延)',
+          syntax: r'$[twitch.delay=2s text]',
+          mfm: r'$[twitch.delay=2s 2秒待ってから動く]',
+          description: '待機中は変形せず、2秒後にアニメーションを開始します',
         ),
         MfmExample(
           name: 'Twitch (速度調整)',

@@ -5,8 +5,39 @@ import 'package:example/features/catalog/presentation/widgets/catalog_section.da
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_shake_widget.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_twitch_widget.dart';
 
 void main() {
+  for (final isShake in [false, true]) {
+    final name = isShake ? 'Shake' : 'Twitch';
+    testWidgets('$name (開始遅延) は2秒間無変形で待機して開始する', (tester) async {
+      await _pumpExample(tester, '$name (開始遅延)');
+      final transforms = find.descendant(
+        of: find.byType(isShake ? MfmShakeWidget : MfmTwitchWidget),
+        matching: find.byType(Transform),
+      );
+      expect(transforms, findsOneWidget);
+      expect(_richTextPlainText(tester), contains('2秒待ってから動く'));
+      expect(
+        tester.widget<Transform>(transforms).transform.isIdentity(),
+        isTrue,
+      );
+      await tester.pump(const Duration(milliseconds: 1999));
+      expect(
+        tester.widget<Transform>(transforms).transform.isIdentity(),
+        isTrue,
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+      final matrix = tester.widget<Transform>(transforms).transform;
+      expect(matrix.storage[12], isShake ? -3 : 7);
+      expect(matrix.storage[13], isShake ? -1 : -2);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
   testWidgets(
     'catalog forwards config/plain/nowrap while retaining app config',
     (tester) async {
