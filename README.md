@@ -242,7 +242,7 @@ For `fg` / `bg`, use 3- or 6-digit RGB or 4-digit RGBA hexadecimal `color` value
 are disabled. This enlarges the text's layout size, not just its painted size.
 
 Like Misskey, `twitch` and `shake` apply `ease` to each adjacent keyframe
-interval.
+interval. During a positive `delay`, they remain untransformed until playback starts.
 
 ## Getting started
 

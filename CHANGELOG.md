@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** Standalone `MfmCustomEmoji` standard shortcode fallbacks now use ambient 1em text and its natural alphabetic baseline instead of `size * 0.6` and the image baseline. To retain the old appearance, supply `fallbackBuilder` with an explicit `TextStyle(fontSize: size * 0.6)`; the widget still supplies the image baseline for custom builders, so do not add it again
 
 ### Fixed
+- Keep `twitch` and `shake` untransformed during positive delays, preserving child state and nested animation timing when playback starts
 - Expose text-presentation mentions as one complete accessibility label and tap action while keeping separate name/host colors and glyph taps
 - Convert Unicode local avatar origins to IDNA hosts when constructing the built-in image provider, retaining explicit ports and safely encoded account paths
 - Keep accessibility semantics valid when switching between tappable links and mention capsules, including nested and rainbow paragraphs, without recreating paragraphs for ordinary style or callback updates
