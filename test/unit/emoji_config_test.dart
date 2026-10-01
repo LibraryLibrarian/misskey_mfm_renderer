@@ -263,6 +263,7 @@ void main() {
     const darkScheme = MfmColorScheme.dark();
     final copied = config.copyWith(
       enableAnimation: false,
+      mentionOptions: const MfmMentionOptions(viewerAcct: '@a@local.example'),
       author: author,
       localHost: 'local.example',
       searchButtonLabel: 'Find',
@@ -271,6 +272,23 @@ void main() {
     );
 
     expect(copied, isA<MfmEmojiConfigHandle>());
+    expect(copied.mentionOptions!.viewerAcct, '@a@local.example');
+    expect(copied.copyWith().mentionOptions, same(copied.mentionOptions));
+    expect(copied.copyWith(clearMentionOptions: true).mentionOptions, isNull);
+    expect(
+      () => copied.copyWith(
+        mentionOptions: const MfmMentionOptions(),
+        clearMentionOptions: true,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      copied
+          .copyWith(mentionOptions: const MfmMentionOptions())
+          .mentionOptions!
+          .viewerAcct,
+      isNull,
+    );
     expect(copied.enableAnimation, isFalse);
     expect(copied.emojiBuilder, same(config.emojiBuilder));
     expect(identical(copied.author, author), isTrue);

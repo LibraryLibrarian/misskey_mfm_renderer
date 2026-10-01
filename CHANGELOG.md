@@ -8,12 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added `MfmMentionOptions` with capsule/text presentation, independent viewer identity, opt-in avatar providers and a validated local avatar origin; options inherit as a whole
 - Added optional `MfmEmojiContext.textStyle` and `MfmCustomEmoji.fallbackTextStyle` for shortcode fallbacks with inherited typography and original colors before cumulative small/quote opacity
 
 ### Changed
+- **Breaking:** Mentions now default to avatar capsules (including when options are null), changing line layout and WidgetSpan plain-text extraction. Use `mentionOptions: MfmMentionOptions(presentation: MfmMentionPresentation.text)` to retain inline text layout
 - **Breaking:** Standalone `MfmCustomEmoji` standard shortcode fallbacks now use ambient 1em text and its natural alphabetic baseline instead of `size * 0.6` and the image baseline. To retain the old appearance, supply `fallbackBuilder` with an explicit `TextStyle(fontSize: size * 0.6)`; the widget still supplies the image baseline for custom builders, so do not add it again
 
 ### Fixed
+- Expose text-presentation mentions as one complete accessibility label and tap action while keeping separate name/host colors and glyph taps
+- Convert Unicode local avatar origins to IDNA hosts when constructing the built-in image provider, retaining explicit ports and safely encoded account paths
+- Keep accessibility semantics valid when switching between tappable links and mention capsules, including nested and rainbow paragraphs, without recreating paragraphs for ordinary style or callback updates
+- Resolve mention display hosts from node, author, then local context; hide normalized local authorities, display remote IDNs in Unicode, and preserve raw callback/provider accounts and explicit port distinctions
 - Kept custom emoji baselines stable across image/loading cross-fades with differently sized placeholders, while allowing standard image-error text to retain its natural height as well as its baseline
 - Rendered standard missing/resolver-error/image-error emoji fallbacks at the surrounding 1em size and natural text baseline, preserving inherited styles and applying cumulative small/quote opacity only once, regardless of plain mode or fixed image size
 - Preserved inherited font size, color, font family, and text decorations in `ruby` and `unixtime`, including nested `small` opacity and static rainbow text. Text and icons now use the attenuated inherited color without a second opacity layer, while borders retain their attenuation

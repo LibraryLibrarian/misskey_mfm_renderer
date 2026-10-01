@@ -7,6 +7,7 @@ import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../config/mfm_color_scheme.dart';
+import '../config/mfm_mention_options.dart';
 import '../config/mfm_render_config.dart';
 import '../widgets/mfm_custom_emoji.dart';
 
@@ -45,6 +46,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          author: config.author,
          emojiUrls: config.emojiUrls,
          localHost: config.localHost,
+         mentionOptions: config.mentionOptions,
          searchButtonLabel: config.searchButtonLabel,
          useLocaleSearchButtonLabel: config.useLocaleSearchButtonLabel,
          onClickableEvent: config.onClickableEvent,
@@ -93,6 +95,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     MfmAuthorContext? author,
     Map<String, String>? emojiUrls,
     String? localHost,
+    MfmMentionOptions? mentionOptions,
+    bool clearMentionOptions = false,
     bool clearAuthor = false,
     bool clearEmojiUrls = false,
     bool clearLocalHost = false,
@@ -126,6 +130,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       author: author,
       emojiUrls: emojiUrls,
       localHost: localHost,
+      mentionOptions: mentionOptions,
+      clearMentionOptions: clearMentionOptions,
       clearAuthor: clearAuthor,
       clearEmojiUrls: clearEmojiUrls,
       clearLocalHost: clearLocalHost,

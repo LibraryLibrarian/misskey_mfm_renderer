@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'mfm_color_scheme.dart';
+import 'mfm_mention_options.dart';
 
 /// MFMを含むコンテンツの投稿者情報。
 ///
@@ -130,6 +131,7 @@ class MfmRenderConfig {
     this.author,
     this.emojiUrls,
     this.localHost,
+    this.mentionOptions,
     String? searchButtonLabel,
     this.useLocaleSearchButtonLabel = false,
     this.onClickableEvent,
@@ -232,6 +234,9 @@ class MfmRenderConfig {
   /// URLのeffective portも比較する。
   final String? localHost;
 
+  /// メンション表示設定。nullは継承し、未設定の既定表示はcapsule。
+  final MfmMentionOptions? mentionOptions;
+
   /// 検索ボタンのラベル
   ///
   /// nullの場合は現在のロケールから解決し、解決できない場合は"Search"を使用
@@ -321,6 +326,8 @@ class MfmRenderConfig {
   /// [author]、[emojiUrls]、[localHost]は、`null`または省略時に現在の値を維持する。
   /// 値を削除する場合は、対応する[clearAuthor]、[clearEmojiUrls]、[clearLocalHost]を
   /// `true`にする。値の指定と削除を同時に要求すると[ArgumentError]を投げる。
+  /// [mentionOptions]も同様に維持し、[clearMentionOptions]で自身の値だけを削除する。
+  /// 削除は祖先からの継承を禁止しない。
   /// {@endtemplate}
   MfmRenderConfig copyWith({
     TextStyle? baseTextStyle,
@@ -338,6 +345,8 @@ class MfmRenderConfig {
     MfmAuthorContext? author,
     Map<String, String>? emojiUrls,
     String? localHost,
+    MfmMentionOptions? mentionOptions,
+    bool clearMentionOptions = false,
     bool clearAuthor = false,
     bool clearEmojiUrls = false,
     bool clearLocalHost = false,
@@ -355,6 +364,13 @@ class MfmRenderConfig {
     String? codeCopyTooltip,
     String? codeCopiedMessage,
   }) {
+    if (clearMentionOptions && mentionOptions != null) {
+      throw ArgumentError.value(
+        mentionOptions,
+        'mentionOptions',
+        'clearMentionOptionsがtrueの場合は指定できません',
+      );
+    }
     if (clearAuthor && author != null) {
       throw ArgumentError.value(
         author,
@@ -396,6 +412,9 @@ class MfmRenderConfig {
       author: clearAuthor ? null : author ?? this.author,
       emojiUrls: clearEmojiUrls ? null : emojiUrls ?? this.emojiUrls,
       localHost: clearLocalHost ? null : localHost ?? this.localHost,
+      mentionOptions: clearMentionOptions
+          ? null
+          : mentionOptions ?? this.mentionOptions,
       searchButtonLabel: effectiveUseLocaleSearchButtonLabel
           ? null
           : searchButtonLabel ?? this.searchButtonLabel,

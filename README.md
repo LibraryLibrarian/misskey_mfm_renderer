@@ -20,6 +20,94 @@ integration work.
 
 [日本語](README.ja.md)
 
+## Mentions and display names
+
+Mentions default to a capsule, even when `mentionOptions` is null: a circular
+1.5em avatar/placeholder, 0.2em gap, and a single-line account label. No avatar
+request is made by default. The full displayed account remains available once
+to assistive technology even when the visible label is ellipsized. The whole
+capsule is tappable when `onMentionTap` is supplied.
+
+```dart
+const config = MfmRenderConfig(
+  localHost: 'local.example',
+  mentionOptions: MfmMentionOptions(
+    viewerAcct: '@alice', // Viewer, not the post author.
+    // Opt in only if this local server should receive avatar requests:
+    localOrigin: 'https://local.example',
+  ),
+);
+
+// Migration: retain inline text layout instead of capsule WidgetSpans.
+const textConfig = MfmRenderConfig(
+  mentionOptions: MfmMentionOptions(
+    presentation: MfmMentionPresentation.text,
+  ),
+);
+```
+
+- `viewerAcct` accepts `@username` or `@username@authority`; username is
+  `[A-Za-z0-9_]+`. A hostless viewer requires `localHost` or `localOrigin`, never
+  the author's host. Only a matching viewer uses the `mentionMe` role color.
+- Display hosts resolve from the mention, then `author.host`, then `localHost`.
+  An explicit origin authority is a final fallback for display, self comparison,
+  and built-in avatars only. Local hosts are hidden; remote IDNs display in
+  Unicode. Comparison is case-insensitive, removes one terminal DNS dot, and
+  compares IPv6 address values. An absent mention port differs from an explicit
+  port. Unlike upstream's raw local-host display comparison, local hiding here
+  intentionally uses normalized authorities. Malformed content stays raw and
+  cannot produce a guessed local/self match.
+- `localOrigin` is a **string** to preserve spelling that `Uri` normalization
+  would discard. At build time, after config inheritance, it must be an absolute
+  HTTP(S) origin with a valid DNS/IDN, IPv4 or bracketed IPv6 host and optional
+  numeric port 1–65535. Credentials, whitespace, queries/fragments (even empty),
+  and paths other than empty or `/` are rejected with `ArgumentError`. Its
+  authority must agree with merged `localHost`; scheme default ports are supplied
+  only for this origin consistency check. Invalid viewers also throw, even in
+  text mode or when the document has no mentions. Old malformed `localHost`
+  values alone are not newly rejected.
+- `avatarProvider: (String acct) => ImageProvider<Object>?` may return an asset,
+  memory or explicitly network-backed image. It has priority; returning null
+  means placeholder, **not** origin fallback. Only an absent provider permits
+  the explicit origin's `/avatar/@username@host` path, safely assembled with
+  `Uri.pathSegments`. Remote mention hosts are never contacted automatically.
+  Loading and errors keep the same avatar geometry. Text mode never calls the
+  provider or constructs an image.
+- `onMentionTap` and the provider receive the same legacy raw resolved account,
+  without Unicode/case conversion or origin-only fallback. Options inherit as a
+  whole; `const MfmMentionOptions()` replaces inherited options. `copyWith` keeps
+  options on null; `clearMentionOptions: true` removes only the current config's
+  value, allowing inheritance again. Passing both a value and clear throws.
+
+**Layout migration:** Capsules are `WidgetSpan`s, changing line breaks, line
+height, and `InlineSpan.toPlainText()` (an object replacement character rather
+than the account). Use source/AST data for text extraction or choose `text`
+presentation. Text presentation retains normalized host display and applies the
+same callback to both name and host. Capsules inherit typography and apply
+small/quote opacity once; mention role colors override fg/static rainbow.
+Animated rainbow still filters the whole subtree. Capsule text and avatar use
+the ambient text scaler once (20px gives 30px avatar + 4px gap; scale 2 gives
+60px + 8px). This does not change the existing root RichText scaling limitation;
+it is not a text-scaling redesign for all MFM content.
+
+For display names, use the existing plain parser rather than a new widget:
+
+```dart
+MfmText(
+  text: 'Alice :wave: @alice',
+  plain: true,
+  nowrap: true,
+  config: emojiConfig.copyWith(
+    author: const MfmAuthorContext(host: 'remote.example'),
+    emojiUrls: remoteUserEmojiUrls,
+  ),
+)
+```
+
+Here `@alice` remains literal text. Supply the target user's author context and
+emoji dictionary, not the viewer's. The example catalog includes an offline,
+deterministic display-name fixture and capsule/text comparisons.
+
 ## Features
 
 ### Supported Node Types

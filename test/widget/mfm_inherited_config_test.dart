@@ -3,8 +3,74 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_mention.dart';
 
 void main() {
+  testWidgets('mention options inherit wholesale; clear resumes inheritance', (
+    tester,
+  ) async {
+    var calls = 0;
+    final inherited = MfmRenderConfig(
+      localHost: 'local.test',
+      mentionOptions: MfmMentionOptions(
+        viewerAcct: '@alice',
+        avatarProvider: (_) {
+          calls++;
+          return null;
+        },
+      ),
+    );
+    for (final explicit in [
+      const MfmRenderConfig(),
+      const MfmRenderConfig(mentionOptions: MfmMentionOptions()),
+      const MfmRenderConfig(
+        mentionOptions: MfmMentionOptions(),
+      ).copyWith(clearMentionOptions: true),
+    ]) {
+      final before = calls;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmConfig(
+            config: inherited,
+            child: MfmText(text: '@alice', config: explicit),
+          ),
+        ),
+      );
+      final mention = tester.widget<MfmMention>(find.byType(MfmMention));
+      final inherits = explicit.mentionOptions == null;
+      expect(calls - before, inherits ? 1 : 0);
+      expect(
+        mention.color,
+        inherits
+            ? const MfmColorScheme.light().mentionMe
+            : const MfmColorScheme.light().mention,
+      );
+    }
+  });
+  testWidgets('merged origin is validated without mentions and in text mode', (
+    tester,
+  ) async {
+    for (final text in ['', '@alice']) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MfmConfig(
+            config: const MfmRenderConfig(localHost: 'other.test'),
+            child: MfmText(
+              text: text,
+              config: const MfmRenderConfig(
+                mentionOptions: MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                  localOrigin: 'https://local.test',
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isArgumentError);
+    }
+  });
+
   testWidgets('MfmConfig.of returns inherited config', (tester) async {
     const inherited = MfmRenderConfig(
       enableAdvancedMfm: false,

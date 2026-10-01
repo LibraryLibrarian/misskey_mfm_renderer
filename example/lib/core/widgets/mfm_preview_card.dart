@@ -13,6 +13,8 @@ class MfmPreviewCard extends StatelessWidget {
     required this.mfm,
     this.description,
     this.config,
+    this.plain,
+    this.nowrap,
   });
 
   final String name;
@@ -20,6 +22,8 @@ class MfmPreviewCard extends StatelessWidget {
   final String mfm;
   final String? description;
   final MfmRenderConfig? config;
+  final bool? plain;
+  final bool? nowrap;
 
   @override
   Widget build(BuildContext context) {
@@ -85,8 +89,8 @@ class MfmPreviewCard extends StatelessWidget {
             MfmText(
               text: mfm,
               config: config ?? const MfmRenderConfig(),
-              plain: settings.plain,
-              nowrap: settings.nowrap,
+              plain: plain ?? settings.plain,
+              nowrap: nowrap ?? settings.nowrap,
               rootScale: settings.rootScale,
               isNote: settings.isNote,
             ),
