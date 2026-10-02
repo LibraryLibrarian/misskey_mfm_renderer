@@ -469,7 +469,35 @@ class MfmExamples {
           name: 'Border (破線指定)',
           syntax: r'$[border.style=dashed text]',
           mfm: r'$[border.style=dashed 破線指定]',
-          description: '破線・点線の指定は実線にフォールバックします',
+          description: '閉じた輪郭に破線を均等配置します（ブラウザ依存の描画は近似）',
+        ),
+        MfmExample(
+          name: 'Border (全線種)',
+          syntax: r'$[border.style=double,width=6 text]',
+          mfm:
+              r'$[border.style=hidden,width=6 hidden] '
+              r'$[border.style=dotted,width=3 dotted] '
+              r'$[border.style=dashed,width=3 dashed] '
+              r'$[border.style=solid,width=6 solid] '
+              r'$[border.style=double,width=6 double] '
+              r'$[border.style=groove,width=6 groove] '
+              r'$[border.style=ridge,width=6 ridge] '
+              r'$[border.style=inset,width=6 inset] '
+              r'$[border.style=outset,width=6 outset]',
+        ),
+        MfmExample(
+          name: 'Border (角丸clip)',
+          syntax: r'$[border.width=6,radius=20 text]',
+          mfm:
+              r'$[border.width=6,radius=20 $[bg.color=ff8800 clip]] '
+              r'$[border.width=6,radius=20,noclip $[bg.color=ff8800 noclip]]',
+          description: '既定は枠の内縁でclip。noclipは子の描画clipを解除します',
+        ),
+        MfmExample(
+          name: 'Border (RGBA)',
+          syntax: r'$[border.color=f008,width=6 text]',
+          mfm: r'$[border.color=f008,width=6 半透明の赤]',
+          description: '4桁はRGBA順。透明色でも幅を確保します',
         ),
         MfmExample(
           name: 'Border (既定色)',

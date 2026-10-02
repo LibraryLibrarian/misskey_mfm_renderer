@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_spin_widget.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_border.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
 
 void main() {
@@ -730,11 +731,9 @@ void main() {
           decorationColor = child.color;
           innerText = child.child! as RichText;
         } else {
-          final container = child as Container;
-          final border =
-              (container.decoration! as BoxDecoration).border! as Border;
-          decorationColor = border.top.color;
-          innerText = container.child! as RichText;
+          final border = child as MfmBorder;
+          decorationColor = border.color;
+          innerText = border.child as RichText;
         }
         expect(decorationColor.a, closeTo(0.7, 0.000001));
         expect(innerText.text.style!.color!.a, closeTo(0.7, 0.000001));
