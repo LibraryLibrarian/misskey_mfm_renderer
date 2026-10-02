@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_shake_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_twitch_widget.dart';
+import 'package:misskey_mfm_renderer/src/fn/mfm_border_options.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_border.dart';
 
 void main() {
   for (final isShake in [false, true]) {
@@ -37,6 +39,34 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
+
+  testWidgets('border catalogue renders every style, inner clip and RGBA', (
+    tester,
+  ) async {
+    await _pumpExample(tester, 'Border (全線種)');
+    final borders = tester
+        .widgetList<MfmBorder>(find.byType(MfmBorder))
+        .toList();
+    expect(borders.map((b) => b.options.style), MfmBorderStyle.values);
+    expect(borders.first.options.width, 0);
+    await _pumpExample(tester, 'Border (角丸clip)');
+    expect(
+      tester
+          .widgetList<MfmBorder>(find.byType(MfmBorder))
+          .map((b) => b.options.noclip),
+      [false, true],
+    );
+    await _pumpExample(tester, 'Border (RGBA)');
+    expect(
+      tester.widget<MfmBorder>(find.byType(MfmBorder)).color,
+      const Color(0x88FF0000),
+    );
+    await _pumpExample(tester, 'Border (破線指定)');
+    expect(
+      tester.widget<MfmBorder>(find.byType(MfmBorder)).options.style,
+      MfmBorderStyle.dashed,
+    );
+  });
 
   testWidgets(
     'catalog forwards config/plain/nowrap while retaining app config',

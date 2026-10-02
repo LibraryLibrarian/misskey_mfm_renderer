@@ -8,16 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Render all nine border styles, including bounded dotted/dashed patterns, double bands and deterministic 3D shading
 - Added immutable unixtime options, synchronous Japanese/English formatting, custom clocks/formatters and lifecycle-aware shared 10-second updates
 - Added `MfmMentionOptions` with capsule/text presentation, independent viewer identity, opt-in avatar providers and a validated local avatar origin; options inherit as a whole
 - Added optional `MfmEmojiContext.textStyle` and `MfmCustomEmoji.fallbackTextStyle` for shortcode fallbacks with inherited typography and original colors before cumulative small/quote opacity
 
 ### Changed
+- **Breaking:** Border styles, numeric prefixes, RGBA/invalid colors, zero widths and inner-edge clipping now affect rendering. Migrate to `style=solid`, explicit finite nonnegative dimensions and 3/6-digit RGB for legacy solid borders; omit invalid colors for accent, use positive widths instead of zero hairlines, and use `noclip` to disable clipping (not to reproduce the old outer clip). Direct AST callers should use `noclip: true` to disable clipping, or false/null/omission to clip
 - **Breaking:** Unixtime now defaults to local absolute + relative detail, resolves locale from options/Flutter, parses only the first child as an integer prefix, and keeps invalid values in a pill. Migration for valid-input legacy relative labels without periodic updates: `unixtimeOptions: MfmUnixtimeOptions(mode: MfmUnixtimeMode.relative, formatter: mfmLegacyUnixtimeFormatter, autoUpdate: false)`; parsing and invalid behavior are not restored
 - **Breaking:** Mentions now default to avatar capsules (including when options are null), changing line layout and WidgetSpan plain-text extraction. Use `mentionOptions: MfmMentionOptions(presentation: MfmMentionPresentation.text)` to retain inline text layout
 - **Breaking:** Standalone `MfmCustomEmoji` standard shortcode fallbacks now use ambient 1em text and its natural alphabetic baseline instead of `size * 0.6` and the image baseline. To retain the old appearance, supply `fallbackBuilder` with an explicit `TextStyle(fontSize: size * 0.6)`; the widget still supplies the image baseline for custom builders, so do not add it again
 
 ### Fixed
+- Prevent doubled alpha at 3D border band/diagonal joins on web by assigning shade colors within one composited ring instead of blending independently rasterized partitions
+- Resolve border numeric prefixes and CSS RGBA locally, suppress hidden/invalid/zero borders without hairlines or insets, normalize radii before inner clipping, and bound extreme widths/pattern work while preserving child state, natural baselines and cumulative opacity
 - Coalesce simultaneous unixtime widget/locale refreshes so application clocks and custom formatters run only once per rebuild
 - Distinguish past/future unixtime thresholds with millisecond precision, safely reject out-of-range timestamps, and wrap/ellipsize date labels without losing their full accessibility text or inherited styling
 - Keep `twitch` and `shake` untransformed during positive delays, preserving child state and nested animation timing when playback starts

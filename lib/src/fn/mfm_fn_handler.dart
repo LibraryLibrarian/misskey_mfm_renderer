@@ -9,6 +9,7 @@ import '../config/mfm_unixtime_options.dart';
 import '../utils/color_parser.dart';
 import '../utils/nyaize.dart';
 import '../utils/unixtime.dart';
+import '../widgets/mfm_border.dart';
 import '../widgets/mfm_unixtime_label.dart';
 import 'animated/mfm_animated_wrapper.dart';
 import 'animated/mfm_bounce_widget.dart';
@@ -21,6 +22,7 @@ import 'animated/mfm_sparkle_widget.dart';
 import 'animated/mfm_spin_widget.dart';
 import 'animated/mfm_tada_widget.dart';
 import 'animated/mfm_twitch_widget.dart';
+import 'mfm_border_options.dart';
 
 /// fn関数のハンドラー
 class MfmFnHandler {
@@ -635,63 +637,17 @@ class MfmFnHandler {
   }
 
   static InlineSpan _buildBorder(FnNode node, MfmNodeBuilder builder) {
-    final args = node.args;
-    final children = builder.buildNodes(node.children);
-
-    var width = 1.0;
-    var style = BorderStyle.solid;
-    var color = builder.colorScheme.accent;
-    var radius = 0.0;
-    final noclip = args.containsKey('noclip');
-
-    if (args.containsKey('width')) {
-      final widthValue = args['width'];
-      if (widthValue is num) {
-        width = widthValue.toDouble();
-      } else if (widthValue is String) {
-        width = double.tryParse(widthValue) ?? 1.0;
-      }
-    }
-
-    if (args.containsKey('style')) {
-      final styleValue = args['style'];
-      if (styleValue == 'dotted' || styleValue == 'dashed') {
-        // Flutterはdotted/dashedをネイティブサポートしていないため、solidで代替
-        style = BorderStyle.solid;
-      }
-    }
-
-    if (args.containsKey('color')) {
-      final colorValue = args['color'];
-      if (colorValue is String) {
-        color = ColorParser.parse(colorValue) ?? color;
-      }
-    }
-
-    if (args.containsKey('radius')) {
-      final radiusValue = args['radius'];
-      if (radiusValue is num) {
-        radius = radiusValue.toDouble();
-      } else if (radiusValue is String) {
-        radius = double.tryParse(radiusValue) ?? 0.0;
-      }
-    }
-
+    final options = MfmBorderOptions.resolve(
+      node.args,
+      builder.colorScheme.accent,
+    );
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            // RichText全体を包まず、罫線だけを減光する。
-            color: builder.applyOpacity(color),
-            width: width,
-            style: style,
-          ),
-          borderRadius: radius > 0 ? BorderRadius.circular(radius) : null,
-        ),
-        clipBehavior: noclip ? Clip.none : Clip.antiAlias,
-        child: builder.buildInlineRichText(children),
+      child: MfmBorder(
+        options: options,
+        color: builder.applyOpacity(options.color),
+        child: builder.buildInlineRichText(builder.buildNodes(node.children)),
       ),
     );
   }

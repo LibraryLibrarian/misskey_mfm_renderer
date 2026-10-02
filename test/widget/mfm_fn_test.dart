@@ -9,6 +9,7 @@ import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_jump_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_shake_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_spin_widget.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_border.dart';
 
 void main() {
   group('MfmText fnのWidgetSpanのベースライン', () {
@@ -1136,22 +1137,18 @@ void main() {
         ),
       );
 
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final borderContainer = containers.firstWhere(
-        (c) {
-          final decoration = c.decoration;
-          if (decoration is BoxDecoration) {
-            return decoration.border != null;
-          }
-          return false;
-        },
-        orElse: Container.new,
+      final border = tester.widget<MfmBorder>(find.byType(MfmBorder));
+      expect(border.color, const MfmColorScheme.light().accent);
+      expect(border.options.width, 1);
+      final padding = tester.widget<Padding>(
+        find
+            .descendant(
+              of: find.byType(MfmBorder),
+              matching: find.byType(Padding),
+            )
+            .first,
       );
-      expect(borderContainer.decoration, isNotNull);
-      final decoration = borderContainer.decoration! as BoxDecoration;
-      final border = decoration.border! as Border;
-      expect(border.top.color, const MfmColorScheme.light().accent);
-      expect(border.top.width, 1);
+      expect(padding.padding, const EdgeInsets.all(1));
     });
 
     testWidgets('borderの色省略時はカスタムschemeのaccentを使う', (tester) async {
@@ -1169,15 +1166,7 @@ void main() {
         ),
       );
 
-      final container = tester
-          .widgetList<Container>(find.byType(Container))
-          .firstWhere(
-            (container) =>
-                container.decoration is BoxDecoration &&
-                (container.decoration! as BoxDecoration).border != null,
-          );
-      final border = (container.decoration! as BoxDecoration).border! as Border;
-      expect(border.top.color, accent);
+      expect(tester.widget<MfmBorder>(find.byType(MfmBorder)).color, accent);
     });
 
     testWidgets('border.widthとcolorでカスタム幅と色を適用できる', (tester) async {
@@ -1189,23 +1178,9 @@ void main() {
         ),
       );
 
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final borderContainer = containers.firstWhere(
-        (c) {
-          final decoration = c.decoration;
-          if (decoration is BoxDecoration) {
-            return decoration.border != null;
-          }
-          return false;
-        },
-        orElse: Container.new,
-      );
-
-      final decoration = borderContainer.decoration as BoxDecoration?;
-      expect(decoration?.border, isNotNull);
-      final border = decoration!.border! as Border;
-      expect(border.top.color, const Color(0xFFFF0000));
-      expect(border.top.width, 2);
+      final border = tester.widget<MfmBorder>(find.byType(MfmBorder));
+      expect(border.color, const Color(0xFFFF0000));
+      expect(border.options.width, 2);
     });
 
     testWidgets('border.radiusで角丸を適用できる', (tester) async {
@@ -1217,20 +1192,26 @@ void main() {
         ),
       );
 
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final borderContainer = containers.firstWhere(
-        (c) {
-          final decoration = c.decoration;
-          if (decoration is BoxDecoration) {
-            return decoration.borderRadius != null;
-          }
-          return false;
-        },
-        orElse: Container.new,
+      final border = tester.widget<MfmBorder>(find.byType(MfmBorder));
+      expect(border.options.radius, 8);
+      final clip = tester.widget<ClipPath>(
+        find
+            .descendant(
+              of: find.byType(MfmBorder),
+              matching: find.byType(ClipPath),
+            )
+            .first,
       );
-
-      final decoration = borderContainer.decoration as BoxDecoration?;
-      expect(decoration?.borderRadius, isNotNull);
+      expect(
+        clip.clipper!.getClip(const Size(40, 30)).contains(const Offset(1, 1)),
+        isFalse,
+      );
+      expect(
+        clip.clipper!
+            .getClip(const Size(40, 30))
+            .contains(const Offset(20, 15)),
+        isTrue,
+      );
     });
   });
 
