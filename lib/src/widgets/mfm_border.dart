@@ -241,17 +241,9 @@ class _BorderPainter extends BoxPainter {
       ..clipPath(ring)
       ..saveLayer(Offset.zero & geometry.size, Paint());
     final bounds = Path()..addRect(Offset.zero & geometry.size);
+    _shaded(canvas, geometry, bounds, inset);
     if (split) {
-      final middle = geometry.path(geometry.width / 2);
-      _shaded(
-        canvas,
-        geometry,
-        Path.combine(PathOperation.difference, bounds, middle),
-        inset,
-      );
-      _shaded(canvas, geometry, middle, !inset);
-    } else {
-      _shaded(canvas, geometry, bounds, inset);
+      _shaded(canvas, geometry, geometry.path(geometry.width / 2), !inset);
     }
     canvas
       ..restore()
@@ -288,29 +280,21 @@ class _BorderPainter extends BoxPainter {
         Offset(m, h - m),
         Offset(0, h),
       ], true);
-    final bottomRight = Path()
-      ..addPolygon([
-        Offset(w, 0),
-        Offset(w, h),
-        Offset(0, h),
-        Offset(m, h - m),
-        Offset(w - m, m),
-      ], true);
-    // Apply the AA ring once on layer composition. Hard, exclusive nearest-edge
-    // partitions avoid both transparent cracks and doubled alpha at diagonals.
+    // Assign, rather than source-over blend, each hard partition in the layer.
+    // Rasterized complementary clips can both own a boundary pixel on web;
+    // source-over would turn alpha 136 into 199. Filling the band first and
+    // replacing its top/left portion also avoids gaps between independent clips.
+    // The inner band wins middle-edge ties; top/left wins diagonal ties. Only
+    // the enclosing ring clip applies AA when the complete layer is composed.
+    final paint = Paint()
+      ..blendMode = BlendMode.src
+      ..color = inset ? light : dark;
     canvas
       ..save()
-      ..clipPath(ring, doAntiAlias: false);
-    for (final entry in [
-      (topLeft, inset ? dark : light),
-      (bottomRight, inset ? light : dark),
-    ]) {
-      canvas
-        ..save()
-        ..clipPath(entry.$1, doAntiAlias: false)
-        ..drawPaint(Paint()..color = entry.$2)
-        ..restore();
-    }
-    canvas.restore();
+      ..clipPath(ring, doAntiAlias: false)
+      ..drawPaint(paint)
+      ..clipPath(topLeft, doAntiAlias: false)
+      ..drawPaint(paint..color = inset ? dark : light)
+      ..restore();
   }
 }

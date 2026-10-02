@@ -145,6 +145,10 @@ void main() {
   testWidgets(
     'parser inputs reserve border width once; invalid/hidden/zero none',
     (tester) async {
+      // Web test fonts need not have the VM's 20px Ahem advance. Measure the
+      // same undecorated glyph, then assert the exact additional border inset.
+      await tester.pumpWidget(_text('X'));
+      final naturalSize = tester.getSize(find.byType(RichText));
       for (final entry in <String, double>{
         '': 1,
         '.width=12abc': 12,
@@ -160,7 +164,10 @@ void main() {
         await tester.pumpWidget(_text('\$[border${entry.key} X]'));
         expect(
           tester.getSize(find.byType(MfmBorder)),
-          Size(20 + 2 * entry.value, 20 + 2 * entry.value),
+          Size(
+            naturalSize.width + 2 * entry.value,
+            naturalSize.height + 2 * entry.value,
+          ),
           reason: entry.key,
         );
         expect(tester.takeException(), isNull);
@@ -417,26 +424,58 @@ void main() {
       double width = 10,
       double radius = 0,
       String color = 'f00',
-    }) => tester.pumpWidget(
-      _host(
-        MfmBorder(
-          options: _options({
-            'noclip': noclip,
-            'style': style,
-            'width': width,
-            'radius': radius,
-            'color': color,
-          }),
-          color: _red,
-          child: Transform.translate(
-            offset: const Offset(-8, 0),
-            child: _StatefulChild(key: key, onTap: () => taps++),
+    }) {
+      final options = _options({
+        'noclip': noclip,
+        'style': style,
+        'width': width,
+        'radius': radius,
+        'color': color,
+      });
+      return tester.pumpWidget(
+        _host(
+          RepaintBoundary(
+            child: MfmBorder(
+              options: options,
+              color: options.color,
+              child: Transform.translate(
+                offset: const Offset(-8, 0),
+                child: _StatefulChild(key: key, onTap: () => taps++),
+              ),
+            ),
           ),
         ),
-      ),
-    );
+      );
+    }
+
+    Future<List<int>> topPixel() async {
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.byType(RepaintBoundary),
+      );
+      return (await tester.runAsync(() async {
+        final image = await boundary.toImage();
+        try {
+          final bytes = await image.toByteData(
+            format: ui.ImageByteFormat.rawStraightRgba,
+          );
+          return _pixel(
+            bytes!.buffer.asUint8List(),
+            image.width ~/ 2,
+            2,
+            image.width,
+          );
+        } finally {
+          image.dispose();
+        }
+      }))!;
+    }
+
     await pump(noclip: false);
     final state = key.currentState;
+    expect(await topPixel(), [255, 0, 0, 255]);
+    await pump(noclip: false, color: '00f');
+    expect(key.currentState, same(state));
+    expect(await topPixel(), [0, 0, 255, 255]);
     final point =
         tester.getTopLeft(find.byType(MfmBorder)) + const Offset(5, 20);
     await tester.tapAt(point);
@@ -512,21 +551,88 @@ void main() {
         }
       }
       for (final width in [45.0, 200.0, double.infinity]) {
-        await tester.pumpWidget(
-          _host(
-            UnconstrainedBox(
-              child: SizedBox(
-                width: width.isFinite ? width : null,
-                child: const MfmText(
-                  text: '\$[border.width=3 A B\nC D]',
-                  config: MfmRenderConfig(baseTextStyle: _style),
+        List<Rect>? clippedGlyphs;
+        for (final noclip in [false, true]) {
+          await tester.pumpWidget(
+            _host(
+              UnconstrainedBox(
+                child: SizedBox(
+                  width: width.isFinite ? width : null,
+                  child: MfmText(
+                    text:
+                        '\$[border.width=3${noclip ? ',noclip' : ''} A B\nC D]',
+                    config: const MfmRenderConfig(baseTextStyle: _style),
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-        expect(tester.getSize(find.byType(MfmBorder)).isFinite, isTrue);
-        expect(tester.takeException(), isNull);
+          );
+          final paragraphs = tester
+              .renderObjectList<RenderParagraph>(find.byType(RichText))
+              .toList();
+          final outer = paragraphs.first;
+          final inner = paragraphs.last;
+          final borderRect = tester.getRect(find.byType(MfmBorder));
+          final reference =
+              TextPainter(
+                text: const TextSpan(text: 'A B\nC D', style: _style),
+                textDirection: TextDirection.ltr,
+              )..layout(
+                minWidth: inner.constraints.minWidth,
+                maxWidth: inner.constraints.maxWidth,
+              );
+          try {
+            final naturalBaseline = reference.computeDistanceToActualBaseline(
+              TextBaseline.alphabetic,
+            );
+            final expectedBaseline = borderRect.top + 3 + naturalBaseline;
+            for (final paragraph in [outer, inner]) {
+              final baseline = paragraph.getDryBaseline(
+                paragraph.constraints,
+                TextBaseline.alphabetic,
+              )!;
+              expect(
+                paragraph.localToGlobal(Offset(0, baseline)).dy,
+                closeTo(expectedBaseline, 0.001),
+              );
+            }
+            final glyphs = <Rect>[];
+            for (final index in [0, 2, 4, 6]) {
+              final selection = TextSelection(
+                baseOffset: index,
+                extentOffset: index + 1,
+              );
+              final actual = inner
+                  .getBoxesForSelection(selection)
+                  .single
+                  .toRect();
+              final expected = reference
+                  .getBoxesForSelection(selection)
+                  .single
+                  .toRect();
+              expect(actual, expected);
+              final relative = actual.shift(
+                inner.localToGlobal(Offset.zero) - borderRect.topLeft,
+              );
+              expect(relative, expected.shift(const Offset(3, 3)));
+              glyphs.add(relative);
+            }
+            expect(glyphs.last.top, greaterThan(glyphs.first.top));
+            expect(
+              reference.computeLineMetrics().length,
+              greaterThanOrEqualTo(2),
+            );
+            if (noclip) {
+              expect(glyphs, clippedGlyphs);
+            } else {
+              clippedGlyphs = glyphs;
+            }
+          } finally {
+            reference.dispose();
+          }
+          expect(borderRect.size.isFinite, isTrue);
+          expect(tester.takeException(), isNull);
+        }
       }
     },
   );
