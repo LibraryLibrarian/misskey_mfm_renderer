@@ -166,6 +166,7 @@ MfmRenderConfig _mergeConfigs(
     emojiUrls: explicit.emojiUrls ?? inherited.emojiUrls,
     localHost: explicit.localHost ?? inherited.localHost,
     mentionOptions: explicit.mentionOptions ?? inherited.mentionOptions,
+    unixtimeOptions: explicit.unixtimeOptions ?? inherited.unixtimeOptions,
     searchButtonLabel: explicit.useLocaleSearchButtonLabel
         ? null
         : explicit.searchButtonLabel ?? inherited.searchButtonLabel,
@@ -208,6 +209,7 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.emojiUrls == defaults.emojiUrls &&
       config.localHost == defaults.localHost &&
       config.mentionOptions == defaults.mentionOptions &&
+      config.unixtimeOptions == defaults.unixtimeOptions &&
       config.searchButtonLabel == defaults.searchButtonLabel &&
       config.useLocaleSearchButtonLabel ==
           defaults.useLocaleSearchButtonLabel &&

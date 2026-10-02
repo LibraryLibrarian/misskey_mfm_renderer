@@ -191,6 +191,25 @@ void main() {
     expect(_richTextPlainText(tester), contains('日本語.jp'));
   });
 
+  for (final sample in [
+    (name: 'Unixtime (過去・detail)', fragment: '2023,'),
+    (name: 'Unixtime (整数prefix)', fragment: '2023,'),
+    (name: 'Unixtime (invalid)', fragment: 'None'),
+    (name: 'Unixtime (日本語)', fragment: '2033/'),
+    (name: 'Unixtime (English・absolute)', fragment: '2033,'),
+  ]) {
+    testWidgets('${sample.name} は設定された日時書式で描画する', (tester) async {
+      await _pumpExample(tester, sample.name);
+      expect(_richTextPlainText(tester), contains(sample.fragment));
+      expect(find.byType(Icon), findsOneWidget);
+      if (sample.name.endsWith('absolute)')) {
+        expect(_richTextPlainText(tester), isNot(contains('(')));
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
   testWidgets('Search は検索ボタンを描画する', (tester) async {
     await _pumpExample(tester, 'Search');
 

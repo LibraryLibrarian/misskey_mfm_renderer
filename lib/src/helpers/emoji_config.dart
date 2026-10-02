@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../config/mfm_color_scheme.dart';
 import '../config/mfm_mention_options.dart';
 import '../config/mfm_render_config.dart';
+import '../config/mfm_unixtime_options.dart';
 import '../widgets/mfm_custom_emoji.dart';
 
 /// カスタム絵文字の永続ストアを生成するファクトリー
@@ -47,6 +48,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          emojiUrls: config.emojiUrls,
          localHost: config.localHost,
          mentionOptions: config.mentionOptions,
+         unixtimeOptions: config.unixtimeOptions,
          searchButtonLabel: config.searchButtonLabel,
          useLocaleSearchButtonLabel: config.useLocaleSearchButtonLabel,
          onClickableEvent: config.onClickableEvent,
@@ -97,6 +99,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     String? localHost,
     MfmMentionOptions? mentionOptions,
     bool clearMentionOptions = false,
+    MfmUnixtimeOptions? unixtimeOptions,
+    bool clearUnixtimeOptions = false,
     bool clearAuthor = false,
     bool clearEmojiUrls = false,
     bool clearLocalHost = false,
@@ -132,6 +136,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       localHost: localHost,
       mentionOptions: mentionOptions,
       clearMentionOptions: clearMentionOptions,
+      unixtimeOptions: unixtimeOptions,
+      clearUnixtimeOptions: clearUnixtimeOptions,
       clearAuthor: clearAuthor,
       clearEmojiUrls: clearEmojiUrls,
       clearLocalHost: clearLocalHost,

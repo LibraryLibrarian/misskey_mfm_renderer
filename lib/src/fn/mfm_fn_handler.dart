@@ -3,11 +3,13 @@ import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
-import 'package:timeago/timeago.dart' as timeago;
 
 import '../builder/mfm_node_builder.dart';
+import '../config/mfm_unixtime_options.dart';
 import '../utils/color_parser.dart';
 import '../utils/nyaize.dart';
+import '../utils/unixtime.dart';
+import '../widgets/mfm_unixtime_label.dart';
 import 'animated/mfm_animated_wrapper.dart';
 import 'animated/mfm_bounce_widget.dart';
 import 'animated/mfm_jelly_widget.dart';
@@ -839,22 +841,7 @@ class MfmFnHandler {
   }
 
   static InlineSpan _buildUnixtime(FnNode node, MfmNodeBuilder builder) {
-    int? timestamp;
-    for (final child in node.children) {
-      if (child is TextNode) {
-        timestamp = int.tryParse(child.text.trim());
-        if (timestamp != null) {
-          break;
-        }
-      }
-    }
-
-    if (timestamp == null) {
-      return TextSpan(children: builder.buildNodes(node.children));
-    }
-
-    final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-    final formattedTime = _formatUnixTime(dateTime);
+    final timestamp = parseUnixtime(node.children);
 
     final fontSize = builder.effectiveStyle.fontSize! * 0.9;
     final timeBuilder = builder.withStyle(TextStyle(fontSize: fontSize));
@@ -883,27 +870,25 @@ class MfmFnHandler {
         ),
       );
     } else {
-      icon = Icon(
-        clock,
-        size: fontSize,
-        color: textStyle.foreground?.color ?? textStyle.color,
+      icon = ExcludeSemantics(
+        child: Icon(
+          clock,
+          size: fontSize,
+          color: textStyle.foreground?.color ?? textStyle.color,
+        ),
       );
     }
 
     // 周囲のDefaultTextStyleではなくMFMの実効スタイルを使い、
     // Textのアクセシビリティ倍率・localeの解決は維持する。
-    final label = Text(
-      formattedTime,
-      style: textStyle.copyWith(inherit: false),
+    final timeText = MfmUnixtimeLabel(
+      timestamp: timestamp,
+      options: builder.config.unixtimeOptions ?? const MfmUnixtimeOptions(),
+      style: textStyle,
+      nowrap: builder.nowrap,
+      rainbowScope: builder.rainbowScope,
+      rainbowForeground: builder.rainbowForeground,
     );
-    final scope = builder.rainbowScope;
-    final Widget timeText = scope == null
-        ? label
-        : MfmRainbowText(
-            scope: scope,
-            text: label,
-            rainbowForeground: builder.rainbowForeground,
-          );
 
     // 文字・アイコンは実効スタイルで減光済みなので、枠線だけ別途減光する。
     // 本家はdisplay: inline-blockでvertical-align未指定のため、
@@ -921,10 +906,12 @@ class MfmFnHandler {
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
             icon,
             const SizedBox(width: 4),
-            timeText,
+            Flexible(child: timeText),
           ],
         ),
       ),
@@ -960,27 +947,6 @@ class MfmFnHandler {
         child: builder.buildInlineRichText(children),
       ),
     );
-  }
-
-  /// Unix時間を人間が読める形式にフォーマット
-  ///
-  /// timeagoパッケージを使用して相対時間表示を行う
-  /// ロケールはアプリ側で設定されたデフォルトロケールを使用
-  ///
-  /// 使用例（アプリ側での初期化）:
-  /// ```dart
-  /// import 'package:timeago/timeago.dart' as timeago;
-  ///
-  /// void main() {
-  ///   // 日本語ロケールを設定
-  ///   timeago.setLocaleMessages('ja', timeago.JaMessages());
-  ///   timeago.setDefaultLocale('ja');
-  ///   runApp(MyApp());
-  /// }
-  /// ```
-  static String _formatUnixTime(DateTime dateTime) {
-    // timeagoを使用して相対時間表示
-    return timeago.format(dateTime);
   }
 }
 

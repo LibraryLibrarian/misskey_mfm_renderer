@@ -837,20 +837,109 @@ MfmText(text: r'$[rainbow $[fg.color=ff0000 カラフル]]')
 文字だけに適用し、内側の `fg`・リンク等の明示色、絵文字画像、背景・罫線の
 元の色は保持します。
 
-### unixtime のローカライズ
+### unixtime の表示とローカライズ
 
-`$[unixtime]` は [timeago](https://pub.dev/packages/timeago) パッケージを使用して相対時間を表示します。  
-日本語表示にするには、アプリ起動時にロケールを設定してください。
+`$[unixtime 1700000000]` は既定で **端末localの絶対日時＋相対日時** を表示します。
+組込み書式は同期処理で、追加依存・初期化は不要です。localeの優先順は
+`options.locale` → Flutterの`Localizations` → English。
+日本語は `2026/10/2 0:04:05`、英語は `10/2/2026, 12:04:05 AM`、
+detailは `absolute (relative)` です。日本語以外（en-GB等も含む）はEnglish/USの順序へ
+fallbackしますが、custom formatterには元の解決済みlocaleを渡します。
 
 ```dart
-import 'package:timeago/timeago.dart' as timeago;
+MfmText(
+  text: r'$[unixtime 1700000000]',
+  config: const MfmRenderConfig(
+    unixtimeOptions: MfmUnixtimeOptions(
+      locale: Locale('ja'),
+      mode: MfmUnixtimeMode.detail, // relative / absoluteも選択可能
+    ),
+  ),
+)
+```
 
-void main() {
-  // 日本語ロケールを設定
-  timeago.setLocaleMessages('ja', timeago.JaMessages());
-  timeago.setDefaultLocale('ja');
-  
-  runApp(MyApp());
+optionsは**オブジェクト全体**で継承します。nullは継承、`const MfmUnixtimeOptions()`は
+既定値への置換、`copyWith(clearUnixtimeOptions: true)`は自身の値を削除して再び継承する
+指定です。値とclearの同時指定は`ArgumentError`です。
+
+最初の子がtextの場合だけ、ECMAScriptの先頭空白・符号・16進prefix規則で整数を解析します。
+`1700000000foo`は有効、`1e3`と`1.5`は1、`0x10`は16、`0b11`は0です。
+±8640000000000秒の範囲外・空・非text・不正入力でもピルを維持し「日時の解析に失敗」
+（英語は「None」）を表示します。後続の有効textへはfallbackしません。
+年0以下は`1 - year`の紀元年（eraなし）です。全CLDR・歴史的timezoneの完全一致や、
+任意IANA timezone変換は対象外です。
+
+相対日時は固定秒数の年・月を使い、過去と未来を区別します。公式相当の非対称な境界を
+維持し、厳密に60秒先は「0秒後」、3600秒先は「60分後」、3秒先までは「たった今」です。
+ミリ秒の小数部分を残したまま表示単位を判定します。
+
+有効なdetail/relativeだけが、mounted中に共有の10秒Timerを購読します。
+hidden/paused/detachedで停止、resumeで即時再計算、最後の購読解除でTimerとobserverを
+解放します。inactive・lifecycle未確定は動作対象です。`enableAnimation`や`TickerMode`は
+日時更新を止めません。個々のノードが画面内に見えるかどうかは追跡しません。
+`now: () => appClock.now`でアプリ管理の時計を指定でき、formatごとに一度だけ読み取ります。
+`autoUpdate: false`でも通常rebuild・設定・locale変更時は再formatします。
+absoluteとinvalidは、**custom formatterがnowを使っていても自動更新しません**。
+local timezoneはformat時に再評価します。absoluteや更新無効時はresumeだけではなく
+通常rebuild等が必要です。MaterialApp・Localizations・MediaQueryは必須ではありません。
+
+有限幅では折り返し、`MfmText(nowrap: true)`では1行ellipsisにします。
+semanticsは省略前の最新ラベル全文を保持し、装飾の時計は読み上げません。
+最低限padding・icon・gapが入る幅は外側で確保してください。極端な幅での完全表示は
+保証しません。
+
+#### 従来の相対表示からの移行
+
+**有効入力**のtimeago表示（global/default localeと従来の未来表現）を、自動更新なしで
+維持する場合は次を指定します。
+
+```dart
+const MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(
+    mode: MfmUnixtimeMode.relative,
+    formatter: mfmLegacyUnixtimeFormatter,
+    autoUpdate: false,
+  ),
+)
+```
+
+必要ならアプリ側でtimeagoのglobal localeを設定します。組込み書式はglobal localeを
+参照・変更しません。旧解析・invalid fallbackは復元しないため完全互換ではありません。
+relativeモードだけの指定は新しい短い相対表記です。
+
+#### intlを使うcustom formatter
+
+formatterはラベル全体を置換し、nullableなlocal `dateTime`、`now`、解決済み`locale`、
+`mode`を受け取ります。`intl`は**利用アプリの直接依存**として追加してください。
+ライブラリ側の必須依存・初期化ではありません。利用前に`initializeDateFormatting`の
+非同期処理を完了し、アプリで渡す全localeのdate symbolsを初期化します。
+
+```dart
+import 'package:flutter/widgets.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart' as intl;
+import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('ja_JP');
+  runApp(Directionality(
+    textDirection: TextDirection.ltr,
+    child: MfmText(
+      text: r'$[unixtime 1700000000]',
+      config: MfmRenderConfig(
+        unixtimeOptions: MfmUnixtimeOptions(
+          locale: const Locale('ja', 'JP'),
+          mode: MfmUnixtimeMode.absolute,
+          formatter: (context) => context.dateTime == null
+              ? '—'
+              : intl.DateFormat.yMMMMd(context.locale.toString())
+                  .add_Hms()
+                  .format(context.dateTime!),
+        ),
+      ),
+    ),
+  ));
 }
 ```
 
@@ -860,6 +949,7 @@ void main() {
 
 | プロパティ | 型 | デフォルト | 説明 |
 |-----------|------|---------|------|
+| `unixtimeOptions` | `MfmUnixtimeOptions?` | null | 日時のmode・locale・formatter・clockを全体継承 |
 | `baseTextStyle` | `TextStyle?` | null | ベースのテキストスタイル |
 | `lightColorScheme` | `MfmColorScheme?` | Mi Light preset | ライトモード用のMFM配色 |
 | `darkColorScheme` | `MfmColorScheme?` | Mi Dark preset | ダークモード用のMFM配色 |

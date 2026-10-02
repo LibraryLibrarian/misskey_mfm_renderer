@@ -573,6 +573,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     }
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('rubyのx2・smallは本文と読みのサイズと半透明alphaを維持する', (tester) async {
@@ -640,6 +641,7 @@ void main() {
       }
       expect(tester.takeException(), isNull);
     }
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('RTLでもグラデーションは物理的に左から右へ描く', (tester) async {

@@ -10,6 +10,7 @@ export 'src/config/mfm_color_scheme.dart';
 export 'src/config/mfm_inherited_config.dart';
 export 'src/config/mfm_mention_options.dart';
 export 'src/config/mfm_render_config.dart';
+export 'src/config/mfm_unixtime_options.dart';
 export 'src/helpers/emoji_config.dart';
 export 'src/mfm_text.dart';
 export 'src/utils/nyaize.dart';
