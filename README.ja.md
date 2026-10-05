@@ -228,6 +228,21 @@ scopeはレイアウトヒントのキャッシュだけを制御し、resolver�
 
 `fg` / `bg` の `color` には、`#` なしの3・6桁のRGB、または4桁のRGBAの16進数を指定します。未指定・無効値は本家準拠で赤（`f00`）にフォールバックします。5桁は本家の正規表現には一致しますがCSSでは無効な色として宣言が破棄されるため、本実装でも色を付けません。
 
+#### Borderの挙動と移行
+
+`$[border.style=dashed,width=3,radius=8,color=f008 text]` は `hidden`・`dotted`・`dashed`・`solid`・`double`・`groove`・`ridge`・`inset`・`outset` に対応します。未指定・未知・`none`・大文字小文字が異なる線種は `solid` になります。高度なMFM・アニメーション設定とは独立して表示します。
+
+- 幅の既定値は1、半径は0です。文字列はECMAScriptの先頭空白を含むJavaScript `parseFloat` 相当のprefix解析を行います（`12abc` → 12、`.5` → 0.5、`1e1` → 10、`1e` → 1、`0x10` → 0）。解析不能・NaNは既定値です。本家のstring-only helperとは異なり、直接ASTの数値も既存互換として受理します。bool・objectの数値化はしません。
+- 負幅・無限幅はborder宣言全体を無効化します。有効な5桁hex色も無効化し、非hexの値はaccentへフォールバックします。`hidden`・無効border・正当な幅0はhairlineも枠分の寸法も持ちません。半径とclipは独立して残ります。負・非有限半径は0、有限半径は外寸の短辺の半分に正規化してから枠幅を差し引きます。
+- 色は `#` なしの3・6桁RGB、4桁 **RGBA** に対応します。未指定・名前色・`#` 付き・8桁hexは有効なschemeのaccentになります。有効な透明色も幅を確保します。small/quoteの累積opacityは子文字とは独立して枠色へ一度だけ適用します。
+- 子は既定で角丸の枠の **内縁** でclipします。`noclip` は子の描画clipを解除し、変形した子が枠へ重なることを許可しますが、祖先のhit領域は拡張しません。直接ASTはJS truthinessを用い、false/null/0/NaN/空文字はclip、object（空List/Mapも含む）はclipなしです。通常MFMの `noclip=false`・`noclip=0` は空でない文字列なのでclipなしになります。
+
+描画は決定的な近似であり、ブラウザとのpixel一致を保証しません。点線は直径w・目標間隔2wの円、破線はbutt端で目標3w描画/3w空白を固定した閉輪郭へ均等配置します。doubleはw≥3 logical pxで三等分、それ未満はsolidです。insetは上・左を暗くし、outsetは逆です。grooveは外inset/内outset、ridgeは逆です。dark/lightはRGBを黒/白と50%混合しalphaを変えません。device pixelへの独自snappingは行いません。Flutterの既存の自然glyph baselineを維持し、ブラウザのinline-block clipのbaselineとは異なる場合があります。
+
+ライブラリ独自の安全制限（公式CSSの保証ではありません）として、有限の正幅は **1024 logical px**、patternは **2048要素** を上限とし、予算超過・中心線退化ではsolidへフォールバックします。巨大な有限半径は固定上限ではなく最終寸法で正規化します。
+
+**移行:** 明示的な実線には `style=solid`、有限非負寸法、有効な3・6桁RGBを指定してください。accentには不正なcolor指定を除去し、幅0のhairlineは正の幅へ変更してください。内縁clipで意図した子が隠れる場合は `noclip` を指定できますが、旧外周clipの再現ではありません。直接ASTは `args['noclip'] = true` でclipなし、false/null/省略でclipありへ移行してください。旧fallback全体を復元する設定はありません。
+
 `tada` の150%は親に対する実フォントサイズとして適用され、アニメーション無効時も維持されます。
 描画時の拡大だけでなく、テキストのレイアウトサイズも広がります。
 

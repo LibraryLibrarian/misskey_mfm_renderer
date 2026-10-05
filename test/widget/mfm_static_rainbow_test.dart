@@ -314,6 +314,27 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('borderは静的rainbowでRGBAを保持し動的filterの切替に追従する', (tester) async {
+    const text = r'$[rainbow $[border.color=00f8,width=6,radius=8 B]]';
+    await tester.pumpWidget(_host(text));
+    Offset sample() {
+      final paragraph = _paragraph(tester, 'B');
+      return paragraph.localToGlobal(Offset(paragraph.size.width / 2, -3));
+    }
+
+    final original = await _pixel(tester, sample());
+    expect(original[2], greaterThan(250));
+    expect(original[3], closeTo(136, 1));
+    await tester.pumpWidget(_host(text, animation: true));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.byType(MfmRainbowWidget), findsOneWidget);
+    expect(await _pixel(tester, sample()), isNot(original));
+    await tester.pumpWidget(_host(text));
+    expect(await _pixel(tester, sample()), original);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('fgの色はbgや太字を挟んでも維持し外側のfgはrainbowが上書きする', (tester) async {
     await tester.pumpWidget(
       _host(

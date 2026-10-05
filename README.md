@@ -238,6 +238,21 @@ for setup instructions.
 
 For `fg` / `bg`, use 3- or 6-digit RGB or 4-digit RGBA hexadecimal `color` values without `#`. Missing or invalid values fall back to red (`f00`), matching Misskey. Five-digit values pass Misskey's regex but are invalid CSS colors that browsers drop, so no color is applied here either.
 
+#### Border behavior and migration
+
+`$[border.style=dashed,width=3,radius=8,color=f008 text]` supports `hidden`, `dotted`, `dashed`, `solid`, `double`, `groove`, `ridge`, `inset` and `outset`. Missing, unknown, `none` and differently capitalized styles select `solid`. Borders remain enabled independently of advanced MFM and animation settings.
+
+- Width defaults to 1 and radius to 0. Strings use JavaScript `parseFloat`-like prefixes, including ECMAScript leading whitespace (`12abc` → 12, `.5` → 0.5, `1e1` → 10, `1e` → 1, `0x10` → 0). Unparseable/NaN values use the defaults. Direct AST numeric values remain supported for compatibility, unlike the upstream string-only helper; booleans/objects are not coerced to numbers.
+- Negative or infinite widths invalidate the entire border. Valid five-digit hex colors also invalidate it; nonhex values fall back to accent. `hidden`, invalid borders and valid zero widths neither paint a hairline nor reserve border space. Radius and clipping remain independent. Negative/nonfinite radius becomes 0; finite radius is normalized to half the shortest outer side before subtracting border insets.
+- Colors accept 3/6-digit RGB and 4-digit **RGBA**, without `#`. Missing colors, names, `#` prefixes and 8-digit hex fall back to the active accent. Transparent valid colors still reserve width. Cumulative small/quote opacity is applied once to border color, independently of child text.
+- Children are clipped at the rounded **inner** border edge by default. `noclip` disables child paint clipping, allowing transformed children to overlap the border; it does not expand ancestor hit regions. Direct AST flags use JS truthiness: false/null/0/NaN/empty string clip, while objects (even empty lists/maps) do not. In ordinary MFM, `noclip=false` and `noclip=0` are nonempty strings and still disable clipping.
+
+Rendering is a deterministic approximation, not a promise of browser pixel equality: dotted circles have diameter w and target spacing 2w; butt-ended dashes target 3w on / 3w off, distributed around a fixed closed contour. Double uses thirds at w≥3 logical px, otherwise solid. Inset darkens top/left; outset reverses it. Groove uses outer inset/inner outset, ridge the reverse. Dark/light mix RGB 50% with black/white without changing alpha. No device-pixel snapping is added. Flutter's existing natural glyph baseline is retained; browser inline-block clipping baselines can differ.
+
+Library safety limits (not official CSS guarantees): finite positive widths cap at **1024 logical px**; patterns have at most **2048 elements**, falling back to solid on budget overflow or degenerate centerlines. Huge finite radii normalize against final size rather than a fixed cap.
+
+**Migration:** To retain explicit solid borders, use `style=solid`, finite nonnegative dimensions and valid 3/6-digit RGB. Remove invalid color arguments to request accent; replace width-0 hairlines with positive widths. Use `noclip` if inner clipping hides intended child content (this does not reproduce the old outer clip). Direct AST callers should set `args['noclip'] = true` to disable clipping and false/null/omission to clip. There is no switch restoring all old fallbacks.
+
 `tada` applies 150% of the parent's actual font size, including when animations
 are disabled. This enlarges the text's layout size, not just its painted size.
 
