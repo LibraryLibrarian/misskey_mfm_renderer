@@ -134,6 +134,13 @@ capsule/text比較例を用意しています。
 **URL表示**: 自動リンクされたHTTP(S) URLをscheme、host、port、path、query、fragmentに分解し、本家Misskeyの`MkUrl`と同じ強調で表示します。Punycode hostとpercent encodeされたhost・path・query・fragmentは表示用にだけdecodeし、`onLinkTap`には常に元のURLを渡します。外部URLの末尾には外部リンクiconを表示するため、アプリで`MaterialIcons`フォントをbundleする必要があります。
 自インスタンス宛てURLを短縮するには`MfmRenderConfig.localHost`を設定します。root以外はschemeとhostを省略し、root URLは太字のhostを表示します。現APIは完全なoriginではなくhostだけを受け取るため、この判定はhostベースの近似です。大文字小文字を区別せず末尾dotを無視し、`localHost`にportがある場合だけURLのeffective portも比較します。HTTPとHTTPSは区別できず、portを省略した場合はhostだけを比較します。
 
+**ラベル付きリンク**: `[label](url)` と silent `?[label](url)` は装飾付きラベルを維持し、有効なHTTP(S)外部リンクだけに末尾アイコンを1つ付けます。自ホスト宛てと、直接ASTの相対URL・非HTTP(S)・不正URLはラベルのみを表示します。`localHost`が未指定・空・不正なら有効URLは外部扱いです。判定は上記と同じIDN正規化を含むhostベースの近似で、完全なorigin比較ではありません。`onLinkTap`には元のURLをそのまま渡し、未指定時にはfallbackリンク操作を付けません。ラベル配下全体のnyaize抑止も維持します。
+
+アイコンにはアプリへの`MaterialIcons`フォントのbundle（通常はアプリのpubspecで`flutter: uses-material-design: true`）が必要ですが、**`MaterialApp`は必須ではありません**。追加の表示幅・折り返しを許容してsnapshotを更新し、論理的なラベル文字列は表示spanではなくsource/ASTから取得してください。表示spanにはwidget由来のU+FFFC placeholderが1つ増えます。
+
+ラベル文字と操作を持たないinline widgetをリンクとしてタップできます。独自操作を持つカスタム絵文字・clickable・blurなどの標準的な子gesture/actionを優先しますが、任意のpointer listenerによる副作用の排他までは保証しません。既にatomicなinline widgetでは**矩形全体**をfallbackリンクのhit領域とします。リンクの内側にあるborderはinner clip外でも矩形内ならタップ対象になり得ますが、リンクの外側にあるborderのclipは引き続きhitを制限します。既存の子の読み上げlabel/actionは全体を1つのlabelへ潰さず保持します。子が明示したsemantic boundaryでは内容とfallback actionが別nodeになる場合があり、あらゆるwidgetのアクセシビリティを保証するものではありません。特に既存ruby rendererの読み上げlabel欠落は、今回のpointer対応では修正していません。
+
+
 **引用**: `> quote` は本家の `QUOTE_STYLE` に合わせ、行全幅を使い、四辺8pxのmargin、上下6px・左12px・右0pxのpadding、幅3pxの左罫線で表示します。文字と罫線には選択中の `MfmColorScheme.fg` を使い、引用と `<small>` の各階層で元のalphaに0.7を乗算します。引用色は `baseTextStyle` / `DefaultTextStyle` とは独立しています。
 ブロック表示は有限幅の親（例: `SizedBox(width: 300)` や `Row` 内の `Expanded`）を前提とします。`Row` 内の非 `Expanded` 子など幅が無制約の場合は自然幅となり、独立した行になる保証はありません。境界の改行は追加しません。隣接引用のCSS margin collapseやブロック前後の余分な改行の扱いまでは完全再現していません。
 

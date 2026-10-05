@@ -63,6 +63,62 @@ void main() {
       });
     }
 
+    testWidgets('リンク内のfnと末尾iconも自然なalphabeticベースラインを保持する', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'A [$[bg.color=ff0000 LABEL]](https://outside.test)',
+              config: MfmRenderConfig(
+                onLinkTap: (_) {},
+                baseTextStyle: const TextStyle(fontSize: 20, height: 1.5),
+              ),
+            ),
+          ),
+        ),
+      );
+      final rootFinder = find
+          .descendant(of: find.byType(MfmText), matching: find.byType(RichText))
+          .first;
+      final root = tester.renderObject<RenderParagraph>(rootFinder);
+      final spans = _collectWidgetSpans(
+        tester.widget<RichText>(rootFinder).text,
+      );
+      expect(spans, hasLength(2));
+      for (final span in spans) {
+        expect(span.alignment, PlaceholderAlignment.baseline);
+        expect(span.baseline, TextBaseline.alphabetic);
+      }
+      final inner = tester.renderObject<RenderParagraph>(
+        find
+            .descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(RichText),
+            )
+            .at(1),
+      );
+      // Compare equal-font glyph bottoms after real layout. Icon's Center does
+      // not implement a dry baseline in Flutter 3.38.
+      final outerGlyph = root
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: 1),
+          )
+          .single
+          .toRect();
+      final innerGlyph = inner
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: 1),
+          )
+          .single
+          .toRect();
+      expect(
+        inner.localToGlobal(innerGlyph.bottomLeft, ancestor: root).dy,
+        closeTo(outerGlyph.bottom, .001),
+      );
+    });
+
     testWidgets('unixtimeのWidgetSpanをalphabeticベースラインに揃える', (tester) async {
       // 本家はdisplay: inline-blockでvertical-align未指定のため、
       // ピル内テキストのベースラインで周囲と揃う。

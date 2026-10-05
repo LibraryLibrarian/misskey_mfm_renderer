@@ -353,18 +353,27 @@ void main() {
   });
 
   testWidgets('Markdownリンクの明示色とsemanticsを保持する', (tester) async {
+    final taps = <String>[];
     await tester.pumpWidget(
       _host(
         r'$[rainbow A [LINK](https://example.com) B]',
-        onLinkTap: (_) {},
+        onLinkTap: taps.add,
       ),
     );
-    final paragraph = _paragraph(tester, 'A LINK B');
+    final paragraph = _paragraph(tester, 'A LINK\uFFFC B');
     _expectColor(
       await _pixel(tester, _letterCenter(paragraph, 3)),
       const MfmColorScheme.light().link,
     );
+    await tester.tapAt(_letterCenter(paragraph, 3));
+    expect(taps, ['https://example.com']);
     expect(find.semantics.byLabel(RegExp('LINK')), findsOne);
+    final node = find.semantics.byLabel('LINK').evaluate().single;
+    paragraph.owner!.semanticsOwner!.performAction(
+      node.id,
+      SemanticsAction.tap,
+    );
+    expect(taps, ['https://example.com', 'https://example.com']);
     expect(tester.takeException(), isNull);
   });
 
