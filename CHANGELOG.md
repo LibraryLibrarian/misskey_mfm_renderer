@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** Standalone `MfmCustomEmoji` standard shortcode fallbacks now use ambient 1em text and its natural alphabetic baseline instead of `size * 0.6` and the image baseline. To retain the old appearance, supply `fallbackBuilder` with an explicit `TextStyle(fontSize: size * 0.6)`; the widget still supplies the image baseline for custom builders, so do not add it again
 
 ### Fixed
-- Route actual labelled-link glyph and passive inline-widget taps to the raw URL callback, preserving child gestures and existing accessible content/actions
+- Route actual labelled-link glyph and passive inline-widget taps to the raw URL callback, preserving child gestures and existing accessible content/actions while isolating widget-label actions from surrounding prose and other links
 - Prevent doubled alpha at 3D border band/diagonal joins on web by assigning shade colors within one composited ring instead of blending independently rasterized partitions
 - Resolve border numeric prefixes and CSS RGBA locally, suppress hidden/invalid/zero borders without hairlines or insets, normalize radii before inner clipping, and bound extreme widths/pattern work while preserving child state, natural baselines and cumulative opacity
 - Coalesce simultaneous unixtime widget/locale refreshes so application clocks and custom formatters run only once per rebuild

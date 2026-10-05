@@ -460,12 +460,187 @@ void main() {
     expect(calls, [_url]);
     final label = _nodes(
       tester,
-    ).singleWhere((n) => n.label == 'PASSIVE\nExternal link');
+    ).singleWhere((n) => n.label == 'PASSIVE');
     expect(label.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
     _tapSemantics(tester, label);
     expect(calls, [_url, _url]);
+    final icon = _nodes(tester).singleWhere((n) => n.label == 'External link');
+    expect(icon.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
+    _tapSemantics(tester, icon);
+    expect(calls, [_url, _url]);
     semantics.dispose();
   });
+
+  for (final host in ['self.test', 'outside.test']) {
+    testWidgets('widget link semantics do not activate adjacent prose: $host', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final calls = <String>[];
+      await _mount(
+        tester,
+        'BEFORE [:test:]($_url) AFTER',
+        localHost: host,
+        onLinkTap: calls.add,
+        emojiBuilder: (_, _) =>
+            const SizedBox(width: 40, height: 30, child: Text('PASSIVE')),
+      );
+      final nodes = _nodes(tester);
+      final prose = nodes
+          .where((n) => n.label.contains('BEFORE') || n.label.contains('AFTER'))
+          .toList();
+      expect(prose, isNotEmpty);
+      for (final node in prose) {
+        expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
+        _tapSemantics(tester, node);
+      }
+      expect(calls, isEmpty);
+      final label = nodes.singleWhere((n) => n.label == 'PASSIVE');
+      expect(label.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      _tapSemantics(tester, label);
+      expect(calls, [_url]);
+      expect(
+        nodes.where((n) => n.getSemanticsData().hasAction(SemanticsAction.tap)),
+        hasLength(1),
+      );
+      semantics.dispose();
+    });
+  }
+
+  for (final boundary in [false, true]) {
+    testWidgets(
+      'adjacent widget links keep semantic targets: boundary=$boundary',
+      (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        final calls = <String>[];
+        const second = 'https://self.test/b?raw=%2F';
+        await _mount(
+          tester,
+          'BEFORE [:one:]($_url) [:two:]($second) AFTER',
+          onLinkTap: calls.add,
+          emojiBuilder: (name, _) =>
+              Semantics(container: boundary, child: Text(name.toUpperCase())),
+        );
+        final nodes = _nodes(tester);
+        for (final name in ['ONE', 'TWO']) {
+          final label = nodes.singleWhere((n) => n.label == name);
+          // Explicit child boundaries retain their label below the fallback.
+          final action = boundary ? label.parent! : label;
+          expect(
+            action.getSemanticsData().hasAction(SemanticsAction.tap),
+            isTrue,
+          );
+          _tapSemantics(tester, action);
+        }
+        expect(calls, [_url, second]);
+        for (final node in nodes.where(
+          (n) => n.label.contains('BEFORE') || n.label.contains('AFTER'),
+        )) {
+          expect(
+            node.getSemanticsData().hasAction(SemanticsAction.tap),
+            isFalse,
+          );
+          _tapSemantics(tester, node);
+        }
+        expect(calls, [_url, second]);
+        semantics.dispose();
+      },
+    );
+  }
+
+  testWidgets(
+    'mixed label text and actionable widget siblings keep semantic ownership',
+    (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final calls = <String>[];
+      var childCalls = 0;
+      await _mount(
+        tester,
+        'BEFORE [TEXT :passive: :owned:]($_url) :outside: AFTER',
+        onLinkTap: calls.add,
+        emojiBuilder: (name, _) => name == 'owned'
+            ? Semantics(
+                label: 'OWNED',
+                onTap: () => childCalls++,
+                child: const SizedBox(width: 30, height: 30),
+              )
+            : Text(name.toUpperCase()),
+      );
+      final nodes = _nodes(tester);
+      for (final name in ['TEXT ', 'PASSIVE']) {
+        final label = nodes.singleWhere((n) => n.label == name);
+        expect(label.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+        _tapSemantics(tester, label);
+      }
+      expect(calls, [_url, _url]);
+      final owned = nodes.singleWhere((n) => n.label == 'OWNED');
+      _tapSemantics(tester, owned);
+      expect(childCalls, 1);
+      expect(calls, [_url, _url]);
+      final outside = nodes
+          .where(
+            (n) =>
+                n.label.contains('OUTSIDE') ||
+                n.label.contains('BEFORE') ||
+                n.label.contains('AFTER'),
+          )
+          .toList();
+      expect(outside, isNotEmpty);
+      for (final node in outside) {
+        expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
+        _tapSemantics(tester, node);
+      }
+      expect(childCalls, 1);
+      expect(calls, [_url, _url]);
+      semantics.dispose();
+    },
+  );
+
+  for (final function in ['clickable.ev=child', 'blur']) {
+    testWidgets('$function semantic action stays with the child', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final calls = <String>[];
+      final events = <String>[];
+      await _mount(
+        tester,
+        'BEFORE [\$[$function LABEL]]($_url) AFTER',
+        onLinkTap: calls.add,
+        onClickableEvent: events.add,
+      );
+      final nodes = _nodes(tester);
+      final label = nodes.singleWhere((n) => n.label == 'LABEL');
+      final before = function == 'blur'
+          ? tester.widget<ImageFiltered>(find.byType(ImageFiltered)).imageFilter
+          : null;
+      expect(label.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      _tapSemantics(tester, label);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      if (function == 'blur') {
+        expect(
+          tester.widget<ImageFiltered>(find.byType(ImageFiltered)).imageFilter,
+          isNot(before),
+        );
+      } else {
+        expect(events, ['child']);
+      }
+      expect(calls, isEmpty);
+      for (final node in nodes.where(
+        (n) => n.label.contains('BEFORE') || n.label.contains('AFTER'),
+      )) {
+        expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
+        _tapSemantics(tester, node);
+      }
+      expect(calls, isEmpty);
+      semantics.dispose();
+    });
+  }
 
   testWidgets('ruby-only label accepts base and annotation pointer taps', (
     tester,

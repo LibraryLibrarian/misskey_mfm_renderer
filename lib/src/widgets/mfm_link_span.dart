@@ -72,6 +72,8 @@ class _MfmLinkBridge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      // Keep this fallback action off neighbouring prose and other links.
+      container: true,
       onTap: recognizer.onTap,
       child: Listener(
         behavior: HitTestBehavior.opaque,

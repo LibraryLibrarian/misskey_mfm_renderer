@@ -138,7 +138,7 @@ capsule/text比較例を用意しています。
 
 アイコンにはアプリへの`MaterialIcons`フォントのbundle（通常はアプリのpubspecで`flutter: uses-material-design: true`）が必要ですが、**`MaterialApp`は必須ではありません**。追加の表示幅・折り返しを許容してsnapshotを更新し、論理的なラベル文字列は表示spanではなくsource/ASTから取得してください。表示spanにはwidget由来のU+FFFC placeholderが1つ増えます。
 
-ラベル文字と操作を持たないinline widgetをリンクとしてタップできます。独自操作を持つカスタム絵文字・clickable・blurなどの標準的な子gesture/actionを優先しますが、任意のpointer listenerによる副作用の排他までは保証しません。既にatomicなinline widgetでは**矩形全体**をfallbackリンクのhit領域とします。リンクの内側にあるborderはinner clip外でも矩形内ならタップ対象になり得ますが、リンクの外側にあるborderのclipは引き続きhitを制限します。既存の子の読み上げlabel/actionは全体を1つのlabelへ潰さず保持します。子が明示したsemantic boundaryでは内容とfallback actionが別nodeになる場合があり、あらゆるwidgetのアクセシビリティを保証するものではありません。特に既存ruby rendererの読み上げlabel欠落は、今回のpointer対応では修正していません。
+ラベル文字と操作を持たないinline widgetをリンクとしてタップできます。独自操作を持つカスタム絵文字・clickable・blurなどの標準的な子gesture/actionを優先しますが、任意のpointer listenerによる副作用の排他までは保証しません。既にatomicなinline widgetでは**矩形全体**をfallbackリンクのhit領域とします。リンクの内側にあるborderはinner clip外でも矩形内ならタップ対象になり得ますが、リンクの外側にあるborderのclipは引き続きhitを制限します。既存の子の読み上げlabel/actionは全体を1つのlabelへ潰さず保持します。inline widgetのfallbackごとにsemantic boundaryを設け、周囲の通常テキスト・別リンク・末尾アイコンに操作を混ぜません。子が明示したsemantic boundaryでは内容とfallback actionが別nodeになる場合があり、あらゆるwidgetのアクセシビリティを保証するものではありません。特に既存ruby rendererの読み上げlabel欠落は、今回のpointer対応では修正していません。
 
 
 **引用**: `> quote` は本家の `QUOTE_STYLE` に合わせ、行全幅を使い、四辺8pxのmargin、上下6px・左12px・右0pxのpadding、幅3pxの左罫線で表示します。文字と罫線には選択中の `MfmColorScheme.fg` を使い、引用と `<small>` の各階層で元のalphaに0.7を乗算します。引用色は `baseTextStyle` / `DefaultTextStyle` とは独立しています。
