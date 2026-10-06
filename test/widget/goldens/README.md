@@ -45,6 +45,27 @@ official Misskey browser. Identity/port rules, actual taps, semantics, provider
 precedence, loading/error geometry and paragraph lifecycle are also covered by
 unit/widget tests.
 
+## Labelled links
+
+`labelled_links.png` uses Ahem at 20px and explicitly loads the fixed Flutter
+SDK's MaterialIcons font through the pub-generated package configuration.
+Run the test from the package root; the icon baseline must contain real
+external-link glyphs, not missing-font boxes. Rows:
+
+1. External labelled link
+2. Self-host labelled link without an icon
+3. Silent external labelled link
+4. Small external labelled link
+5. Bold and strike-through label
+6. Local foreground color followed by normal link text
+7. Ruby label
+8. Static rainbow surrounding an explicitly colored link
+9. Border surrounding a labelled link
+10. Long label constrained to 220px
+
+The fixture checks nine icons. Actual pointer callbacks, child actions and
+semantics are covered by separate widget tests, not this image.
+
 ## Generate or compare
 
 From the repository root (Docker required):
