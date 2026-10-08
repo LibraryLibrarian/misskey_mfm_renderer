@@ -14,6 +14,7 @@ import '../utils/nyaize.dart';
 import '../utils/paragraph_semantics.dart';
 import '../utils/url_display.dart';
 import '../widgets/mfm_code_block.dart';
+import '../widgets/mfm_link_span.dart';
 import '../widgets/mfm_mention.dart';
 import '../widgets/mfm_mention_text_span.dart';
 
@@ -539,32 +540,7 @@ class MfmNodeBuilder {
       children.add(part(parts.fragment, fontStyle: FontStyle.italic));
     }
     if (!parts.isSelf) {
-      final icon = Padding(
-        padding: const EdgeInsets.only(left: 2),
-        child: Icon(
-          const IconData(
-            0xe45c,
-            fontFamily: 'MaterialIcons',
-            matchTextDirection: true,
-          ),
-          size: effectiveStyle.fontSize! * 0.9,
-          color: baseColor,
-          semanticLabel: 'External link',
-        ),
-      );
-      children.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.baseline,
-          baseline: TextBaseline.alphabetic,
-          child: recognizer == null
-              ? icon
-              : Listener(
-                  behavior: HitTestBehavior.opaque,
-                  onPointerDown: recognizer.addPointer,
-                  child: icon,
-                ),
-        ),
-      );
+      children.add(_buildExternalLinkIcon(recognizer));
     }
 
     return TextSpan(
@@ -573,9 +549,40 @@ class MfmNodeBuilder {
     );
   }
 
+  WidgetSpan _buildExternalLinkIcon(TapGestureRecognizer? recognizer) {
+    final icon = Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Icon(
+        const IconData(
+          0xe45c,
+          fontFamily: 'MaterialIcons',
+          matchTextDirection: true,
+        ),
+        size: effectiveStyle.fontSize! * 0.9,
+        color: applyOpacity(colorScheme.link),
+        semanticLabel: 'External link',
+      ),
+    );
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: recognizer == null
+          ? icon
+          : Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: recognizer.addPointer,
+              child: icon,
+            ),
+    );
+  }
+
   InlineSpan _buildLink(LinkNode node) {
     final onLinkTap = config.onLinkTap;
-    return _withDisableNyaize().buildStyledSpan(
+    // Ownership remains the existing one-recognizer-per-link builder policy.
+    final recognizer = onLinkTap == null
+        ? null
+        : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url));
+    final label = _withDisableNyaize().buildStyledSpan(
       TextStyle(
         color: applyOpacity(colorScheme.link),
         decoration: TextDecoration.none,
@@ -585,9 +592,13 @@ class MfmNodeBuilder {
         color: colorScheme.link,
         decoration: TextDecoration.none,
       ),
-      recognizer: onLinkTap == null
-          ? null
-          : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url)),
+    );
+    final parts = parseUrlDisplay(node.url, localHost: config.localHost);
+    return TextSpan(
+      children: [
+        recognizer == null ? label : adaptMfmLinkSpan(label, recognizer),
+        if (parts != null && !parts.isSelf) _buildExternalLinkIcon(recognizer),
+      ],
     );
   }
 

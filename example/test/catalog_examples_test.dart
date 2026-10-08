@@ -11,6 +11,22 @@ import 'package:misskey_mfm_renderer/src/fn/mfm_border_options.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_border.dart';
 
 void main() {
+  for (final sample in [
+    (name: 'Link (ラベル付き)', label: 'ユーザープロフィール', external: true),
+    (name: 'Link (自ホスト)', label: 'ローカルプロフィール', external: false),
+    (name: 'Link (装飾ラベル)', label: '太字 取消 小文字 赤', external: true),
+    (name: 'Silent Link', label: 'サイレントリンク', external: true),
+  ]) {
+    testWidgets('${sample.name} はラベルと外部判定を保持する', (tester) async {
+      await _pumpExample(tester, sample.name);
+      expect(_richTextPlainText(tester), contains(sample.label));
+      final icons = find.byWidgetPredicate(
+        (w) => w is Icon && w.icon?.codePoint == 0xe45c,
+      );
+      expect(icons, sample.external ? findsOneWidget : findsNothing);
+    });
+  }
+
   for (final isShake in [false, true]) {
     final name = isShake ? 'Shake' : 'Twitch';
     testWidgets('$name (開始遅延) は2秒間無変形で待機して開始する', (tester) async {

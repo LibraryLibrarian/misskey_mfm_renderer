@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart' show CupertinoApp, CupertinoThemeData;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_highlight/themes/dracula.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
@@ -1713,33 +1714,34 @@ void main() {
   });
 
   group('MfmText コールバック', () {
-    testWidgets('URLタップ時にonLinkTapが呼ばれる', (tester) async {
-      String? tappedUrl;
-
+    testWidgets('URLタップ時にonLinkTapが1回だけ呼ばれる', (tester) async {
+      final calls = <String>[];
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: MfmText(
               text: 'https://example.com',
-              config: MfmRenderConfig(onLinkTap: (url) => tappedUrl = url),
+              config: MfmRenderConfig(onLinkTap: calls.add),
             ),
           ),
         ),
       );
-
       final richText = _rootRichText(tester);
-      final textSpan = richText.text as TextSpan;
-
-      final hostSpan = _findSpanWithText(textSpan, 'example.com');
+      final hostSpan = _findSpanWithText(
+        richText.text as TextSpan,
+        'example.com',
+      );
       expect(hostSpan, isNotNull);
-
-      // recognizerを呼び出してタップをシミュレート
-      final recognizer = hostSpan?.recognizer;
-      if (recognizer is TapGestureRecognizer) {
-        recognizer.onTap?.call();
-      }
-
-      expect(tappedUrl, 'https://example.com');
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.byWidget(richText),
+      );
+      final box = paragraph
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 8, extentOffset: 9),
+          )
+          .single;
+      await tester.tapAt(paragraph.localToGlobal(box.toRect().center));
+      expect(calls, ['https://example.com']);
     });
 
     testWidgets('メンションタップ時にonMentionTapが呼ばれる', (tester) async {

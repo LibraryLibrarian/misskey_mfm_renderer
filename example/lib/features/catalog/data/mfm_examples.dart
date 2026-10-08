@@ -261,12 +261,30 @@ class MfmExamples {
           name: 'Link (ラベル付き)',
           syntax: '[label](https://example.org/@user)',
           mfm: '[ユーザープロフィール](https://example.org/@user)',
+          description: '外部HTTP(S)リンクはラベルの末尾にアイコンを表示します',
+          config: MfmRenderConfig(localHost: 'misskey.io'),
+        ),
+        MfmExample(
+          name: 'Link (自ホスト)',
+          syntax: '[label](https://misskey.io/@user)',
+          mfm: '[ローカルプロフィール](https://misskey.io/@user)',
+          description: 'localHost=misskey.ioではラベルを保ちアイコンを表示しません',
+          config: MfmRenderConfig(localHost: 'misskey.io'),
+        ),
+        MfmExample(
+          name: 'Link (装飾ラベル)',
+          syntax: '[**bold** <small>small</small>](url)',
+          mfm:
+              r'[**太字** ~~取消~~ <small>小文字</small> $[fg.color=ff0000 赤]](https://example.org)',
+          description: '装飾を維持し、末尾の色やサイズをアイコンへ漏らしません',
+          config: MfmRenderConfig(localHost: 'misskey.io'),
         ),
         MfmExample(
           name: 'Silent Link',
           syntax: '?[label](url)',
           mfm: '?[サイレントリンク](https://example.org)',
-          description: 'レンダラーでは通常リンクと同じ表示になります',
+          description: '通常リンクと同じ末尾アイコンとタップ動作です',
+          config: MfmRenderConfig(localHost: 'misskey.io'),
         ),
         MfmExample(
           name: 'Mention',
