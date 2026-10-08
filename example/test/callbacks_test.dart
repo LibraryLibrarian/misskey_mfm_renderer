@@ -83,9 +83,11 @@ void main() {
         text: 'Misskey [検索]',
       ),
     );
+    await tester.tap(find.byType(EditableText));
+    await tester.enterText(find.byType(EditableText), '編集後 Misskey 🔎');
     await tester.tap(find.text('検索'));
     await tester.pump();
-    expect(find.text('検索: Misskey'), findsOneWidget);
+    expect(find.text('検索: 編集後 Misskey 🔎'), findsOneWidget);
 
     await tester.pumpWidget(
       _callbackApp(

@@ -213,7 +213,11 @@ class MfmRenderConfig {
   /// 指定時は[onHashtagTap]より優先して呼ばれる。
   final void Function(MfmHashtagTapDetails details)? onHashtagTapDetails;
 
-  /// 検索タップ時のコールバック
+  /// 検索ボタン（tap／keyboard）または入力欄のSearch／Enter送信時のコールバック。
+  ///
+  /// 1行入力として受け付けた現在の編集値を、trim・encode・nyaizeせず渡す。
+  /// 空文字も送信する。nullでも入力欄は編集可能だが送信は無効となり、
+  /// URL起動等へのfallbackは行わない。
   final void Function(String query)? onSearchTap;
 
   /// MFMを含むコンテンツの投稿者情報。
