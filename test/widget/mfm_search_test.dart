@@ -2,6 +2,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -291,6 +292,9 @@ void main() {
       });
       final field = find.byType(EditableText);
       await tester.tap(field);
+      await tester.pump();
+      expect(_editor(tester).focusNode.hasFocus, isTrue);
+      expect(tester.testTextInput.hasAnyClients, isTrue);
       await tester.enterText(field, 'host 日本語');
       await tester.pump();
       if (host == 'minimal') {
@@ -308,7 +312,22 @@ void main() {
       }
       await tester.tap(find.text('Search'));
       expect(calls, ['host 日本語']);
+      // This is a fresh focus tap, not a second tap in a double-tap sequence.
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 1));
       await tester.tap(field);
+      // Allow pointer-driven focus and the input connection to settle before
+      // simulating the platform IME action, especially after web tap-outside.
+      await tester.pump();
+      expect(
+        _editor(tester).focusNode.hasFocus,
+        isTrue,
+        reason: 'pointer refocus',
+      );
+      expect(
+        tester.testTextInput.hasAnyClients,
+        isTrue,
+        reason: 'IME connection',
+      );
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pump();
       expect(calls, ['host 日本語', 'host 日本語']);
@@ -320,7 +339,7 @@ void main() {
     'overlay without Cupertino localization opens English popup '
     'without changing Japanese label',
     (tester) async {
-      await _useFlutterContextMenu();
+      await _useFlutterContextMenu(tester);
       await tester.pumpWidget(
         WidgetsApp(
           color: Colors.white,
@@ -363,7 +382,7 @@ void main() {
     'popup keeps field delegates and direction across differently '
     'localized root overlay',
     (tester) async {
-      await _useFlutterContextMenu();
+      await _useFlutterContextMenu(tester);
       await tester.pumpWidget(
         _app(
           Builder(
@@ -821,17 +840,31 @@ class _JapaneseCupertinoDelegate
   bool shouldReload(_JapaneseCupertinoDelegate old) => false;
 }
 
-Future<void> _useFlutterContextMenu() async {
+Future<void> _useFlutterContextMenu(WidgetTester tester) async {
   if (!kIsWeb) return;
   final wasEnabled = BrowserContextMenu.enabled;
+  // Flutter's web-test engine ignores platform messages without replying.
+  // Acknowledge only menu setup/cleanup, as Flutter's own widget tests do;
+  // the actual long-press toolbar and its localization remain under test.
+  final messenger = tester.binding.defaultBinaryMessenger
+    ..setMockMethodCallHandler(SystemChannels.contextMenu, (call) {
+      expect(call.method, isIn(['enableContextMenu', 'disableContextMenu']));
+      return Future<void>.value();
+    });
   addTearDown(() async {
-    if (wasEnabled) {
-      await BrowserContextMenu.enableContextMenu();
-    } else {
-      await BrowserContextMenu.disableContextMenu();
+    try {
+      if (wasEnabled) {
+        await BrowserContextMenu.enableContextMenu();
+      } else {
+        await BrowserContextMenu.disableContextMenu();
+      }
+      expect(BrowserContextMenu.enabled, wasEnabled);
+    } finally {
+      messenger.setMockMethodCallHandler(SystemChannels.contextMenu, null);
     }
   });
   await BrowserContextMenu.disableContextMenu();
+  expect(BrowserContextMenu.enabled, isFalse);
 }
 
 List<SemanticsNode> _semanticsNodes(WidgetTester tester) {
