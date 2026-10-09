@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Editable search fields with a search icon, button activation and keyboard Search/Enter submission through `onSearchTap`
 - Show the existing external-link icon after HTTP(S) external labelled links, including silent links
 - Render all nine border styles, including bounded dotted/dashed patterns, double bands and deterministic 3D shading
 - Added immutable unixtime options, synchronous Japanese/English formatting, custom clocks/formatters and lifecycle-aware shared 10-second updates
@@ -15,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added optional `MfmEmojiContext.textStyle` and `MfmCustomEmoji.fallbackTextStyle` for shortcode fallbacks with inherited typography and original colors before cumulative small/quote opacity
 
 ### Changed
+- **Breaking:** Search queries now render as editable controls instead of fixed Text, changing width, height, semantics and callback values. Migration: handle the edited query (including empty strings), update snapshots/finders for EditableText, and bundle MaterialIcons (normally `uses-material-design: true`)
 - **Breaking:** External labelled links now occupy extra inline width, can wrap differently, and add a WidgetSpan plain-text placeholder. Migration: bundle MaterialIcons (normally `uses-material-design: true`), allow the extra width/update snapshots, and obtain logical label text from the source/AST rather than display spans
 - **Breaking:** Border styles, numeric prefixes, RGBA/invalid colors, zero widths and inner-edge clipping now affect rendering. Migrate to `style=solid`, explicit finite nonnegative dimensions and 3/6-digit RGB for legacy solid borders; omit invalid colors for accent, use positive widths instead of zero hairlines, and use `noclip` to disable clipping (not to reproduce the old outer clip). Direct AST callers should use `noclip: true` to disable clipping, or false/null/omission to clip
 - **Breaking:** Unixtime now defaults to local absolute + relative detail, resolves locale from options/Flutter, parses only the first child as an integer prefix, and keeps invalid values in a pill. Migration for valid-input legacy relative labels without periodic updates: `unixtimeOptions: MfmUnixtimeOptions(mode: MfmUnixtimeMode.relative, formatter: mfmLegacyUnixtimeFormatter, autoUpdate: false)`; parsing and invalid behavior are not restored

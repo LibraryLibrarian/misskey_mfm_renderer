@@ -361,6 +361,49 @@ MfmText(
 )
 ```
 
+### Editable search
+
+Search nodes use a single-line Cupertino text field. The original query is both
+its initial value and its empty-field placeholder; the placeholder is not a
+submitted value. Button tap, button Enter/Space, and the editor's Search/Enter
+input action send the current accepted value to `onSearchTap` once, including
+empty strings, whitespace, Japanese and emoji, without trimming, encoding or
+nyaize. No Google search or URL navigation is performed. A null resolved callback
+leaves editing available but disables submission and button keyboard/semantic
+actions. There is no autofocus or clear button.
+
+Ordinary rebuilds with the same original query preserve the draft, selection,
+composing range and focus, including label, locale, style and callback updates.
+Changing the original query replaces the draft, moves selection to the end and
+clears composing. Multiple fields are independent. Use a caller-owned key when
+reusing a widget for another post with the same original query. Removal,
+structural changes and the existing paragraph semantics identity changes may
+remount the field; drafts are not persistent document state. Submission retains
+Flutter's normal editing completion (including unfocus/composing cleanup).
+
+MaterialApp, CupertinoApp and WidgetsApp hosts support standard framework
+selection. The returned selection popup preserves field localizations, or uses
+popup-only English fallback if Cupertino localizations are absent. This does not
+change the search label's locale. Cupertino selection appearance on Android is
+not a promise of native Material controls. A minimal `MediaQuery + Directionality
++ DefaultTextStyle` host without Overlay supports focus, basic editing and
+submission, but not selection handles, range-selection gestures or context menus.
+
+The search uses the root/base text style rather than forcing 16px. Controls have
+a minimum height of 40 and grow with text scaling; unbounded width defaults to
+320 logical pixels (honoring minimum width constraints reaching the control).
+Narrow fields scroll
+horizontally and button labels may wrap beside the icon or ellipsize; the full
+button label remains accessible. Small/quote opacity applies once to the whole
+control. Bundle MaterialIcons, normally with `uses-material-design: true` in the
+app's pubspec, for the decorative search icon. Update fixed-Text finders and
+layout/semantics snapshots when migrating.
+
+Inside a labelled link, field operations and enabled/disabled button taps are
+kept separate from the link callback. This does not remove the outer link's own
+accessibility action or suppress taps in the WidgetSpan margin or arbitrary
+ancestor pointer listeners.
+
 ### MkMfm-compatible document props
 
 `plain`, `nowrap`, `rootScale`, and `isNote` belong to each rendered document, so they
@@ -1010,7 +1053,7 @@ Future<void> main() async {
 | `onLinkTap` | `void Function(String)?` | null | Link tap callback |
 | `onMentionTap` | `void Function(String)?` | null | Mention tap callback |
 | `onHashtagTap` | `void Function(String)?` | null | Hashtag tap callback |
-| `onSearchTap` | `void Function(String)?` | null | Search tap callback |
+| `onSearchTap` | `void Function(String)?` | null | Edited-query submission callback (button/keyboard) |
 | `onClickableEvent` | `void Function(String)?` | null | `clickable` fn callback; receives the value of the `clickable.ev` argument |
 | `showCodeBlockCopyButton` | `bool?` | true | Show the copy button on code blocks |
 | `onCodeCopied` | `void Function(String)?` | null | Code copy completion callback; replaces the default SnackBar, which requires a ScaffoldMessenger ancestor |

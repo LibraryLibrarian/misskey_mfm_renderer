@@ -260,6 +260,8 @@ void main() {
     await _pumpExample(tester, 'Search');
 
     expect(find.text('Search'), findsWidgets);
+    expect(find.byType(EditableText), findsNWidgets(3));
+    expect(_richTextPlainText(tester), contains('Misskey'));
   });
 }
 
@@ -294,10 +296,14 @@ Future<void> _pumpMfm(
 }
 
 String _richTextPlainText(WidgetTester tester) {
-  return tester
-      .widgetList<RichText>(find.byType(RichText))
-      .map((richText) => richText.text.toPlainText())
-      .join();
+  return [
+    ...tester
+        .widgetList<RichText>(find.byType(RichText))
+        .map((richText) => richText.text.toPlainText()),
+    ...tester
+        .widgetList<EditableText>(find.byType(EditableText))
+        .map((editable) => editable.controller.text),
+  ].join();
 }
 
 List<TextSpan> _textSpans(WidgetTester tester) {

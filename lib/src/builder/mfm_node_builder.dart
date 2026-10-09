@@ -17,6 +17,7 @@ import '../widgets/mfm_code_block.dart';
 import '../widgets/mfm_link_span.dart';
 import '../widgets/mfm_mention.dart';
 import '../widgets/mfm_mention_text_span.dart';
+import '../widgets/mfm_search.dart';
 
 /// MfmNodeをWidgetに変換するビルダー
 class MfmNodeBuilder {
@@ -711,58 +712,19 @@ class MfmNodeBuilder {
   }
 
   InlineSpan _buildSearch(SearchNode node) {
-    final baseStyle = config.baseTextStyle ?? const TextStyle(fontSize: 14);
-    final borderSide = BorderSide(color: colorScheme.divider);
-
     return WidgetSpan(
       child: wrapOpacity(
         Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.fromBorderSide(borderSide),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      bottomLeft: Radius.circular(4),
-                    ),
-                  ),
-                  child: Text(node.query, style: baseStyle),
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  config.onSearchTap?.call(node.query);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: borderSide,
-                      right: borderSide,
-                      bottom: borderSide,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(4),
-                      bottomRight: Radius.circular(4),
-                    ),
-                  ),
-                  child: Text(
-                    config.searchButtonLabel ?? 'Search',
-                    style: baseStyle,
-                  ),
-                ),
-              ),
-            ],
+          child: MfmSearch(
+            query: node.query,
+            label: config.searchButtonLabel ?? 'Search',
+            style: config.baseTextStyle ?? const TextStyle(fontSize: 14),
+            foreground: colorScheme.fg,
+            divider: colorScheme.divider,
+            accent: colorScheme.accent,
+            brightness: config.brightness ?? Brightness.light,
+            onSearch: config.onSearchTap,
           ),
         ),
       ),

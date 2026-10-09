@@ -220,7 +220,7 @@ class MfmExamples {
           name: 'Search',
           syntax: 'keyword 検索 / keyword [検索] / keyword Search',
           mfm: 'Misskey 検索\nMisskey [検索]\nMisskey Search',
-          description: 'ボタンをタップすると onSearchTap が呼ばれます',
+          description: '検索語を編集してボタンまたはキーボードの検索で送信すると、編集値で onSearchTap が呼ばれます',
         ),
       ],
     ),

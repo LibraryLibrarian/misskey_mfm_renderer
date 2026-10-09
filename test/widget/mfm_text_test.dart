@@ -1,4 +1,5 @@
-import 'package:flutter/cupertino.dart' show CupertinoApp, CupertinoThemeData;
+import 'package:flutter/cupertino.dart'
+    show CupertinoApp, CupertinoTextField, CupertinoThemeData;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -1633,18 +1634,17 @@ void main() {
         ),
       );
 
-      final query = tester.widget<Text>(find.text('test query'));
+      final query = tester.widget<CupertinoTextField>(
+        find.byType(CupertinoTextField),
+      );
       final button = tester.widget<Text>(find.text('Search'));
-      expect(query.style, baseStyle);
+      expect(query.style, baseStyle.copyWith(inherit: false));
       expect(button.style, baseStyle);
 
-      final inputContainer = tester
-          .element(find.text('test query'))
-          .findAncestorWidgetOfExactType<Container>()!;
       final buttonContainer = tester
           .element(find.text('Search'))
           .findAncestorWidgetOfExactType<Container>()!;
-      final inputDecoration = inputContainer.decoration! as BoxDecoration;
+      final inputDecoration = query.decoration!;
       final buttonDecoration = buttonContainer.decoration! as BoxDecoration;
       final inputBorder = inputDecoration.border! as Border;
       final buttonBorder = buttonDecoration.border! as Border;
@@ -1680,11 +1680,11 @@ void main() {
       );
 
       final row = tester
-          .element(find.text('test query'))
+          .element(find.byType(CupertinoTextField))
           .findAncestorWidgetOfExactType<Row>()!;
       expect(row.children, hasLength(2));
       expect(row.children.first, isA<Expanded>());
-      expect(row.children.last, isA<GestureDetector>());
+      expect(row.children.last, isA<ConstrainedBox>());
     });
 
     testWidgets('検索ブロックはカスタムdividerを両controlへ使う', (tester) async {
@@ -1702,13 +1702,19 @@ void main() {
         ),
       );
 
-      for (final label in ['test query', 'Search']) {
-        final container = tester
-            .element(find.text(label))
-            .findAncestorWidgetOfExactType<Container>()!;
-        final border =
-            (container.decoration! as BoxDecoration).border! as Border;
+      final input = tester.widget<CupertinoTextField>(
+        find.byType(CupertinoTextField),
+      );
+      final button = tester
+          .element(find.text('Search'))
+          .findAncestorWidgetOfExactType<Container>()!;
+      for (final decoration in [
+        input.decoration!,
+        button.decoration! as BoxDecoration,
+      ]) {
+        final border = decoration.border! as Border;
         expect(border.top.color, divider);
+        expect(border.top.width, 1);
       }
     });
   });

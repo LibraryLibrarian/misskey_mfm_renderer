@@ -350,6 +350,42 @@ MfmText(
 )
 ```
 
+### 編集可能な検索
+
+検索ノードは1行のCupertino入力欄です。元のqueryを初期値と空欄時のplaceholderに
+使いますが、placeholderは送信値ではありません。ボタンtap、ボタン上のEnter／Space、
+入力欄のSearch／Enter入力actionで、現在受け付けた編集値を`onSearchTap`へ1回渡します。
+空文字・空白・日本語・emojiもtrim／encode／nyaizeせず渡し、Google検索やURL起動は
+行いません。継承解決後のcallbackがnullでも編集可能ですが、送信とボタンのkeyboard／
+semantics actionは無効です。autofocusとclear buttonはありません。
+
+元のqueryが同じ通常の再描画では、label・locale・style・callbackの変更時も編集値・
+selection・composing・focusを維持します。元のqueryの変更時のみ入力を置き換え、
+selectionを末尾へ移しcomposingを解除します。複数欄は独立しています。同じ元queryの
+別投稿へwidgetを再利用する際のリセットは呼び出し側のkeyで制御してください。
+削除・構造変更・既存のparagraph semantics identity変更では再生成される場合があり、
+永続的な文書stateではありません。送信時のunfocus／composing解除はFlutter標準です。
+
+MaterialApp／CupertinoApp／WidgetsAppではframework標準の選択操作を利用します。
+選択popup自体へfieldのlocalizationsを引き継ぎ、Cupertino localizationsがなければ
+popup限定で英語へfallbackします。検索labelのlocaleは変えません。Android上の
+Cupertino選択UIについてnative Materialと同じ外観は保証しません。
+Overlayのない`MediaQuery + Directionality + DefaultTextStyle`だけのhostでは、
+focus・基本入力・送信を利用できますが、選択handle・範囲選択gesture・context menuは
+対象外です。
+
+文字styleはroot／baseTextStyleを使い、16pxへ固定しません。最小高40から文字倍率に
+応じて伸び、無制約幅では320 logical px（controlへ届く最小幅制約を尊重）を使います。
+狭幅では入力の
+横スクロールと、icon横のlabelの別行配置／ellipsisを許容し、semanticsには全文labelを
+残します。small／quoteのopacityはcontrol全体へ1回適用します。装飾用検索iconには
+MaterialIconsのbundle（通常はappのpubspecで`uses-material-design: true`）が必要です。
+移行時は固定Textのfinderとlayout／semantics snapshotも更新してください。
+
+ラベル付きlink内でも入力欄の操作と有効／無効ボタンのtapをlink callbackから分離します。
+外側link自身の独立した読み上げaction、WidgetSpanのmarginへのtap、任意の祖先pointer
+listenerまで無効化するものではありません。
+
 ### MkMfm互換の文書単位props
 
 `plain`、`nowrap`、`rootScale`、`isNote` は設定全体ではなく描画する文書ごとの値なので、
@@ -988,7 +1024,7 @@ Future<void> main() async {
 | `onLinkTap` | `void Function(String)?` | null | リンクタップコールバック |
 | `onMentionTap` | `void Function(String)?` | null | メンションタップコールバック |
 | `onHashtagTap` | `void Function(String)?` | null | ハッシュタグタップコールバック |
-| `onSearchTap` | `void Function(String)?` | null | 検索タップコールバック |
+| `onSearchTap` | `void Function(String)?` | null | 編集値の送信コールバック（ボタン／keyboard） |
 | `onClickableEvent` | `void Function(String)?` | null | `clickable` fn関数のイベントコールバック。`clickable.ev`引数の値を受け取る |
 | `showCodeBlockCopyButton` | `bool?` | true | コードブロックのコピーボタンを表示するか |
 | `onCodeCopied` | `void Function(String)?` | null | コードコピー完了コールバック。指定時は既定のSnackBarを置換し、未指定時はScaffoldMessengerの祖先がある場合のみ通知 |

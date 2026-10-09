@@ -273,6 +273,38 @@ void main() {
     expect(find.text('Inherited search'), findsOneWidget);
   });
 
+  testWidgets(
+    'inherited search callback submits edited query across label updates',
+    (tester) async {
+      final calls = <String>[];
+      Widget build(String label) => MaterialApp(
+        home: Scaffold(
+          body: MfmConfig(
+            config: MfmRenderConfig(
+              onSearchTap: calls.add,
+              searchButtonLabel: label,
+            ),
+            child: const MfmText(text: 'flutter Search'),
+          ),
+        ),
+      );
+      await tester.pumpWidget(build('Inherited search'));
+      await tester.tap(find.byType(EditableText));
+      await tester.enterText(find.byType(EditableText), '継承した編集値');
+      final controller = tester
+          .widget<EditableText>(find.byType(EditableText))
+          .controller;
+      await tester.pumpWidget(build('Updated label'));
+      expect(
+        tester.widget<EditableText>(find.byType(EditableText)).controller,
+        same(controller),
+      );
+      expect(controller.text, '継承した編集値');
+      await tester.tap(find.text('Updated label'));
+      expect(calls, ['継承した編集値']);
+    },
+  );
+
   testWidgets('explicit searchButtonLabel overrides inherited', (tester) async {
     await tester.pumpWidget(
       const MfmConfig(
