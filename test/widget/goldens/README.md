@@ -66,6 +66,30 @@ external-link glyphs, not missing-font boxes. Rows:
 The fixture checks nine icons. Actual pointer callbacks, child actions and
 semantics are covered by separate widget tests, not this image.
 
+## Editable search
+
+`search.png` uses Ahem at 18px with a 1.2 line height and explicitly loads the
+fixed Flutter SDK's MaterialIcons font through the pub-generated package
+configuration. Run the test from the package root. All nine fields are unfocused
+and animation is disabled, so cursor blinking and an OS keyboard do not affect
+the baseline. Rows:
+
+1. Standard search at 400px
+2. Custom button label
+3. Long query constrained to 240px
+4. Long button label constrained to 160px
+5. Width 100px with text scaling of 2
+6. Large 26px typography
+7. Disabled submission
+8. Dark palette
+9. Custom divider color
+
+Ahem deliberately renders text as blocks; the nine search icons must be real
+glyphs. Narrow controls may wrap the icon and label into separate runs, ellipsize
+the label or scroll the input. This image checks the unfocused composition, not
+editing or submission. Actual scrolling, input values, callbacks, focus,
+localization and semantics are covered by separate widget tests.
+
 ## Generate or compare
 
 From the repository root (Docker required):
