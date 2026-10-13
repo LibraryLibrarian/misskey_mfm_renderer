@@ -844,9 +844,9 @@ MfmText(
 ```
 
 各fieldは参照を解決済みの独立した色です。例えば `accent` だけを変更しても
-`mention`、`link` などは自動では変わりません。通常のメンションは現在
-`mention` を使います。`mentionMe` は配色として公開していますが、閲覧者情報を
-レンダラーへ渡すAPIがないため、現時点では自分宛て判定に利用しません。
+`mention`、`link` などは自動では変わりません。`MfmMentionOptions.viewerAcct`
+で指定した閲覧者宛てと判定されたメンションには `mentionMe` を、それ以外には
+`mention` を使います。
 
 modeは次の優先順位で解決します。
 

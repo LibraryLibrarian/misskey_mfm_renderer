@@ -873,9 +873,9 @@ MfmText(
 ```
 
 Each field is a resolved, independent color. For example, overriding `accent`
-does not automatically change `mention`, `link`, or any other field. Normal
-mentions currently use `mention`; `mentionMe` is available in the scheme but
-cannot be selected until the renderer has viewer identity information.
+does not automatically change `mention`, `link`, or any other field. Mentions
+recognized as addressing `MfmMentionOptions.viewerAcct` use `mentionMe`; all
+other mentions use `mention`.
 
 The mode is resolved in this order:
 
