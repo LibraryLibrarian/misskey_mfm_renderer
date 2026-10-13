@@ -540,6 +540,9 @@ void main() {
         final paint = Paint()..color = const Color(0x80ff0000);
         final background = Paint()..color = Colors.transparent;
         final style = _style.copyWith(
+          // Large strokes have fully covered pixels even after nested small.
+          // This probe measures composited opacity, not glyph antialiasing.
+          fontSize: 100,
           foreground: paint,
           background: background,
         );
@@ -573,6 +576,7 @@ void main() {
         await tester.pump();
         final fallback = state == 'error' || state == 'null';
         Offset point;
+        Rect? glyphBounds;
         if (fallback) {
           final text = tester.widget<Text>(find.text('©'));
           expect(text.style, received!.textStyle);
@@ -590,6 +594,9 @@ void main() {
               )
               .first;
           point = paragraph.localToGlobal(glyph.toRect().center);
+          glyphBounds = glyph.toRect().shift(
+            paragraph.localToGlobal(Offset.zero),
+          );
         } else {
           point = tester.getCenter(find.byType(Image));
         }
@@ -603,6 +610,34 @@ void main() {
             final bytes = await image.toByteData(
               format: ui.ImageByteFormat.rawStraightRgba,
             );
+            if (glyphBounds != null) {
+              // A glyph's center can be empty (© in browser fallback fonts).
+              // Sample its most covered pixel, not adjacent quote decoration.
+              final region = glyphBounds.shift(
+                -boundary.localToGlobal(Offset.zero),
+              );
+              final data = bytes!.buffer.asUint8List(
+                bytes.offsetInBytes,
+                bytes.lengthInBytes,
+              );
+              var strongest = <int>[0, 0, 0, 0];
+              for (var y = region.top.floor(); y < region.bottom.ceil(); y++) {
+                for (
+                  var x = region.left.floor();
+                  x < region.right.ceil();
+                  x++
+                ) {
+                  if (x < 0 || y < 0 || x >= image.width || y >= image.height) {
+                    continue;
+                  }
+                  final offset = (y * image.width + x) * 4;
+                  if (data[offset + 3] > strongest[3]) {
+                    strongest = data.sublist(offset, offset + 4);
+                  }
+                }
+              }
+              return strongest;
+            }
             final offset =
                 (local.dy.floor() * image.width + local.dx.floor()) * 4;
             return bytes!.buffer
