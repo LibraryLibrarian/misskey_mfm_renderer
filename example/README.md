@@ -21,6 +21,24 @@ flutter run -d windows
 The app initializes emoji support once at startup and shares the configuration
 through `MfmConfig`, so any `MfmText` widget renders custom emojis out of the box.
 
+## Offline Twemoji samples
+
+The emoji catalog retains the native `Unicode Emoji` sample and adds two
+explicitly configured `MfmTwemojiBuilder` samples. Those two samples use only the
+eight bundled PNGs in [`assets/twemoji`](assets/twemoji/); they never select a CDN.
+Their filename allowlist returns null for an unavailable image (for example 🚀),
+so the original Unicode remains visible. The helper is configured per example,
+not as a global setting. This does not remove the app's separate custom-emoji
+initialization at startup.
+
+Twemoji graphics by Twitter and contributors are licensed under
+[CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). This unmodified subset
+comes from [Twemoji v17.0.3](https://github.com/jdecked/twemoji/tree/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b).
+The asset directory includes the full graphics license, upstream MIT license,
+and a manifest of source URLs and SHA-256 hashes. No upstream code is copied
+into the builder. Apps reusing the images must provide their own appropriate
+attribution and license links; the helper does not add attribution UI.
+
 ## Platform Notes
 
 Web is not supported. The example compiles for Web, but `misskey_emoji` does

@@ -90,6 +90,31 @@ the label or scroll the input. This image checks the unfocused composition, not
 editing or submission. Actual scrolling, input values, callbacks, focus,
 localization and semantics are covered by separate widget tests.
 
+## Opt-in Twemoji
+
+`twemoji.png` uses Ahem at 20px, a white 600×1040 capture area, and disabled
+animation. It explicitly loads the eight unmodified 72×72 PNGs from
+[`example/assets/twemoji`](../../../example/assets/twemoji/) as memory images;
+there are no network requests. Run from the package root. Twemoji graphics are
+by Twitter and contributors under CC-BY 4.0; source, hashes and full license are
+in that directory. Rows:
+
+1. All eight bundled sequences mixed with baseline text
+2. `x2`
+3. `small`
+4. `small` inside a quote
+5. Red foreground text without tinting the images
+6. Static rainbow without tinting the images
+7. `plain: true`
+8. Wrapping in a 180px column
+9. `nowrap: true` in the same width (intentional truncation)
+10. Translucent text inside `small`
+
+Ahem text is intentionally block-shaped. All eight images in the first row must
+be decoded before capture. Loading/error/null fallback, lifecycle, semantics,
+actual pointer actions, and numerical baseline geometry are asserted in
+separate tests rather than inferred from this image.
+
 ## Generate or compare
 
 From the repository root (Docker required):

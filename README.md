@@ -712,26 +712,77 @@ and lets the builder position the box. A Unicode emoji image is different:
 Misskey renders it at a 1.25em height with `vertical-align: -0.25em`, so its
 descent is `context.fontSize * 0.25`.
 
-Without `unicodeEmojiBuilder`, Unicode emoji remain native text. To render
-Twemoji or another image set, implement `unicodeEmojiBuilder` yourself. For
-example, if your `unicodeImageResolver` maps a Unicode string to an
-`EmojiImage` with the appropriate image URL, reuse the image widget as follows:
+Without `unicodeEmojiBuilder`, Unicode emoji remain native text. Opt in to
+Twemoji PNG images with `MfmTwemojiBuilder`; it supplies the 1.25em image size
+and 0.25em descent without changing the renderer's defaults:
 
 ```dart
-MfmRenderConfig(
-  unicodeEmojiBuilder: (emoji, context) => MfmCustomEmoji(
-    name: emoji,
-    resolver: unicodeImageResolver, // App-provided EmojiResolver
-    size: context.fontSize * 1.25,
-    baselineOffset: context.fontSize * 0.25,
-    fallbackTextStyle: context.textStyle,
-  ),
-)
+final twemoji = MfmTwemojiBuilder(
+  imageProvider: (assetName) => availableAssets.contains(assetName)
+      ? AssetImage('assets/twemoji/$assetName')
+      : null,
+);
+final config = MfmRenderConfig(unicodeEmojiBuilder: twemoji.build);
 ```
 
-This matches Misskey's Unicode emoji image: a 1.25em height with
-`vertical-align: -0.25em`. The package does not bundle Twemoji assets or a
-Unicode-to-image resolver.
+`availableAssets` is your application's set of bundled filenames, such as
+`{'1f600.png', '2764.png'}`. Declare these assets in your app's `pubspec.yaml`.
+The provider callback receives a lowercase, hyphen-separated code-point filename
+including `.png`. VS16 (`FE0F`) is removed only when there is no ZWJ (`200D`), so
+`❤️` maps to `2764.png` while `🏳️‍🌈` maps to
+`1f3f3-fe0f-200d-1f308.png`. The callback may also return a `MemoryImage` or
+another `ImageProvider`. It is synchronous and may run again on rebuild; return
+providers with stable equality/cache keys. Callback exceptions are not swallowed.
+
+For hosted PNGs, explicitly choose a directory:
+
+```dart
+final twemoji = MfmTwemojiBuilder.network(
+  baseUrl: Uri.parse('https://emoji.example/twemoji/17.0.3/72x72/'),
+);
+final config = existingConfig.copyWith(unicodeEmojiBuilder: twemoji.build);
+```
+
+The base must be an absolute HTTP(S) URL with a host and without user information,
+query or fragment; invalid bases throw `ArgumentError`. A missing trailing slash
+is added, preserving the directory and port. There is **no default CDN**. Creating
+the built-in network helper does not fetch images; mounting its images may fetch
+from the selected server, exposing the requested emoji filenames and normal
+connection metadata. Configure platform network permissions and, on Web, CORS
+as appropriate. HTTPS is recommended. This factory uses `NetworkImage` and
+Flutter's image cache, not a new persistent cache; use the provider constructor
+for application-specific caching or authentication.
+
+While loading, a transparent square reserves the image's size and baseline.
+A null provider or image load/decode failure displays the original Unicode text
+at the contextual 1em size and its natural baseline, without shortcode colons.
+Empty input, a direct input containing text-presentation selector `FE0E`, and
+VS16-only input bypass the provider. The original label remains accessible in
+all states. Fallback can reflow: it is a `Text` inside the builder's `WidgetSpan`,
+not restoration of the default `TextSpan`. Shaping, wrapping and plain-text
+extraction may differ; use the original source/AST for logical text extraction.
+`copyWith(unicodeEmojiBuilder: null)` does not clear an existing builder, and a
+null explicit setting still inherits one. Remove the effective configuration
+(including ancestors), or use a text-returning builder to suppress images;
+the latter still uses a `WidgetSpan`.
+
+Recognition is bounded by `misskey_mfm_parser`, not the asset version. With the
+current parser, symbols such as `©` can be emoji nodes; `FE0E` may be a separate
+text node that this builder cannot inspect. Some unqualified ZWJ sequences can
+map to missing files and fall back. This helper does not expand parser support,
+validate arbitrary strings as emoji, repair sequences, or promise full Unicode
+17 coverage. PNG rendering does not reproduce the resolution independence of
+Misskey's SVG assets.
+
+The library does not automatically bundle or download the full Twemoji set.
+The example contains a small offline subset from
+[Twemoji v17.0.3](https://github.com/jdecked/twemoji/tree/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b),
+with provenance and license files in [`example/assets/twemoji`](example/assets/twemoji/).
+Twemoji graphics by Twitter and contributors are licensed under
+[CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/); the upstream code is
+MIT-licensed. When distributing or displaying those graphics, provide the
+required attribution, license link and modification notice in your app or its
+documentation. Installing this helper does not perform that attribution for you.
 
 ### Custom Font Configuration
 

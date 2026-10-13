@@ -11,6 +11,66 @@ import 'package:misskey_mfm_renderer/src/fn/mfm_border_options.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_border.dart';
 
 void main() {
+  testWidgets('Unicode Emoji retains native text without opt-in', (
+    tester,
+  ) async {
+    await _pumpExample(tester, 'Unicode Emoji');
+    expect(find.byType(Image), findsNothing);
+    expect(_richTextPlainText(tester), contains('🎉 こんにちは！ 😊'));
+  });
+
+  testWidgets('Twemoji offline sample decodes all eight bundled PNGs', (
+    tester,
+  ) async {
+    await _pumpExample(tester, 'Twemoji (offline)');
+    final images = tester.widgetList<Image>(find.byType(Image)).toList();
+    expect(images, hasLength(8));
+    expect(images.every((image) => image.image is AssetImage), isTrue);
+    final context = tester.element(find.byType(MfmText));
+    await tester.runAsync(() async {
+      for (final image in images) {
+        await precacheImage(image.image, context);
+      }
+    });
+    await tester.pumpAndSettle();
+    final decoded = tester.widgetList<RawImage>(find.byType(RawImage)).toList();
+    expect(decoded, hasLength(8));
+    for (final image in decoded) {
+      expect(image.image, isNotNull);
+      expect(image.image!.width, 72);
+      expect(image.image!.height, 72);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Twemoji missing asset is Unicode text with inherited size', (
+    tester,
+  ) async {
+    await _pumpExample(tester, 'Twemoji (fallback and size)');
+    final images = tester.widgetList<Image>(find.byType(Image)).toList();
+    expect(images, hasLength(3));
+    final context = tester.element(find.byType(MfmText));
+    await tester.runAsync(() async {
+      for (final image in images) {
+        await precacheImage(image.image, context);
+      }
+    });
+    await tester.pumpAndSettle();
+    final fallbacks = tester.widgetList<Text>(find.text('🚀')).toList();
+    expect(fallbacks, hasLength(2));
+    expect(fallbacks.map((text) => text.style!.fontSize), [
+      closeTo(14, 1e-9),
+      closeTo(11.2, 1e-9),
+    ]);
+    expect(images.map((image) => image.height), [
+      closeTo(17.5, 1e-9),
+      closeTo(14, 1e-9),
+      closeTo(35, 1e-9),
+    ]);
+    expect(_richTextPlainText(tester), isNot(contains(':🚀:')));
+    expect(tester.takeException(), isNull);
+  });
+
   for (final sample in [
     (name: 'Link (ラベル付き)', label: 'ユーザープロフィール', external: true),
     (name: 'Link (自ホスト)', label: 'ローカルプロフィール', external: false),

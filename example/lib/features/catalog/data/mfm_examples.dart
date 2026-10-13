@@ -314,6 +314,28 @@ class MfmExamples {
           mfm: '🎉 こんにちは！ 😊',
         ),
         MfmExample(
+          name: 'Twemoji (offline)',
+          syntax: 'unicodeEmojiBuilder: MfmTwemojiBuilder.build',
+          mfm:
+              'Abg 😀 ❤️ 1️⃣ 🏳️‍🌈 👍🏽 🇯🇵 👩‍⚕️ '
+              '\u{1f3f4}\u{e0067}\u{e0062}\u{e0065}'
+              '\u{e006e}\u{e0067}\u{e007f} Abg',
+          description:
+              'Twemoji v17.0.3の未改変PNG8枚を同梱。'
+              'Twitter and contributors / CC-BY 4.0。'
+              '出典・ライセンスはexample/assets/twemoji/を参照。',
+          config: MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji),
+        ),
+        MfmExample(
+          name: 'Twemoji (fallback and size)',
+          syntax: r'<small>😀 🚀</small> $[x2 ❤️]',
+          mfm: r'Abg 😀 🚀 <small>😀 🚀</small> $[x2 ❤️] Abg',
+          description:
+              '未同梱の🚀は元Unicodeで表示し、画像は本文サイズに追従します。'
+              'Twemoji: Twitter and contributors / CC-BY 4.0。',
+          config: MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji),
+        ),
+        MfmExample(
           name: 'Custom Emoji (misskey.io)',
           syntax: ':emoji1: :emoji2: :emoji3:',
           mfm: ':ai_smile_misskeyio: :ai_pointing_misskeyio: :misskey_loading:',
@@ -929,6 +951,25 @@ $[x2 $[rainbow 完了！]] ?[関連リンク](https://example.org/docs)''',
     ),
   ];
 }
+
+const _twemojiAssets = {
+  '1f600.png',
+  '2764.png',
+  '31-20e3.png',
+  '1f3f3-fe0f-200d-1f308.png',
+  '1f44d-1f3fd.png',
+  '1f1ef-1f1f5.png',
+  '1f469-200d-2695-fe0f.png',
+  '1f3f4-e0067-e0062-e0065-e006e-e0067-e007f.png',
+};
+
+final _twemoji = MfmTwemojiBuilder(
+  imageProvider: (name) =>
+      _twemojiAssets.contains(name) ? AssetImage('assets/twemoji/$name') : null,
+);
+
+Widget _offlineTwemoji(String emoji, MfmEmojiContext context) =>
+    _twemoji.build(emoji, context);
 
 // A local fixture builder consumes the same author/URL context without fetching.
 Widget _offlineDisplayEmoji(String name, MfmEmojiContext context) =>

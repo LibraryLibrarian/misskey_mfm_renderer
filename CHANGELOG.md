@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added opt-in `MfmTwemojiBuilder` with explicit PNG image providers or a validated network directory, stable image baselines and original Unicode fallback; native rendering remains the default
 - Editable search fields with a search icon, button activation and keyboard Search/Enter submission through `onSearchTap`
 - Show the existing external-link icon after HTTP(S) external labelled links, including silent links
 - Render all nine border styles, including bounded dotted/dashed patterns, double bands and deterministic 3D shading

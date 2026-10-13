@@ -690,25 +690,70 @@ Unicode絵文字の画像は異なり、本家は高さ1.25emで `vertical-align
 なので、下降量は `context.fontSize * 0.25` です。
 
 `unicodeEmojiBuilder` 未指定時はUnicode絵文字をネイティブの文字として描画します。
-Twemoji等の画像を使う場合は `unicodeEmojiBuilder` を実装してください。
-例えばUnicode文字列から画像URLを持つ `EmojiImage` を返す
-`unicodeImageResolver` をアプリ側で用意すれば、次のように画像Widgetを再利用できます。
+`MfmTwemojiBuilder` を明示指定するとTwemojiのPNG表示へ切り替えられます。
+画像は高さ・幅1.25em、下降量0.25emとなり、レンダラーの既定設定は変更しません。
 
 ```dart
-MfmRenderConfig(
-  unicodeEmojiBuilder: (emoji, context) => MfmCustomEmoji(
-    name: emoji,
-    resolver: unicodeImageResolver, // アプリ側で用意したEmojiResolver
-    size: context.fontSize * 1.25,
-    baselineOffset: context.fontSize * 0.25,
-    fallbackTextStyle: context.textStyle,
-  ),
-)
+final twemoji = MfmTwemojiBuilder(
+  imageProvider: (assetName) => availableAssets.contains(assetName)
+      ? AssetImage('assets/twemoji/$assetName')
+      : null,
+);
+final config = MfmRenderConfig(unicodeEmojiBuilder: twemoji.build);
 ```
 
-本家のUnicode絵文字画像と同じ、高さ1.25em・`vertical-align: -0.25em` 相当に
-なります。Twemojiアセットや
-Unicode文字列から画像へのリゾルバーはパッケージに同梱していません。
+`availableAssets` は `{'1f600.png', '2764.png'}` のような、アプリに同梱した
+ファイル名の集合です。アプリの `pubspec.yaml` にもアセットを宣言してください。
+providerには `.png` を含む、小文字16進コードポイントをハイフンで結んだ名前を渡します。
+ZWJ（`200D`）がない場合だけVS16（`FE0F`）を除去するため、`❤️` は `2764.png`、
+`🏳️‍🌈` は `1f3f3-fe0f-200d-1f308.png` になります。
+`MemoryImage` や他の `ImageProvider` も利用可能です。callbackは同期処理で、
+再描画時に再度呼ばれ得るため、等価性・cache keyが安定したproviderを返してください。
+callback自体の例外は握り潰しません。
+
+配信画像を使う場合は、PNGディレクトリを明示します。
+
+```dart
+final twemoji = MfmTwemojiBuilder.network(
+  baseUrl: Uri.parse('https://emoji.example/twemoji/17.0.3/72x72/'),
+);
+final config = existingConfig.copyWith(unicodeEmojiBuilder: twemoji.build);
+```
+
+base URLはhostを含む絶対HTTP(S) URLで、userinfo・query・fragmentは指定できません。
+不正なbaseは `ArgumentError` になります。末尾slashは必要なら補完し、ディレクトリとportを
+保持します。**既定CDNはありません**。組込みnetwork helperの生成だけでは通信せず、
+画像のmount時に指定サーバーから取得します。その際、要求した絵文字のファイル名と通常の
+接続情報が配信先へ伝わります。platformのnetwork権限やWebのCORSを適切に設定してください。
+HTTPSを推奨します。factoryは `NetworkImage` とFlutterの画像cacheを使い、新しい永続cacheは
+追加しません。独自cacheや認証が必要な場合はprovider constructorを利用してください。
+
+読み込み中は画像と同じ寸法・baselineの透明な正方形を予約します。
+providerがnullを返す場合や画像取得・decodeが失敗した場合は、元Unicodeを周囲の1emサイズと
+自然なbaselineで表示し、shortcodeのコロンは付けません。空文字、text-presentation selector
+`FE0E` を含む直接入力、VS16のみの入力ではproviderを呼びません。全状態で元のラベルを
+accessibilityへ公開します。fallback時にはreflowが起こり得ます。
+これはbuilderの `WidgetSpan` 内のTextであり、既定の `TextSpan` への復元ではありません。
+前後の文字とのshaping・折り返し・plain-text抽出は異なる場合があります。
+論理的な文字列の抽出には元source/ASTを使ってください。
+`copyWith(unicodeEmojiBuilder: null)` は既存builderを解除せず、明示設定がnullなら祖先の
+builderも継承します。祖先を含む有効な設定を取り除くか、Textを返すbuilderで画像を抑止して
+ください。後者は引き続き `WidgetSpan` になります。
+
+認識範囲は画像のversionではなく `misskey_mfm_parser` に依存します。現在のparserでは
+`©` 等の記号もemoji nodeになり、`FE0E` がbuilderから見えない別TextNodeになる場合があります。
+一部の省略形ZWJ sequenceは対応ファイルが存在せずfallbackになります。
+helperはparser対応範囲の拡張、任意文字列のemoji妥当性検証、sequence補完を行わず、
+Unicode 17全体への対応を保証しません。PNGはMisskeyのSVGのような拡大品質を保証しません。
+
+ライブラリがTwemoji全セットを自動同梱・downloadすることはありません。
+exampleには [Twemoji v17.0.3](https://github.com/jdecked/twemoji/tree/b6b55fef1e8636b540a6d016a4729ca8cdf2e60b)
+の少数のoffline画像を含め、出典・hash・licenseを
+[`example/assets/twemoji`](example/assets/twemoji/) に保存しています。
+TwitterおよびcontributorsによるTwemoji graphicsは
+[CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)、upstreamコードはMITです。
+画像を配布・表示する場合、アプリやドキュメントに必要な帰属表示・license link・変更の有無を
+記載してください。helperの導入だけでアプリ側の帰属表示を代行するものではありません。
 
 ### カスタムフォントの設定
 
