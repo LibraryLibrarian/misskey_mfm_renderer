@@ -191,6 +191,9 @@ class MfmRenderConfig {
   /// （本家の既定は高さ1.25emで`vertical-align: -0.25em`。下降量は
   /// `context.fontSize * 0.25`が相当する）。
   /// ビルダーの結果はalphabeticベースラインに揃える。
+  /// PNG表示にはMfmTwemojiBuilder.buildを指定できる（画像供給元は明示）。
+  /// copyWithのnullは解除ではなく既存設定を維持し、明示nullも祖先設定を継承する。
+  /// 無効化するには祖先設定も組み替えるか、元UnicodeのTextを返す。
   final Widget Function(String emoji, MfmEmojiContext context)?
   unicodeEmojiBuilder;
 
