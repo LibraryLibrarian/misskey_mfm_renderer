@@ -3,14 +3,16 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 import '../core/callbacks/example_callbacks.dart';
+import '../core/emoji/example_startup.dart';
 import '../core/settings/example_settings.dart';
 import 'home_page.dart';
 import 'theme/app_theme.dart';
 
 class MfmExampleApp extends StatefulWidget {
-  const MfmExampleApp({super.key, this.config});
+  const MfmExampleApp({super.key, this.config, this.emojiStatus});
 
   final MfmRenderConfig? config;
+  final ExampleEmojiStatus? emojiStatus;
 
   @override
   State<MfmExampleApp> createState() => _MfmExampleAppState();
@@ -62,7 +64,11 @@ class _MfmExampleAppState extends State<MfmExampleApp> {
           themeMode: _settings.themeMode,
           scaffoldMessengerKey: _scaffoldMessengerKey,
           home: HomePage(
-            emojiInitialized: widget.config is MfmEmojiConfigHandle,
+            emojiStatus:
+                widget.emojiStatus ??
+                (widget.config is MfmEmojiConfigHandle
+                    ? ExampleEmojiStatus.online
+                    : ExampleEmojiStatus.failed),
           ),
           debugShowCheckedModeBanner: false,
           localizationsDelegates: const [

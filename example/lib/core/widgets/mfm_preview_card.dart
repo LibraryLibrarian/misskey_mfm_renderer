@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 import '../settings/example_settings.dart';
+import 'example_setup_panel.dart';
 
 /// MFMプレビューカード
 class MfmPreviewCard extends StatelessWidget {
@@ -12,6 +13,9 @@ class MfmPreviewCard extends StatelessWidget {
     required this.syntax,
     required this.mfm,
     this.description,
+    this.setupSummary,
+    this.setupCode,
+    this.onTry,
     this.config,
     this.plain,
     this.nowrap,
@@ -21,6 +25,9 @@ class MfmPreviewCard extends StatelessWidget {
   final String syntax;
   final String mfm;
   final String? description;
+  final String? setupSummary;
+  final String? setupCode;
+  final VoidCallback? onTry;
   final MfmRenderConfig? config;
   final bool? plain;
   final bool? nowrap;
@@ -37,23 +44,36 @@ class MfmPreviewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ヘッダー
             Row(
               children: [
-                Text(
-                  name,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    name,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 IconButton(
+                  key: ValueKey('copy:$name'),
                   icon: const Icon(Icons.copy, size: 20),
                   onPressed: () => _copyToClipboard(context),
                   tooltip: 'MFMをコピー',
                 ),
+                if (onTry != null)
+                  IconButton(
+                    key: ValueKey('try:$name'),
+                    onPressed: onTry,
+                    icon: const Icon(Icons.edit_note),
+                    tooltip: 'この設定で試す',
+                  ),
               ],
             ),
+            if (config != null || plain != null || nowrap != null)
+              Text(
+                'コピーはMFM本文のみです。個別設定は含まれません。',
+                style: theme.textTheme.bodySmall,
+              ),
 
             // 構文表示
             Container(
@@ -80,6 +100,15 @@ class MfmPreviewCard extends StatelessWidget {
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.outline,
                   ),
+                ),
+              ),
+
+            if (setupSummary != null || setupCode != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: ExampleSetupPanel(
+                  summary: setupSummary,
+                  code: setupCode,
                 ),
               ),
 

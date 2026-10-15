@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../core/emoji/example_startup.dart';
+import '../features/catalog/data/mfm_examples.dart';
 import '../features/catalog/presentation/catalog_tab.dart';
+import '../features/playground/application/playground_controller.dart';
 import '../features/playground/presentation/playground_tab.dart';
 import 'widgets/settings_drawer.dart';
 
 /// ホーム画面
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.emojiInitialized});
+  const HomePage({super.key, required this.emojiStatus});
 
-  final bool emojiInitialized;
+  final ExampleEmojiStatus emojiStatus;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -17,10 +20,14 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _pages = [
-    CatalogTab(),
-    PlaygroundTab(),
-  ];
+  final _playground = PlaygroundController();
+  bool _confirming = false;
+
+  @override
+  void dispose() {
+    _playground.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,32 +48,44 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          endDrawer: SettingsDrawer(emojiInitialized: widget.emojiInitialized),
-          body: useNavigationRail
-              ? Row(
-                  children: [
-                    NavigationRail(
-                      selectedIndex: _selectedIndex,
-                      onDestinationSelected: _selectDestination,
-                      labelType: NavigationRailLabelType.all,
-                      destinations: const [
-                        NavigationRailDestination(
-                          icon: Icon(Icons.list_alt_outlined),
-                          selectedIcon: Icon(Icons.list_alt),
-                          label: Text('カタログ'),
-                        ),
-                        NavigationRailDestination(
-                          icon: Icon(Icons.edit_note_outlined),
-                          selectedIcon: Icon(Icons.edit_note),
-                          label: Text('プレイグラウンド'),
-                        ),
-                      ],
+          endDrawer: SettingsDrawer(emojiStatus: widget.emojiStatus),
+          body: Row(
+            children: [
+              if (useNavigationRail) ...[
+                NavigationRail(
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: _selectDestination,
+                  labelType: NavigationRailLabelType.all,
+                  destinations: const [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.list_alt_outlined),
+                      selectedIcon: Icon(Icons.list_alt),
+                      label: Text('カタログ'),
                     ),
-                    const VerticalDivider(width: 1),
-                    Expanded(child: _pageStack),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.edit_note_outlined),
+                      selectedIcon: Icon(Icons.edit_note),
+                      label: Text('プレイグラウンド'),
+                    ),
                   ],
-                )
-              : _pageStack,
+                ),
+                const VerticalDivider(width: 1),
+              ],
+              Expanded(
+                key: const Key('pageRegion'),
+                child: IndexedStack(
+                  index: _selectedIndex,
+                  children: [
+                    CatalogTab(onTryExample: _loadExample),
+                    PlaygroundTab(
+                      controller: _playground,
+                      onClear: _clearText,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           bottomNavigationBar: useNavigationRail
               ? null
               : NavigationBar(
@@ -90,8 +109,47 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget get _pageStack =>
-      IndexedStack(index: _selectedIndex, children: _pages);
+  Future<void> _loadExample(MfmExample example) async {
+    await _withDiscardConfirmation(() {
+      _playground.load(example);
+      _selectDestination(1);
+    });
+  }
+
+  Future<void> _clearText() async {
+    await _withDiscardConfirmation(_playground.clearText);
+  }
+
+  Future<void> _withDiscardConfirmation(VoidCallback apply) async {
+    if (_confirming) return;
+    if (!_playground.needsDiscardConfirmation) {
+      apply();
+      return;
+    }
+    _confirming = true;
+    try {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('編集した本文を破棄しますか？'),
+          content: const Text('現在の本文への変更は失われます。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('破棄して続ける'),
+            ),
+          ],
+        ),
+      );
+      if (mounted && accepted == true) apply();
+    } finally {
+      _confirming = false;
+    }
+  }
 
   void _selectDestination(int index) {
     setState(() {

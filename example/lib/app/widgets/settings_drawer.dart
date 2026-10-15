@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
+import '../../core/emoji/example_startup.dart';
 import '../../core/settings/example_settings.dart';
 
 class SettingsDrawer extends StatelessWidget {
-  const SettingsDrawer({super.key, required this.emojiInitialized});
+  const SettingsDrawer({super.key, required this.emojiStatus});
 
-  final bool emojiInitialized;
+  final ExampleEmojiStatus emojiStatus;
+
+  bool get emojiInitialized => emojiStatus == ExampleEmojiStatus.online;
 
   @override
   Widget build(BuildContext context) {
@@ -20,9 +23,13 @@ class SettingsDrawer extends StatelessWidget {
             ListTile(
               title: const Text('表示設定'),
               subtitle: Text(
-                emojiInitialized
-                    ? '絵文字: misskey.io と同期済み'
-                    : '絵文字: 初期化に失敗（ネットワークが必要。カスタム絵文字はショートコード表示）',
+                switch (emojiStatus) {
+                  ExampleEmojiStatus.online => '絵文字: misskey.io と同期済み',
+                  ExampleEmojiStatus.offline =>
+                    '絵文字: オフライン起動（同期なし。専用例の同梱画像・fallbackを確認できます）',
+                  ExampleEmojiStatus.failed =>
+                    '絵文字: 初期化に失敗（ネットワークが必要。カスタム絵文字はショートコード表示）',
+                },
               ),
               trailing: IconButton(
                 tooltip: 'リセット',
@@ -168,7 +175,8 @@ class SettingsDrawer extends StatelessWidget {
                   SwitchListTile(
                     title: const Text('絵文字の文脈を表示'),
                     subtitle: const Text(
-                      '絵文字にホバー/長押しで fontSize・scale・normal・host・url を表示します',
+                      '共通の絵文字ビルダーにホバー/長押しで fontSize・scale・normal・host・url・textStyle を表示します。'
+                      '個別ビルダーを使用する例は対象外です',
                     ),
                     value: settings.showEmojiContext,
                     onChanged: (value) {

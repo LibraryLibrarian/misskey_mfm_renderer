@@ -8,9 +8,11 @@ class CatalogSection extends StatelessWidget {
   const CatalogSection({
     super.key,
     required this.category,
+    required this.onTryExample,
   });
 
   final MfmCategory category;
+  final ValueChanged<MfmExample> onTryExample;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +35,11 @@ class CatalogSection extends StatelessWidget {
         // サンプルカード一覧
         ...category.examples.map(
           (example) => MfmPreviewCard(
+            key: ValueKey(example.name),
             name: example.name,
+            onTry: () => onTryExample(example),
+            setupSummary: example.setupSummary,
+            setupCode: example.setupCode,
             syntax: example.syntax,
             mfm: example.mfm,
             description: example.description,

@@ -5,7 +5,9 @@ import 'widgets/catalog_section.dart';
 
 /// カタログタブ
 class CatalogTab extends StatelessWidget {
-  const CatalogTab({super.key});
+  const CatalogTab({super.key, required this.onTryExample});
+
+  final ValueChanged<MfmExample> onTryExample;
 
   @override
   Widget build(BuildContext context) {
@@ -14,6 +16,7 @@ class CatalogTab extends StatelessWidget {
       itemBuilder: (context, index) {
         return CatalogSection(
           category: MfmExamples.categories[index],
+          onTryExample: onTryExample,
         );
       },
     );

@@ -1,6 +1,7 @@
 import 'package:example/core/callbacks/example_callbacks.dart';
 import 'package:example/core/settings/example_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
@@ -99,6 +100,56 @@ void main() {
     await tester.tap(find.byType(GestureDetector).first);
     await tester.pump();
     expect(find.text('clickable: hello'), findsOneWidget);
+  });
+  testWidgets('検索は空文字とキーボード送信の編集値を通知する', (tester) async {
+    final messengerKey = GlobalKey<ScaffoldMessengerState>();
+    await tester.pumpWidget(
+      _callbackApp(
+        messengerKey: messengerKey,
+        config: _config(messengerKey),
+        text: 'Misskey Search',
+      ),
+    );
+    await tester.enterText(find.byType(EditableText), 'keyboard query');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pump();
+    expect(find.text('検索: keyboard query'), findsOneWidget);
+    await tester.enterText(find.byType(EditableText), '');
+    await tester.tap(find.text('Search'));
+    await tester.pump();
+    expect(find.text('検索: '), findsOneWidget);
+  });
+
+  testWidgets('リンクラベルと外部アイコンは同じURLを通知する', (tester) async {
+    final messengerKey = GlobalKey<ScaffoldMessengerState>();
+    await tester.pumpWidget(
+      _callbackApp(
+        messengerKey: messengerKey,
+        config: _config(messengerKey),
+        text: '[external](https://example.org)',
+      ),
+    );
+    final label = find.byWidgetPredicate(
+      (w) => w is RichText && w.text.toPlainText().startsWith('external'),
+    );
+    final paragraph = tester.renderObject<RenderParagraph>(label);
+    final box = paragraph
+        .getBoxesForSelection(
+          const TextSelection(baseOffset: 0, extentOffset: 8),
+        )
+        .first;
+    await tester.tapAt(paragraph.localToGlobal(box.toRect().center));
+    await tester.pump();
+    expect(find.text('リンク: https://example.org'), findsOneWidget);
+    messengerKey.currentState!.removeCurrentSnackBar();
+    await tester.pump();
+    await tester.tap(
+      find.byWidgetPredicate(
+        (w) => w is Icon && w.icon?.codePoint == 0xe45c,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('リンク: https://example.org'), findsOneWidget);
   });
 }
 

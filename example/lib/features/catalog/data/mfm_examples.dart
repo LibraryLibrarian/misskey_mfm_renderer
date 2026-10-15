@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
+import '../../../core/emoji/offline_example_fixtures.dart';
+
 /// MFMサンプルのカテゴリ
 class MfmCategory {
   const MfmCategory({
@@ -19,6 +21,8 @@ class MfmExample {
     required this.syntax,
     required this.mfm,
     this.description,
+    this.setupSummary,
+    this.setupCode,
     this.config,
     this.plain,
     this.nowrap,
@@ -35,9 +39,15 @@ class MfmExample {
 
   /// 説明（オプション）
   final String? description;
+
+  /// 共通設定に対して、この例が上書きする内容。
+  final String? setupSummary;
+  final String? setupCode;
   final MfmRenderConfig? config;
   final bool? plain;
   final bool? nowrap;
+
+  bool get hasOverrides => config != null || plain != null || nowrap != null;
 }
 
 /// 全MFMサンプルデータ
@@ -220,7 +230,9 @@ class MfmExamples {
           name: 'Search',
           syntax: 'keyword 検索 / keyword [検索] / keyword Search',
           mfm: 'Misskey 検索\nMisskey [検索]\nMisskey Search',
-          description: '検索語を編集してボタンまたはキーボードの検索で送信すると、編集値で onSearchTap が呼ばれます',
+          description:
+              '検索語を編集してボタンまたはキーボードの検索で送信すると、'
+              '空文字も含め編集値で onSearchTap が呼ばれます。通知のみで実際の検索通信はしません。',
         ),
       ],
     ),
@@ -248,9 +260,12 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'URL (自ホスト)',
+          setupSummary: 'localHost=misskey.io を明示。絵文字の同期状態には依存しません。',
+          setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
           syntax: 'https://misskey.io/@syuilo',
           mfm: 'https://misskey.io/@syuilo',
           description: 'localHost=misskey.ioではスキームとホストを省略して表示します',
+          config: MfmRenderConfig(localHost: 'misskey.io'),
         ),
         MfmExample(
           name: 'Link',
@@ -259,13 +274,18 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Link (ラベル付き)',
+          setupSummary: 'localHost=misskey.io。example.orgへのリンクは外部リンクです。',
+          setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
           syntax: '[label](https://example.org/@user)',
           mfm: '[ユーザープロフィール](https://example.org/@user)',
-          description: '外部HTTP(S)リンクはラベルの末尾にアイコンを表示します',
+          description:
+              '外部HTTP(S)リンクはラベルの末尾にアイコンを表示します。ラベル・アイコンのどちらも同じonLinkTapへ通知します。',
           config: MfmRenderConfig(localHost: 'misskey.io'),
         ),
         MfmExample(
           name: 'Link (自ホスト)',
+          setupSummary: 'localHost=misskey.io。リンク先と同じホストなのでアイコンを省略します。',
+          setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
           syntax: '[label](https://misskey.io/@user)',
           mfm: '[ローカルプロフィール](https://misskey.io/@user)',
           description: 'localHost=misskey.ioではラベルを保ちアイコンを表示しません',
@@ -273,6 +293,8 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Link (装飾ラベル)',
+          setupSummary: 'localHost=misskey.io。ラベルと外部アイコンは同じonLinkTapへ通知します。',
+          setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
           syntax: '[**bold** <small>small</small>](url)',
           mfm:
               r'[**太字** ~~取消~~ <small>小文字</small> $[fg.color=ff0000 赤]](https://example.org)',
@@ -281,6 +303,8 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Silent Link',
+          setupSummary: 'localHost=misskey.io。タップは共通のonLinkTapへ通知します。',
+          setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
           syntax: '?[label](url)',
           mfm: '?[サイレントリンク](https://example.org)',
           description: '通常リンクと同じ末尾アイコンとタップ動作です',
@@ -315,6 +339,10 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Twemoji (offline)',
+          setupSummary: '同梱画像専用のunicodeEmojiBuilder。未同梱画像は元Unicodeへ戻ります。',
+          setupCode: '''// _offlineTwemoji: このファイル末尾の同梱8画像用builder
+// assets/twemoji/ のPNG・ライセンスが必要です。
+MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji)''',
           syntax: 'unicodeEmojiBuilder: MfmTwemojiBuilder.build',
           mfm:
               'Abg 😀 ❤️ 1️⃣ 🏳️‍🌈 👍🏽 🇯🇵 👩‍⚕️ '
@@ -328,6 +356,10 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Twemoji (fallback and size)',
+          setupSummary: '同梱画像専用のunicodeEmojiBuilder。small・x2のサイズにも追従します。',
+          setupCode: '''// _offlineTwemoji: このファイル末尾の同梱8画像用builder
+// assets/twemoji/ のPNG・ライセンスが必要です。
+MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji)''',
           syntax: r'<small>😀 🚀</small> $[x2 ❤️]',
           mfm: r'Abg 😀 🚀 <small>😀 🚀</small> $[x2 ❤️] Abg',
           description:
@@ -339,25 +371,48 @@ class MfmExamples {
           name: 'Custom Emoji (misskey.io)',
           syntax: ':emoji1: :emoji2: :emoji3:',
           mfm: ':ai_smile_misskeyio: :ai_pointing_misskeyio: :misskey_loading:',
-          description: 'Misskey.ioで実在するカスタム絵文字',
+          description: 'Misskey.ioで実在するカスタム絵文字。オンライン同期が必要です。オフラインではショートコード表示。',
         ),
         MfmExample(
           name: 'Custom Emoji + Text (misskey.io)',
           syntax: 'テキスト :emoji: テキスト',
           mfm: 'こんにちは :pudding_cat: よろしく :icon_syuilo:',
-          description: 'Misskey.ioの実在絵文字を混在表示',
+          description: 'Misskey.ioの実在絵文字を混在表示。オンライン同期が必要です。オフラインではショートコード表示。',
         ),
         MfmExample(
           name: 'Custom Emoji (存在しない)',
+          setupSummary: 'ローカル投稿に固定し、nullを返すresolverで標準fallbackを確認。通信しません。',
+          setupCode: '''// core/emoji/offline_example_fixtures.dart の公開API使用例
+// offlineMissingEmoji: fromResolverで常にnullを返すresolverを使用
+MfmRenderConfig(
+  author: MfmAuthorContext(),
+  emojiBuilder: offlineMissingEmoji,
+)''',
           syntax: ':not_exist_emoji:',
           mfm: ':not_exist_emoji:',
           description: '未取得時は周囲の1emサイズと自然な文字ベースラインで表示します',
+          config: MfmRenderConfig(
+            author: MfmAuthorContext(),
+            emojiBuilder: offlineMissingEmoji,
+          ),
         ),
         MfmExample(
           name: 'Custom Emoji (フォールバックの継承)',
+          setupSummary:
+              'ローカル投稿に固定。fromResolverがtextStyleを標準fallbackへ渡します。通信しません。',
+          setupCode: '''// core/emoji/offline_example_fixtures.dart の公開API使用例
+// offlineMissingEmoji: fromResolverで常にnullを返すresolverを使用
+MfmRenderConfig(
+  author: MfmAuthorContext(),
+  emojiBuilder: offlineMissingEmoji,
+)''',
           syntax: '<small>**:not_exist_emoji:**</small>',
           mfm: '本文 :not_exist_emoji: <small>**:not_exist_emoji:**</small>',
           description: '未取得時も太字・smallのサイズと不透明度を継承します。plain表示とも比較できます',
+          config: MfmRenderConfig(
+            author: MfmAuthorContext(),
+            emojiBuilder: offlineMissingEmoji,
+          ),
         ),
         MfmExample(
           name: 'Custom Emoji (リモート)',
@@ -614,6 +669,10 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Unixtime (日本語)',
+          setupSummary: 'locale=ja。既定のdetail表示・自動更新を使用します。',
+          setupCode: '''MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(locale: Locale('ja')),
+)''',
           syntax: r'$[unixtime 2000000000]',
           mfm: r'$[unixtime 2000000000]',
           config: MfmRenderConfig(
@@ -622,6 +681,13 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Unixtime (English・absolute)',
+          setupSummary: 'locale=en / mode=absolute。絶対日時のみを端末のtimezoneで表示します。',
+          setupCode: '''MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(
+    locale: Locale('en'),
+    mode: MfmUnixtimeMode.absolute,
+  ),
+)''',
           syntax: r'$[unixtime 2000000000]',
           mfm: r'$[unixtime 2000000000]',
           config: MfmRenderConfig(
@@ -633,6 +699,11 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Unixtime (relative)',
+          setupSummary:
+              'mode=relative。localeはアプリのLocalizationsから解決し、有効日時を自動更新します。',
+          setupCode: '''MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(mode: MfmUnixtimeMode.relative),
+)''',
           syntax: r'$[unixtime 2000000000]',
           mfm: r'$[unixtime 2000000000]',
           config: MfmRenderConfig(
@@ -641,6 +712,15 @@ class MfmExamples {
         ),
         MfmExample(
           name: 'Unixtime (legacy・更新なし)',
+          setupSummary:
+              'mode=relative / formatter=mfmLegacyUnixtimeFormatter / autoUpdate=false。',
+          setupCode: '''MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(
+    mode: MfmUnixtimeMode.relative,
+    formatter: mfmLegacyUnixtimeFormatter,
+    autoUpdate: false,
+  ),
+)''',
           syntax: r'$[unixtime 1700000000]',
           mfm: r'$[unixtime 1700000000]',
           description: '有効入力の従来timeago表示。解析・invalidは新仕様',
@@ -916,18 +996,33 @@ $[x2 $[rainbow 完了！]] ?[関連リンク](https://example.org/docs)''',
       examples: [
         MfmExample(
           name: 'Mention Capsule',
+          setupSummary:
+              'localHost=local.test / viewerAcct=@alice。投稿者hostはローカル固定。@aliceが自分宛て配色です。',
+          setupCode: '''MfmRenderConfig(
+  author: MfmAuthorContext(),
+  localHost: 'local.test',
+  mentionOptions: MfmMentionOptions(viewerAcct: '@alice'),
+)''',
           syntax: '@alice @bob@remote.test',
           mfm: '@alice @bob@remote.test',
           config: MfmRenderConfig(
+            author: MfmAuthorContext(),
             localHost: 'local.test',
             mentionOptions: MfmMentionOptions(viewerAcct: '@alice'),
           ),
         ),
         MfmExample(
           name: 'Mention Text',
+          setupSummary: 'presentation=textでcapsuleを使わず文字表示。投稿者hostはローカル固定。',
+          setupCode: '''MfmRenderConfig(
+  author: MfmAuthorContext(),
+  localHost: 'local.test',
+  mentionOptions: MfmMentionOptions(presentation: MfmMentionPresentation.text),
+)''',
           syntax: '@alice @bob@remote.test',
           mfm: '@alice @bob@remote.test',
           config: MfmRenderConfig(
+            author: MfmAuthorContext(),
             localHost: 'local.test',
             mentionOptions: MfmMentionOptions(
               presentation: MfmMentionPresentation.text,
@@ -935,7 +1030,51 @@ $[x2 $[rainbow 完了！]] ?[関連リンク](https://example.org/docs)''',
           ),
         ),
         MfmExample(
+          name: 'Mention Avatar (offline)',
+          syntax: '@alice @bob@remote.test',
+          mfm: '@alice @bob@remote.test',
+          description:
+              'Aliceは同梱画像、Bobはplaceholder。実ユーザーの画像ではありません。'
+              'Twemoji: Twitter and contributors / CC-BY 4.0。'
+              '出典・ライセンス: example/assets/twemoji/。',
+          setupSummary:
+              'viewerAcct=@alice / avatarProvider=offlineMentionAvatar。'
+              'localOriginは未指定。指定すると組み込み画像取得が通信するため、この例では使用しません。',
+          setupCode:
+              '''// core/emoji/offline_example_fixtures.dart の同梱画像provider
+// assets/twemoji/1f600.png とCC-BY帰属が必要です。
+MfmRenderConfig(
+  author: MfmAuthorContext(),
+  localHost: 'local.test',
+  mentionOptions: MfmMentionOptions(
+    viewerAcct: '@alice',
+    avatarProvider: offlineMentionAvatar,
+  ),
+)''',
+          config: MfmRenderConfig(
+            author: MfmAuthorContext(),
+            localHost: 'local.test',
+            mentionOptions: MfmMentionOptions(
+              viewerAcct: '@alice',
+              avatarProvider: offlineMentionAvatar,
+            ),
+          ),
+        ),
+        MfmExample(
           name: 'Display Name',
+          setupSummary:
+              'plain=true / nowrap=true。リモート投稿文脈と専用builderを指定。URLは画像取得に使いません。',
+          setupCode: '''// _offlineDisplayEmoji: このファイル末尾の通信しない色面builder
+MfmText(
+  text: 'Alice :offline: @alice',
+  plain: true,
+  nowrap: true,
+  config: MfmRenderConfig(
+    author: MfmAuthorContext(host: 'remote.test'),
+    emojiUrls: {'offline': 'https://fixture.invalid/offline.png'},
+    emojiBuilder: _offlineDisplayEmoji,
+  ),
+)''',
           syntax: 'plain + nowrap + author + emojiUrls',
           mfm: 'Alice :offline: @alice',
           plain: true,

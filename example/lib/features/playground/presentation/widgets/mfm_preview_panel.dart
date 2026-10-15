@@ -9,10 +9,14 @@ class MfmPreviewPanel extends StatelessWidget {
     super.key,
     required this.mfmText,
     this.config,
+    this.plain,
+    this.nowrap,
   });
 
   final String mfmText;
   final MfmRenderConfig? config;
+  final bool? plain;
+  final bool? nowrap;
 
   @override
   Widget build(BuildContext context) {
@@ -30,13 +34,13 @@ class MfmPreviewPanel extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.all(16),
       child: MfmText(
         text: mfmText,
         config: config ?? const MfmRenderConfig(),
-        plain: settings.plain,
-        nowrap: settings.nowrap,
+        plain: plain ?? settings.plain,
+        nowrap: nowrap ?? settings.nowrap,
         rootScale: settings.rootScale,
         isNote: settings.isNote,
       ),

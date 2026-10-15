@@ -163,6 +163,7 @@ void main() {
               child: Scaffold(
                 body: CatalogSection(
                   category: MfmCategory(title: 'fixture', examples: [example]),
+                  onTryExample: (_) {},
                 ),
               ),
             ),
