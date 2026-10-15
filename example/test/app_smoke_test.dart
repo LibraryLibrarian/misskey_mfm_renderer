@@ -24,6 +24,21 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
   });
 
+  testWidgets('日本語ロケールは地域コードなしで適用する', (tester) async {
+    tester.binding.platformDispatcher.localesTestValue = const [
+      Locale('ja', 'JP'),
+    ];
+    addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
+
+    await tester.pumpWidget(const MfmExampleApp());
+    await tester.pump();
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.supportedLocales, const [Locale('ja')]);
+    final homeContext = tester.element(find.byType(HomePage));
+    expect(Localizations.localeOf(homeContext), const Locale('ja'));
+  });
+
   testWidgets('設定ドロワーから Advanced MFM を切り替える', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));

@@ -77,7 +77,8 @@ class _MfmExampleAppState extends State<MfmExampleApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: const [
-            Locale('ja', 'JP'),
+            // Androidで中黒の幅が不揃いになるのを避けるため、地域コードを付けない。
+            Locale('ja'),
           ],
         ),
       ),
