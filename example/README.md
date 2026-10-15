@@ -58,7 +58,6 @@ helper functions and bundled assets are identified where needed.
 - Editing text retains the sample's settings. Loading another sample replaces
   all previous overrides; reloading the same sample also resets preview-local
   state such as search drafts.
-- **個別設定を解除** keeps the text and selection but removes the sample overrides.
 - **本文をクリア** empties the text while retaining the sample settings.
 - Replacing or clearing edited, non-empty text asks for confirmation. Canceling
   keeps the text, selected example, and current tab unchanged.

@@ -41,12 +41,6 @@ $[rotate.deg=10 傾いたテキスト]''';
 
   void clearText() => _replaceText('');
 
-  void releaseOverrides() {
-    if (_example == null) return;
-    _example = null;
-    notifyListeners();
-  }
-
   void _replaceText(String text) {
     _baseline = text;
     _lastNotifiedText = text;

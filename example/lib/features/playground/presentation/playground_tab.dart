@@ -36,10 +36,6 @@ class PlaygroundTab extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (example != null) ...[
-                        Text(
-                          '選択中: ${example.name}',
-                          style: theme.textTheme.titleMedium,
-                        ),
                         ExampleSetupPanel(
                           key: ValueKey(controller.loadRevision),
                           summary: example.setupSummary,
@@ -50,29 +46,18 @@ class PlaygroundTab extends StatelessWidget {
                             '個別設定を優先し、未指定の項目は共通設定を継承します。'
                             'plain / nowrapも個別指定が優先します。',
                           ),
-                      ] else
-                        const Text('共通設定で表示しています'),
+                      ],
                       const SizedBox(height: 12),
                       MfmInputField(controller: controller.editor),
                       const SizedBox(height: 8),
-                      Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: 8,
-                        children: [
-                          if (example != null)
-                            TextButton.icon(
-                              key: const Key('releaseOverrides'),
-                              onPressed: controller.releaseOverrides,
-                              icon: const Icon(Icons.settings_backup_restore),
-                              label: const Text('個別設定を解除'),
-                            ),
-                          TextButton.icon(
-                            key: const Key('clearPlaygroundText'),
-                            onPressed: onClear,
-                            icon: const Icon(Icons.clear),
-                            label: const Text('本文をクリア'),
-                          ),
-                        ],
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          key: const Key('clearPlaygroundText'),
+                          onPressed: onClear,
+                          icon: const Icon(Icons.clear),
+                          label: const Text('本文をクリア'),
+                        ),
                       ),
                     ],
                   ),

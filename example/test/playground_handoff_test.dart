@@ -34,6 +34,32 @@ PlaygroundTab _playground(WidgetTester tester) => tester.widget<PlaygroundTab>(
 );
 
 void main() {
+  testWidgets('playground keeps only the clear action and no status labels', (
+    tester,
+  ) async {
+    await _start(tester);
+    await tester.tap(find.text('プレイグラウンド'));
+    await tester.pump();
+    expect(find.text('共通設定で表示しています'), findsNothing);
+    expect(find.text('個別設定を解除'), findsNothing);
+    expect(find.text('本文をクリア'), findsOneWidget);
+
+    _load(tester, 'Display Name');
+    await tester.pump();
+    expect(find.text('選択中: Display Name'), findsNothing);
+    expect(find.text('個別設定を解除'), findsNothing);
+    expect(find.text('本文をクリア'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('clearPlaygroundText')));
+    await tester.tap(find.byKey(const Key('clearPlaygroundText')));
+    await tester.pump();
+    expect(_playground(tester).controller.text, isEmpty);
+    final panel = tester.widget<MfmPreviewPanel>(find.byType(MfmPreviewPanel));
+    expect(panel.config, same(_example('Display Name').config));
+    expect(panel.plain, isTrue);
+    expect(panel.nowrap, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('catalog action opens the actual example with its overrides', (
     tester,
   ) async {
@@ -41,7 +67,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('try:Bold')));
     await tester.pump();
     expect(_playground(tester).controller.example, same(_example('Bold')));
-    expect(find.text('選択中: Bold'), findsOneWidget);
+    expect(find.text('選択中: Bold'), findsNothing);
 
     _load(tester, 'Display Name');
     await tester.pump();
@@ -98,7 +124,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(controller.example, same(_example('Bold')));
     expect(controller.text, _example('Bold').mfm);
-    expect(find.text('選択中: Bold'), findsOneWidget);
+    expect(find.text('選択中: Bold'), findsNothing);
 
     controller.editor.text = 'clear me';
     await tester.pump();
@@ -157,18 +183,12 @@ void main() {
       expect(controller.text, 'edited text');
       expect(controller.editor.selection, selection);
       expect(controller.example, same(_example('Display Name')));
-      await tester.ensureVisible(find.byKey(const Key('releaseOverrides')));
-      await tester.tap(find.byKey(const Key('releaseOverrides')));
-      await tester.pump();
-      expect(controller.text, 'edited text');
-      expect(controller.editor.selection, selection);
-      expect(controller.example, isNull);
       final panel = tester.widget<MfmPreviewPanel>(
         find.byType(MfmPreviewPanel),
       );
-      expect(panel.config, isNull);
-      expect(panel.plain, isNull);
-      expect(panel.nowrap, isNull);
+      expect(panel.config, same(_example('Display Name').config));
+      expect(panel.plain, isTrue);
+      expect(panel.nowrap, isTrue);
       expect(tester.takeException(), isNull);
     },
   );
@@ -223,7 +243,10 @@ void main() {
       _load(tester, 'Display Name');
       await tester.pump();
       expect(tester.takeException(), isNull);
-      expect(find.text('選択中: Display Name'), findsOneWidget);
+      expect(
+        _playground(tester).controller.example,
+        same(_example('Display Name')),
+      );
     },
   );
 

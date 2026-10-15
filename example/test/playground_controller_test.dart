@@ -12,7 +12,7 @@ void main() {
   setUp(() => controller = PlaygroundController());
   tearDown(() => controller.dispose());
 
-  test('load, edit, clear and release preserve the intended state', () {
+  test('load, edit and clear preserve the intended state', () {
     expect(controller.needsDiscardConfirmation, isFalse);
     controller.load(displayName);
     expect(controller.example, same(displayName));
@@ -28,13 +28,6 @@ void main() {
     expect(controller.needsDiscardConfirmation, isFalse);
     controller.editor.text = displayName.mfm;
     expect(controller.needsDiscardConfirmation, isTrue);
-
-    const selection = TextSelection(baseOffset: 1, extentOffset: 3);
-    controller.editor.selection = selection;
-    controller.releaseOverrides();
-    expect(controller.text, displayName.mfm);
-    expect(controller.editor.selection, selection);
-    expect(controller.example, isNull);
   });
 
   test('same example reloads and another example replaces all overrides', () {
