@@ -6,10 +6,12 @@ class ExampleSetupPanel extends StatelessWidget {
     super.key,
     required this.summary,
     required this.code,
+    this.expansionStorageKey,
   });
 
   final String? summary;
   final String? code;
+  final PageStorageKey<String>? expansionStorageKey;
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +21,7 @@ class ExampleSetupPanel extends StatelessWidget {
         if (summary != null) Text(summary!),
         if (code != null)
           ExpansionTile(
+            key: expansionStorageKey,
             title: const Text('使用設定'),
             subtitle: const Text('Dartコード抜粋・補助関数は参照先を確認'),
             tilePadding: EdgeInsets.zero,
@@ -27,6 +30,10 @@ class ExampleSetupPanel extends StatelessWidget {
                 width: double.infinity,
                 child: SelectableText(
                   code!,
+                  // SelectableText内部のscrollと展開状態の保存先を分ける。
+                  key: expansionStorageKey == null
+                      ? null
+                      : const PageStorageKey('setup-code-scroll'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontFamily: 'monospace',
                   ),

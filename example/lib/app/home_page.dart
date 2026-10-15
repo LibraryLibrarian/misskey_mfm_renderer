@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/emoji/example_startup.dart';
+import '../core/widgets/example_page.dart';
 import '../features/catalog/data/mfm_examples.dart';
 import '../features/catalog/presentation/catalog_tab.dart';
 import '../features/playground/application/playground_controller.dart';
@@ -21,6 +22,8 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
   final _playground = PlaygroundController();
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _drawerOpen = false;
   bool _confirming = false;
 
   @override
@@ -35,56 +38,65 @@ class _HomePageState extends State<HomePage> {
       builder: (context, constraints) {
         final useNavigationRail = constraints.maxWidth >= 600;
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('MFM Renderer'),
-            actions: [
-              Builder(
-                builder: (context) => IconButton(
-                  key: const Key('openSettingsDrawerButton'),
-                  tooltip: '表示設定',
-                  icon: const Icon(Icons.tune),
-                  onPressed: () => Scaffold.of(context).openEndDrawer(),
-                ),
-              ),
-            ],
-          ),
+          key: _scaffoldKey,
           endDrawer: SettingsDrawer(emojiStatus: widget.emojiStatus),
-          body: Row(
-            children: [
-              if (useNavigationRail) ...[
-                NavigationRail(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: _selectDestination,
-                  labelType: NavigationRailLabelType.all,
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.list_alt_outlined),
-                      selectedIcon: Icon(Icons.list_alt),
-                      label: Text('カタログ'),
+          onEndDrawerChanged: (open) => setState(() => _drawerOpen = open),
+          body: SafeArea(
+            top: false,
+            bottom: false,
+            child: Row(
+              children: [
+                if (useNavigationRail) ...[
+                  SafeArea(
+                    child: NavigationRail(
+                      selectedIndex: _selectedIndex,
+                      onDestinationSelected: _selectDestination,
+                      labelType: NavigationRailLabelType.all,
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.list_alt_outlined),
+                          selectedIcon: Icon(Icons.list_alt),
+                          label: Text('カタログ'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.edit_note_outlined),
+                          selectedIcon: Icon(Icons.edit_note),
+                          label: Text('プレイグラウンド'),
+                        ),
+                      ],
                     ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.edit_note_outlined),
-                      selectedIcon: Icon(Icons.edit_note),
-                      label: Text('プレイグラウンド'),
-                    ),
-                  ],
+                  ),
+                  const VerticalDivider(width: 1),
+                ],
+                Expanded(
+                  key: const Key('pageRegion'),
+                  child: IndexedStack(
+                    index: _selectedIndex,
+                    children: [
+                      TickerMode(
+                        enabled: _selectedIndex == 0,
+                        child: CatalogTab(
+                          onTryExample: _loadExample,
+                          onOpenSettings: _openSettings,
+                          canHandleBack: _selectedIndex == 0 && !_drawerOpen,
+                        ),
+                      ),
+                      TickerMode(
+                        enabled: _selectedIndex == 1,
+                        child: ExamplePage(
+                          title: 'MFM Renderer',
+                          onOpenSettings: _openSettings,
+                          child: PlaygroundTab(
+                            controller: _playground,
+                            onClear: _clearText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const VerticalDivider(width: 1),
               ],
-              Expanded(
-                key: const Key('pageRegion'),
-                child: IndexedStack(
-                  index: _selectedIndex,
-                  children: [
-                    CatalogTab(onTryExample: _loadExample),
-                    PlaygroundTab(
-                      controller: _playground,
-                      onClear: _clearText,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
           bottomNavigationBar: useNavigationRail
               ? null
@@ -108,6 +120,8 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
+
+  void _openSettings() => _scaffoldKey.currentState!.openEndDrawer();
 
   Future<void> _loadExample(MfmExample example) async {
     await _withDiscardConfirmation(() {

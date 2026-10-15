@@ -64,6 +64,8 @@ void main() {
     tester,
   ) async {
     await _start(tester);
+    await tester.tap(find.byKey(const ValueKey('catalog-node:text')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('try:Bold')));
     await tester.pump();
     expect(_playground(tester).controller.example, same(_example('Bold')));

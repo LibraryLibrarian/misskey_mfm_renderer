@@ -15,6 +15,7 @@ class MfmPreviewCard extends StatelessWidget {
     this.description,
     this.setupSummary,
     this.setupCode,
+    this.setupStorageKey,
     this.onTry,
     this.config,
     this.plain,
@@ -27,6 +28,7 @@ class MfmPreviewCard extends StatelessWidget {
   final String? description;
   final String? setupSummary;
   final String? setupCode;
+  final PageStorageKey<String>? setupStorageKey;
   final VoidCallback? onTry;
   final MfmRenderConfig? config;
   final bool? plain;
@@ -109,6 +111,7 @@ class MfmPreviewCard extends StatelessWidget {
                 child: ExampleSetupPanel(
                   summary: setupSummary,
                   code: setupCode,
+                  expansionStorageKey: setupStorageKey,
                 ),
               ),
 

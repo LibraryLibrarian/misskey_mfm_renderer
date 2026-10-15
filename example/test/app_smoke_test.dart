@@ -16,7 +16,7 @@ void main() {
     expect(find.text('カタログ'), findsOneWidget);
     expect(find.text('プレイグラウンド'), findsOneWidget);
     expect(find.text('テキスト整形'), findsOneWidget);
-    expect(find.text('Bold'), findsOneWidget);
+    expect(find.text('Bold'), findsNothing);
 
     await tester.tap(find.text('プレイグラウンド'));
     await tester.pump();

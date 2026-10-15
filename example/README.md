@@ -45,6 +45,25 @@ resolution and the SQLite build hook may still require network access. It does
 not add Web store support or prevent networking in an arbitrary configuration
 injected by an embedding app.
 
+## Browse the catalog
+
+The catalog starts with seven entries. **Text formatting, blocks, links,
+emoji, combinations, and mention/display-name options** open directly into
+examples, with a heading for each feature on the same scrollable page.
+
+**fn functions** groups size, transforms, styles, special functions, and
+animations. Size variants (x2/x3/x4) share one page, as do transforms
+(Flip/Rotate/Scale/Position). Only animations have another menu: rotation/jumps,
+shaking/stretching/timing, and colors/sparkles. Timing includes Spin delay and
+Twitch/Shake easing comparisons. The 13 example pages preserve all 128 examples
+without duplication; section headings do not require another tap.
+
+Use the back arrow (or the platform's back gesture) to return one level. The
+settings icon is available at every level. Switching to Playground and back,
+changing theme, or switching between narrow/wide layouts retains the catalog's
+current page, scroll position, and expanded settings. Returning to a parent list
+also retains its scroll position.
+
 ## Catalog → Playground
 
 Each sample may include a visible setup summary and an expandable **使用設定**

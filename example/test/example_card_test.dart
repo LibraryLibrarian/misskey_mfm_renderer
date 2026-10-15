@@ -1,7 +1,8 @@
 import 'package:example/core/settings/example_settings.dart';
 import 'package:example/core/widgets/mfm_preview_card.dart';
+import 'package:example/features/catalog/data/catalog_navigation.dart';
 import 'package:example/features/catalog/data/mfm_examples.dart';
-import 'package:example/features/catalog/presentation/widgets/catalog_section.dart';
+import 'package:example/features/catalog/presentation/widgets/catalog_lists.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,11 +48,20 @@ void main() {
                   data: const MediaQueryData(
                     textScaler: TextScaler.linear(1.5),
                   ),
-                  child: SingleChildScrollView(
-                    child: CatalogSection(
-                      category: MfmCategory(title: '設定', examples: [example]),
-                      onTryExample: (value) => selected = value,
+                  child: CatalogDetailList(
+                    page: CatalogExamplePage(
+                      id: 'fixture-page',
+                      title: 'fixture',
+                      description: '',
+                      groups: [
+                        MfmFeatureGroup(
+                          id: 'fixture',
+                          title: '設定',
+                          examples: [example],
+                        ),
+                      ],
                     ),
+                    onTryExample: (value) => selected = value,
                   ),
                 ),
               ),

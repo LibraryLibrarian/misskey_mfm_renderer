@@ -1,7 +1,8 @@
 import 'package:example/core/settings/example_settings.dart';
 import 'package:example/core/widgets/mfm_preview_card.dart';
+import 'package:example/features/catalog/data/catalog_navigation.dart';
 import 'package:example/features/catalog/data/mfm_examples.dart';
-import 'package:example/features/catalog/presentation/widgets/catalog_section.dart';
+import 'package:example/features/catalog/presentation/widgets/catalog_lists.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
@@ -161,8 +162,19 @@ void main() {
                 baseTextStyle: TextStyle(fontSize: 23),
               ),
               child: Scaffold(
-                body: CatalogSection(
-                  category: MfmCategory(title: 'fixture', examples: [example]),
+                body: CatalogDetailList(
+                  page: CatalogExamplePage(
+                    id: 'fixture-page',
+                    title: 'fixture',
+                    description: '',
+                    groups: [
+                      MfmFeatureGroup(
+                        id: 'fixture',
+                        title: 'fixture',
+                        examples: [example],
+                      ),
+                    ],
+                  ),
                   onTryExample: (_) {},
                 ),
               ),
