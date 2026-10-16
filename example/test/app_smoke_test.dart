@@ -39,14 +39,14 @@ void main() {
     expect(Localizations.localeOf(homeContext), const Locale('ja'));
   });
 
-  testWidgets('設定ドロワーから Advanced MFM を切り替える', (tester) async {
+  testWidgets('表示設定画面から Advanced MFM を切り替える', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(const MfmExampleApp());
     await tester.pump();
 
-    await tester.tap(find.byKey(const Key('openSettingsDrawerButton')));
+    await tester.tap(find.byKey(const Key('openSettingsButton')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('表示設定'), findsOneWidget);
@@ -54,7 +54,9 @@ void main() {
     await tester.tap(find.byKey(const Key('enableAdvancedMfmSwitch')));
     await tester.pump();
 
-    final homeContext = tester.element(find.byType(HomePage));
+    final homeContext = tester.element(
+      find.byType(HomePage, skipOffstage: false),
+    );
     expect(MfmConfig.of(homeContext).enableAdvancedMfm, isFalse);
   });
 

@@ -4,7 +4,6 @@ import 'package:example/core/emoji/example_startup.dart';
 import 'package:example/core/settings/example_settings.dart';
 import 'package:example/core/widgets/mfm_preview_card.dart';
 import 'package:example/features/catalog/data/mfm_examples.dart';
-import 'package:example/features/catalog/presentation/catalog_tab.dart';
 import 'package:example/features/catalog/presentation/widgets/catalog_lists.dart';
 import 'package:example/features/playground/presentation/playground_tab.dart';
 import 'package:flutter/material.dart';
@@ -164,18 +163,27 @@ void main() {
     });
   }
 
-  testWidgets('drawer back and root confirmation back retain detail', (
+  testWidgets('settings back and root confirmation back retain detail', (
     tester,
   ) async {
     await _start(tester);
     await _open(tester, ['text']);
-    await tester.tap(find.byKey(const Key('openSettingsDrawerButton')));
+    await tester.tap(find.byKey(const Key('openSettingsButton')));
     await _pumpTransition(tester);
     expect(find.text('表示設定'), findsOneWidget);
-    expect(
-      tester.widget<CatalogTab>(find.byType(CatalogTab)).canHandleBack,
-      isFalse,
+    expect(find.byType(CatalogDetailList), findsNothing);
+    expect(find.byType(NavigationBar), findsNothing);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('resetSettingsButton')),
+      300,
     );
+    await tester.tap(find.byKey(const Key('resetSettingsButton')));
+    await _pumpTransition(tester);
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await _pumpTransition(tester);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('表示設定'), findsOneWidget);
     await tester.binding.handlePopRoute();
     await _pumpTransition(tester);
     expect(find.text('表示設定'), findsNothing);
@@ -267,6 +275,58 @@ void main() {
     expect(preview.rootScale, 1.2);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'deep detail retains scroll and setup across the settings route',
+    (
+      tester,
+    ) async {
+      await _start(tester);
+      await _open(tester, ['fn', 'special']);
+      final card = find.byKey(const ValueKey('Unixtime (日本語)'));
+      await tester.scrollUntilVisible(card, 250, scrollable: _detailScroll());
+      await _tapSetup(
+        tester,
+        find.descendant(of: card, matching: find.byType(ExpansionTile)),
+      );
+      await _pumpTransition(tester);
+      final scrollState = tester.state<ScrollableState>(_detailScroll());
+      final offset = scrollState.position.pixels;
+      final code = tester
+          .widget<SelectableText>(find.byType(SelectableText))
+          .data;
+      final settings = _settings(tester);
+      await tester.tap(find.byKey(const Key('openSettingsButton')));
+      await _pumpTransition(tester);
+      await tester.tap(find.text('ダーク'));
+      await _pumpTransition(tester);
+      expect(settings.themeMode, ThemeMode.dark);
+      await tester.binding.setSurfaceSize(const Size(1000, 800));
+      await _pumpTransition(tester);
+      expect(find.byType(NavigationRail), findsNothing);
+      await tester.binding.setSurfaceSize(const Size(400, 800));
+      await _pumpTransition(tester);
+      await tester.tap(find.byType(BackButton));
+      await _pumpTransition(tester);
+      expect(tester.state<ScrollableState>(_detailScroll()), same(scrollState));
+      expect(scrollState.position.pixels, closeTo(offset, 1));
+      expect(find.text(code!), findsOneWidget);
+      expect(
+        tester
+            .widget<CatalogDetailList>(find.byType(CatalogDetailList))
+            .page
+            .id,
+        'special',
+      );
+      await tester.binding.handlePopRoute();
+      await _pumpTransition(tester);
+      expect(
+        tester.widget<CatalogMenuList>(find.byType(CatalogMenuList)).menu.id,
+        'fn',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('lazy setup panels restore independently without storage casts', (
     tester,
@@ -420,7 +480,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(900, 500));
     await _pumpTransition(tester);
     await _open(tester, ['text']);
-    final settings = find.byKey(const Key('openSettingsDrawerButton'));
+    final settings = find.byKey(const Key('openSettingsButton'));
     expect(settings.hitTestable(), findsOneWidget);
     expect(tester.getRect(settings).right, lessThanOrEqualTo(870));
     expect(find.byType(BackButton).hitTestable(), findsOneWidget);

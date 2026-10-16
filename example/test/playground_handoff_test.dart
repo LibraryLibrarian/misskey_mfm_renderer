@@ -33,7 +33,83 @@ PlaygroundTab _playground(WidgetTester tester) => tester.widget<PlaygroundTab>(
   find.byType(PlaygroundTab, skipOffstage: false),
 );
 
+Future<void> _pumpTransition(WidgetTester tester) async {
+  for (var frame = 0; frame < 12; frame++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
 void main() {
+  testWidgets(
+    'settings navigation and reset retain editor and per-example setup',
+    (
+      tester,
+    ) async {
+      await _start(tester);
+      _load(tester, 'Display Name');
+      await tester.pump();
+      final controller = _playground(tester).controller;
+      await tester.showKeyboard(find.byType(TextField));
+      controller.editor.text = 'edited text';
+      const selection = TextSelection(baseOffset: 2, extentOffset: 5);
+      controller.editor.selection = selection;
+      await tester.pump();
+      final inputState = tester.state(find.byKey(const Key('playgroundInput')));
+      final settings = ExampleSettingsScope.of(
+        tester.element(find.byType(HomePage)),
+      );
+      await tester.tap(find.byKey(const Key('openSettingsButton')));
+      await _pumpTransition(tester);
+      expect(tester.testTextInput.isVisible, isFalse);
+      expect(controller.editor.selection, selection);
+      await tester.tap(find.text('ダーク'));
+      await _pumpTransition(tester);
+      expect(settings.themeMode, ThemeMode.dark);
+      await tester.binding.setSurfaceSize(const Size(1000, 800));
+      await _pumpTransition(tester);
+      await tester.tap(find.byType(BackButton));
+      await _pumpTransition(tester);
+      expect(find.byType(NavigationRail), findsOneWidget);
+      expect(_playground(tester).controller, same(controller));
+      expect(
+        tester.state(find.byKey(const Key('playgroundInput'))),
+        same(inputState),
+      );
+      expect(controller.text, 'edited text');
+      expect(controller.editor.selection, selection);
+
+      await tester.tap(find.byKey(const Key('openSettingsButton')));
+      await _pumpTransition(tester);
+      await tester.binding.setSurfaceSize(const Size(400, 800));
+      await _pumpTransition(tester);
+      final reset = find.byKey(const Key('resetSettingsButton'));
+      await tester.scrollUntilVisible(reset, 300);
+      await tester.tap(reset);
+      await _pumpTransition(tester);
+      await tester.tap(find.widgetWithText(FilledButton, '既定値に戻す'));
+      await _pumpTransition(tester);
+      expect(settings.themeMode, ThemeMode.system);
+      await tester.binding.handlePopRoute();
+      await _pumpTransition(tester);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(_playground(tester).controller, same(controller));
+      expect(
+        tester.state(find.byKey(const Key('playgroundInput'))),
+        same(inputState),
+      );
+      expect(controller.text, 'edited text');
+      expect(controller.editor.selection, selection);
+      expect(controller.example, same(_example('Display Name')));
+      final panel = tester.widget<MfmPreviewPanel>(
+        find.byType(MfmPreviewPanel),
+      );
+      expect(panel.config, same(_example('Display Name').config));
+      expect(panel.plain, isTrue);
+      expect(panel.nowrap, isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('playground keeps only the clear action and no status labels', (
     tester,
   ) async {

@@ -24,7 +24,7 @@ class ExamplePage extends StatelessWidget {
         leading: onBack == null ? null : BackButton(onPressed: onBack),
         actions: [
           IconButton(
-            key: const Key('openSettingsDrawerButton'),
+            key: const Key('openSettingsButton'),
             tooltip: '表示設定',
             icon: const Icon(Icons.tune),
             onPressed: onOpenSettings,

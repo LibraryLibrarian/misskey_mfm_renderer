@@ -1,5 +1,5 @@
 import 'package:example/app/app.dart';
-import 'package:example/app/widgets/settings_drawer.dart';
+import 'package:example/app/settings_page.dart';
 import 'package:example/core/emoji/example_startup.dart';
 import 'package:example/core/settings/example_settings.dart';
 import 'package:flutter/material.dart';
@@ -49,17 +49,15 @@ void main() {
   );
 
   for (final status in ExampleEmojiStatus.values) {
-    testWidgets('drawer distinguishes $status and gates online controls', (
+    testWidgets('settings distinguishes $status and gates online controls', (
       tester,
     ) async {
       final settings = ExampleSettings();
       addTearDown(settings.dispose);
       await tester.pumpWidget(
-        MaterialApp(
-          home: ExampleSettingsScope(
-            settings: settings,
-            child: Scaffold(body: SettingsDrawer(emojiStatus: status)),
-          ),
+        ExampleSettingsScope(
+          settings: settings,
+          child: MaterialApp(home: SettingsPage(emojiStatus: status)),
         ),
       );
       final expected = switch (status) {
@@ -67,6 +65,7 @@ void main() {
         ExampleEmojiStatus.offline => 'オフライン起動',
         ExampleEmojiStatus.failed => '初期化に失敗',
       };
+      await tester.scrollUntilVisible(find.textContaining(expected), 300);
       expect(find.textContaining(expected), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('emojiUrls を渡す'),
@@ -85,8 +84,10 @@ void main() {
     await tester.pumpWidget(
       const MfmExampleApp(emojiStatus: ExampleEmojiStatus.offline),
     );
-    await tester.tap(find.byKey(const Key('openSettingsDrawerButton')));
+    await tester.tap(find.byKey(const Key('openSettingsButton')));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
+    await tester.scrollUntilVisible(find.textContaining('オフライン起動'), 300);
     expect(find.textContaining('オフライン起動'), findsOneWidget);
   });
 }

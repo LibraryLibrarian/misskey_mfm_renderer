@@ -6,7 +6,7 @@ import '../features/catalog/data/mfm_examples.dart';
 import '../features/catalog/presentation/catalog_tab.dart';
 import '../features/playground/application/playground_controller.dart';
 import '../features/playground/presentation/playground_tab.dart';
-import 'widgets/settings_drawer.dart';
+import 'settings_page.dart';
 
 /// ホーム画面
 class HomePage extends StatefulWidget {
@@ -22,8 +22,7 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
   final _playground = PlaygroundController();
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _drawerOpen = false;
+  bool _settingsOpen = false;
   bool _confirming = false;
 
   @override
@@ -38,9 +37,6 @@ class _HomePageState extends State<HomePage> {
       builder: (context, constraints) {
         final useNavigationRail = constraints.maxWidth >= 600;
         return Scaffold(
-          key: _scaffoldKey,
-          endDrawer: SettingsDrawer(emojiStatus: widget.emojiStatus),
-          onEndDrawerChanged: (open) => setState(() => _drawerOpen = open),
           body: SafeArea(
             top: false,
             bottom: false,
@@ -78,7 +74,7 @@ class _HomePageState extends State<HomePage> {
                         child: CatalogTab(
                           onTryExample: _loadExample,
                           onOpenSettings: _openSettings,
-                          canHandleBack: _selectedIndex == 0 && !_drawerOpen,
+                          canHandleBack: _selectedIndex == 0,
                         ),
                       ),
                       TickerMode(
@@ -121,7 +117,20 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _openSettings() => _scaffoldKey.currentState!.openEndDrawer();
+  Future<void> _openSettings() async {
+    if (_settingsOpen) return;
+    _settingsOpen = true;
+    try {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => SettingsPage(emojiStatus: widget.emojiStatus),
+        ),
+      );
+    } finally {
+      _settingsOpen = false;
+    }
+  }
 
   Future<void> _loadExample(MfmExample example) async {
     await _withDiscardConfirmation(() {

@@ -18,7 +18,7 @@ flutter run -d <device-id>
 ```
 
 The default startup initializes misskey.io custom emoji support once and shares
-it through `MfmConfig`. The settings drawer distinguishes successful online sync,
+it through `MfmConfig`. The settings screen distinguishes successful online sync,
 intentional offline startup, and initialization failure. Link, mention, hashtag,
 clickable, and search actions only show a SnackBar; they do not open a browser or
 perform a search request.
@@ -64,6 +64,19 @@ changing theme, or switching between narrow/wide layouts retains the catalog's
 current page, scroll position, and expanded settings. Returning to a parent list
 also retains its scroll position.
 
+## Display settings
+
+The top-right **表示設定** icon opens a separate settings screen from any catalog
+page or Playground. Its five sections group appearance, MFM rendering,
+author/nyaize, custom emoji, and MfmText behavior. Changes apply immediately;
+there is no save step. Use the back arrow or the platform's back gesture to
+return to the same page and editing state.
+
+**既定値に戻す** at the bottom asks for confirmation before resetting shared
+settings. Canceling leaves them unchanged. Confirming keeps the settings screen
+open and does not clear Playground text or per-example overrides. Settings are
+not persisted between app launches.
+
 ## Catalog → Playground
 
 Each sample may include a visible setup summary and an expandable **使用設定**
@@ -80,7 +93,7 @@ helper functions and bundled assets are identified where needed.
 - **本文をクリア** empties the text while retaining the sample settings.
 - Replacing or clearing edited, non-empty text asks for confirmation. Canceling
   keeps the text, selected example, and current tab unchanged.
-- Reset in the settings drawer affects only shared settings. Tab changes and
+- Reset in the settings screen affects only shared settings. Tab changes and
   switching between narrow/wide layouts retain editor state.
 
 The renderer's normal `MfmConfig` inheritance rules still apply; this app does
