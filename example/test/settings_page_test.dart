@@ -250,6 +250,53 @@ void main() {
     },
   );
 
+  for (final bottomInset in [24.0, 34.0]) {
+    testWidgets(
+      'settings scroll behind bottom inset $bottomInset '
+      'with a safe reset button',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.padding = FakeViewPadding(bottom: bottomInset);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPadding);
+        await _start(tester);
+
+        final list = find.byKey(const PageStorageKey('settings-scroll'));
+        expect(tester.getRect(list).bottom, 800);
+        expect(
+          tester.widget<ListView>(list).padding,
+          EdgeInsets.only(bottom: 24 + bottomInset),
+        );
+        final headingTop = tester.getTopLeft(find.text('外観')).dy;
+        tester.view.padding = FakeViewPadding.zero;
+        await _pumpTransition(tester);
+        expect(tester.getTopLeft(find.text('外観')).dy, headingTop);
+        tester.view.padding = FakeViewPadding(bottom: bottomInset);
+        await _pumpTransition(tester);
+
+        final reset = find.byKey(const Key('resetSettingsButton'));
+        await _reveal(tester, reset);
+        final position = tester.state<ScrollableState>(_scroll()).position;
+        position.jumpTo(position.maxScrollExtent);
+        await _pumpTransition(tester);
+        expect(tester.getRect(list).bottom, 800);
+        expect(
+          tester.getRect(reset).bottom,
+          closeTo(800 - bottomInset - 24, 1),
+        );
+        expect(reset.hitTestable(), findsOneWidget);
+        await tester.tap(reset);
+        await _pumpTransition(tester);
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+      variant: const TargetPlatformVariant({
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+      }),
+    );
+  }
+
   for (final layout in [
     (size: const Size(320, 720), scale: 2.0, insets: false),
     (size: const Size(1200, 800), scale: 1.0, insets: false),
@@ -278,10 +325,10 @@ void main() {
         );
         expect(body.width, lessThanOrEqualTo(720));
         expect(body.center.dx, closeTo(layout.size.width / 2, 1));
+        expect(body.bottom, layout.size.height);
         if (layout.insets) {
           expect(body.left, greaterThanOrEqualTo(30));
           expect(body.right, lessThanOrEqualTo(layout.size.width - 30));
-          expect(body.bottom, lessThanOrEqualTo(layout.size.height - 20));
         }
         final direction = tester
             .widget<SegmentedButton<ThemeMode>>(

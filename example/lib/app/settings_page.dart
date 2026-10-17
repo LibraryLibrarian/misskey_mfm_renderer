@@ -25,13 +25,16 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(title: const Text('表示設定')),
       body: SafeArea(
         top: false,
+        bottom: false,
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
             child: ListView(
               key: const PageStorageKey('settings-scroll'),
-              padding: const EdgeInsets.only(bottom: 24),
+              padding: EdgeInsets.only(
+                bottom: 24 + MediaQuery.paddingOf(context).bottom,
+              ),
               children: [
                 _Section(
                   title: '外観',
