@@ -1,13 +1,34 @@
 import 'package:flutter/widgets.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
+import '../../../core/emoji/offline_example_fixtures.dart';
+
 /// MFMサンプルのカテゴリ
 class MfmCategory {
   const MfmCategory({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.groups,
+  });
+
+  final String id;
+  final String title;
+  final String description;
+  final List<MfmFeatureGroup> groups;
+
+  Iterable<MfmExample> get examples => groups.expand((group) => group.examples);
+}
+
+/// 同じ機能の表示例をまとめたグループ
+class MfmFeatureGroup {
+  const MfmFeatureGroup({
+    required this.id,
     required this.title,
     required this.examples,
   });
 
+  final String id;
   final String title;
   final List<MfmExample> examples;
 }
@@ -19,6 +40,8 @@ class MfmExample {
     required this.syntax,
     required this.mfm,
     this.description,
+    this.setupSummary,
+    this.setupCode,
     this.config,
     this.plain,
     this.nowrap,
@@ -35,9 +58,15 @@ class MfmExample {
 
   /// 説明（オプション）
   final String? description;
+
+  /// 共通設定に対して、この例が上書きする内容。
+  final String? setupSummary;
+  final String? setupCode;
   final MfmRenderConfig? config;
   final bool? plain;
   final bool? nowrap;
+
+  bool get hasOverrides => config != null || plain != null || nowrap != null;
 }
 
 /// 全MFMサンプルデータ
@@ -45,833 +74,1185 @@ class MfmExamples {
   MfmExamples._();
 
   static const List<MfmCategory> categories = [
-    // テキスト整形
     MfmCategory(
+      id: 'text',
       title: 'テキスト整形',
-      examples: [
-        MfmExample(
-          name: 'Bold',
-          syntax: '**text**',
-          mfm: '**太字テキスト**',
+      description: '太字・斜体・打ち消し線など',
+      groups: [
+        MfmFeatureGroup(
+          id: 'text.bold',
+          title: 'Bold',
+          examples: [
+            MfmExample(
+              name: 'Bold',
+              syntax: '**text**',
+              mfm: '**太字テキスト**',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Italic',
-          syntax: '*text*',
-          mfm: '*斜体テキスト*',
+        MfmFeatureGroup(
+          id: 'text.italic',
+          title: 'Italic',
+          examples: [
+            MfmExample(
+              name: 'Italic',
+              syntax: '*text*',
+              mfm: '*斜体テキスト*',
+            ),
+            MfmExample(
+              name: 'Italic (HTML)',
+              syntax: '<i>text</i>',
+              mfm: '<i>HTML形式の斜体</i>',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Italic (HTML)',
-          syntax: '<i>text</i>',
-          mfm: '<i>HTML形式の斜体</i>',
+        MfmFeatureGroup(
+          id: 'text.strike',
+          title: 'Strike',
+          examples: [
+            MfmExample(
+              name: 'Strike',
+              syntax: '~~text~~',
+              mfm: '~~打ち消し線~~',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Strike',
-          syntax: '~~text~~',
-          mfm: '~~打ち消し線~~',
+        MfmFeatureGroup(
+          id: 'text.small',
+          title: 'Small',
+          examples: [
+            MfmExample(
+              name: 'Small',
+              syntax: '<small>text</small>',
+              mfm: '<small>小さいテキスト</small>',
+            ),
+            MfmExample(
+              name: 'Small (ネスト)',
+              syntax: '<small><small>text</small></small>',
+              mfm: '<small>外側 <small>内側はさらに小さく薄く表示</small></small>',
+              description: 'ネストごとに文字サイズは0.8倍、不透明度は0.7倍になります',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Small',
-          syntax: '<small>text</small>',
-          mfm: '<small>小さいテキスト</small>',
+        MfmFeatureGroup(
+          id: 'text.plain',
+          title: 'Plain',
+          examples: [
+            MfmExample(
+              name: 'Plain',
+              syntax: r'<plain>**text**$[x2 text]</plain>',
+              mfm: r'<plain>**そのまま**$[x2 表示]</plain>',
+              description: '内側の構文は解釈されず、そのまま表示されます',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Small (ネスト)',
-          syntax: '<small><small>text</small></small>',
-          mfm: '<small>外側 <small>内側はさらに小さく薄く表示</small></small>',
-          description: 'ネストごとに文字サイズは0.8倍、不透明度は0.7倍になります',
-        ),
-        MfmExample(
-          name: 'Plain',
-          syntax: r'<plain>**text**$[x2 text]</plain>',
-          mfm: r'<plain>**そのまま**$[x2 表示]</plain>',
-          description: '内側の構文は解釈されず、そのまま表示されます',
-        ),
-        MfmExample(
-          name: 'Center',
-          syntax: '<center>text</center>',
-          mfm: '<center>中央揃え</center>',
+        MfmFeatureGroup(
+          id: 'text.center',
+          title: 'Center',
+          examples: [
+            MfmExample(
+              name: 'Center',
+              syntax: '<center>text</center>',
+              mfm: '<center>中央揃え</center>',
+            ),
+          ],
         ),
       ],
     ),
-
-    // ブロック要素
     MfmCategory(
+      id: 'blocks',
       title: 'ブロック要素',
-      examples: [
-        MfmExample(
-          name: 'Quote',
-          syntax: '> text',
-          mfm: '> 引用テキスト',
+      description: '引用・コード・数式・検索',
+      groups: [
+        MfmFeatureGroup(
+          id: 'blocks.quote',
+          title: 'Quote',
+          examples: [
+            MfmExample(
+              name: 'Quote',
+              syntax: '> text',
+              mfm: '> 引用テキスト',
+            ),
+            MfmExample(
+              name: 'Quote (複数行)',
+              syntax: '> line 1\n> line 2',
+              mfm: '> 1行目\n> 2行目',
+            ),
+            MfmExample(
+              name: 'Quote (ネスト)',
+              syntax: '>> text',
+              mfm: '>> 二重の引用',
+            ),
+            MfmExample(
+              name: 'Quote (fn内)',
+              syntax: r'> $[x2 text]',
+              mfm: r'> $[x2 大きい引用]',
+            ),
+            MfmExample(
+              name: 'Quote (連続)',
+              syntax: '> first\n\n> second',
+              mfm: '> 1つ目の引用\n\n> 2つ目の引用',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Quote (複数行)',
-          syntax: '> line 1\n> line 2',
-          mfm: '> 1行目\n> 2行目',
+        MfmFeatureGroup(
+          id: 'blocks.code-block',
+          title: 'Code Block',
+          examples: [
+            MfmExample(
+              name: 'Code Block',
+              syntax: '```code```',
+              mfm: '```dart\nvoid main() {\n  print("Hello");\n}\n```',
+            ),
+            MfmExample(
+              name: 'Code Block (JavaScript)',
+              syntax: '```javascript\ncode\n```',
+              mfm:
+                  '```javascript\n'
+                  'function hello() {\n'
+                  '  console.log("Hello, World!");\n'
+                  '  return true;\n'
+                  '}\n'
+                  '```',
+              description: 'JavaScript コードのシンタックスハイライト',
+            ),
+            MfmExample(
+              name: 'Code Block (Python)',
+              syntax: '```python\ncode\n```',
+              mfm:
+                  '```python\n'
+                  'def greet(name):\n'
+                  '    print(f"Hello, {name}!")\n'
+                  '\n'
+                  'greet("World")\n'
+                  '```',
+              description: 'Python コードのシンタックスハイライト',
+            ),
+            MfmExample(
+              name: 'Code Block (JSON)',
+              syntax: '```json\ncode\n```',
+              mfm:
+                  '```json\n'
+                  '{\n'
+                  '  "name": "misskey",\n'
+                  '  "version": "1.0.0",\n'
+                  '  "features": ["mfm", "notes"]\n'
+                  '}\n'
+                  '```',
+              description: 'JSON のシンタックスハイライト',
+            ),
+            MfmExample(
+              name: 'Code Block (Dart)',
+              syntax: '```dart\ncode\n```',
+              mfm:
+                  '```dart\n'
+                  'List<MfmNode> _parseText() {\n'
+                  '  final source = text;\n'
+                  '  if (source == null || source.isEmpty) {\n'
+                  '    return [];\n'
+                  '  }\n'
+                  '\n'
+                  '  final parser = simple ? MfmParser().buildSimple() : '
+                  'MfmParser().build();\n'
+                  '  final result = parser.parse(source);\n'
+                  '  try {\n'
+                  '    return result.value;\n'
+                  '  } on FormatException {\n'
+                  '    // パース失敗時はプレーンテキストとして返す\n'
+                  '    return [TextNode(source)];\n'
+                  '  }\n'
+                  '}\n'
+                  '```',
+              description: '既存コードの抜粋（Dart）',
+            ),
+            MfmExample(
+              name: 'Code Block (言語指定なし)',
+              syntax: '```\ncode\n```',
+              mfm:
+                  '```\n'
+                  'This is plain text code\n'
+                  'without any language specification.\n'
+                  '```',
+              description: '言語指定なしの場合はプレーンテキスト表示',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Quote (ネスト)',
-          syntax: '>> text',
-          mfm: '>> 二重の引用',
+        MfmFeatureGroup(
+          id: 'blocks.inline-code',
+          title: 'Inline Code',
+          examples: [
+            MfmExample(
+              name: 'Inline Code',
+              syntax: '`code`',
+              mfm: 'インライン`コード`の例',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Quote (fn内)',
-          syntax: r'> $[x2 text]',
-          mfm: r'> $[x2 大きい引用]',
+        MfmFeatureGroup(
+          id: 'blocks.math-block',
+          title: 'Math Block',
+          examples: [
+            MfmExample(
+              name: 'Math Block',
+              syntax: r'\[ x^2 + y^2 = z^2 \]',
+              mfm: r'\[ x^2 + y^2 = z^2 \]',
+              description: '等幅の式文字列として表示され、LaTeX組版は行いません',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Quote (連続)',
-          syntax: '> first\n\n> second',
-          mfm: '> 1つ目の引用\n\n> 2つ目の引用',
+        MfmFeatureGroup(
+          id: 'blocks.math-inline',
+          title: 'Math Inline',
+          examples: [
+            MfmExample(
+              name: 'Math Inline',
+              syntax: r'\( E = mc^2 \)',
+              mfm: r'質量とエネルギーの関係は \( E = mc^2 \) です。',
+              description: '等幅の式文字列として表示され、LaTeX組版は行いません',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Code Block',
-          syntax: '```code```',
-          mfm: '```dart\nvoid main() {\n  print("Hello");\n}\n```',
-        ),
-        MfmExample(
-          name: 'Code Block (JavaScript)',
-          syntax: '```javascript\ncode\n```',
-          mfm:
-              '```javascript\n'
-              'function hello() {\n'
-              '  console.log("Hello, World!");\n'
-              '  return true;\n'
-              '}\n'
-              '```',
-          description: 'JavaScript コードのシンタックスハイライト',
-        ),
-        MfmExample(
-          name: 'Code Block (Python)',
-          syntax: '```python\ncode\n```',
-          mfm:
-              '```python\n'
-              'def greet(name):\n'
-              '    print(f"Hello, {name}!")\n'
-              '\n'
-              'greet("World")\n'
-              '```',
-          description: 'Python コードのシンタックスハイライト',
-        ),
-        MfmExample(
-          name: 'Code Block (JSON)',
-          syntax: '```json\ncode\n```',
-          mfm:
-              '```json\n'
-              '{\n'
-              '  "name": "misskey",\n'
-              '  "version": "1.0.0",\n'
-              '  "features": ["mfm", "notes"]\n'
-              '}\n'
-              '```',
-          description: 'JSON のシンタックスハイライト',
-        ),
-        MfmExample(
-          name: 'Code Block (Dart)',
-          syntax: '```dart\ncode\n```',
-          mfm:
-              '```dart\n'
-              'List<MfmNode> _parseText() {\n'
-              '  final source = text;\n'
-              '  if (source == null || source.isEmpty) {\n'
-              '    return [];\n'
-              '  }\n'
-              '\n'
-              '  final parser = simple ? MfmParser().buildSimple() : '
-              'MfmParser().build();\n'
-              '  final result = parser.parse(source);\n'
-              '  try {\n'
-              '    return result.value;\n'
-              '  } on FormatException {\n'
-              '    // パース失敗時はプレーンテキストとして返す\n'
-              '    return [TextNode(source)];\n'
-              '  }\n'
-              '}\n'
-              '```',
-          description: '既存コードの抜粋（Dart）',
-        ),
-        MfmExample(
-          name: 'Code Block (言語指定なし)',
-          syntax: '```\ncode\n```',
-          mfm:
-              '```\n'
-              'This is plain text code\n'
-              'without any language specification.\n'
-              '```',
-          description: '言語指定なしの場合はプレーンテキスト表示',
-        ),
-        MfmExample(
-          name: 'Inline Code',
-          syntax: '`code`',
-          mfm: 'インライン`コード`の例',
-        ),
-        MfmExample(
-          name: 'Math Block',
-          syntax: r'\[ x^2 + y^2 = z^2 \]',
-          mfm: r'\[ x^2 + y^2 = z^2 \]',
-          description: '等幅の式文字列として表示され、LaTeX組版は行いません',
-        ),
-        MfmExample(
-          name: 'Math Inline',
-          syntax: r'\( E = mc^2 \)',
-          mfm: r'質量とエネルギーの関係は \( E = mc^2 \) です。',
-          description: '等幅の式文字列として表示され、LaTeX組版は行いません',
-        ),
-        MfmExample(
-          name: 'Search',
-          syntax: 'keyword 検索 / keyword [検索] / keyword Search',
-          mfm: 'Misskey 検索\nMisskey [検索]\nMisskey Search',
-          description: '検索語を編集してボタンまたはキーボードの検索で送信すると、編集値で onSearchTap が呼ばれます',
+        MfmFeatureGroup(
+          id: 'blocks.search',
+          title: 'Search',
+          examples: [
+            MfmExample(
+              name: 'Search',
+              syntax: 'keyword 検索 / keyword [検索] / keyword Search',
+              mfm: 'Misskey 検索\nMisskey [検索]\nMisskey Search',
+              description:
+                  '検索語を編集してボタンまたはキーボードの検索で送信すると、'
+                  '空文字も含め編集値で onSearchTap が呼ばれます。通知のみで実際の検索通信はしません。',
+            ),
+          ],
         ),
       ],
     ),
-
-    // リンク・参照
     MfmCategory(
+      id: 'links',
       title: 'リンク・参照',
-      examples: [
-        MfmExample(
-          name: 'URL',
-          syntax: 'https://example.com',
-          mfm: 'https://misskey.io',
+      description: 'URL・リンク・メンションの構文',
+      groups: [
+        MfmFeatureGroup(
+          id: 'links.url',
+          title: 'URL',
+          examples: [
+            MfmExample(
+              name: 'URL',
+              syntax: 'https://example.com',
+              mfm: 'https://misskey.io',
+            ),
+            MfmExample(
+              name: 'URL (分解表示)',
+              syntax: 'https://example.org/notes/abcdef?from=timeline#reply',
+              mfm: 'https://example.org/notes/abcdef?from=timeline#reply',
+              description: 'スキーム・クエリは減光、ホストは太字、ハッシュは斜体で外部リンクアイコンを表示します',
+            ),
+            MfmExample(
+              name: 'URL (punycode)',
+              syntax: 'https://xn--wgv71a119e.jp/%E3%83%86%E3%82%B9%E3%83%88',
+              mfm: 'https://xn--wgv71a119e.jp/%E3%83%86%E3%82%B9%E3%83%88',
+              description: 'ホストは日本語.jpに復号し、パスもデコードして表示します',
+            ),
+            MfmExample(
+              name: 'URL (自ホスト)',
+              setupSummary: 'localHost=misskey.io を明示。絵文字の同期状態には依存しません。',
+              setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
+              syntax: 'https://misskey.io/@syuilo',
+              mfm: 'https://misskey.io/@syuilo',
+              description: 'localHost=misskey.ioではスキームとホストを省略して表示します',
+              config: MfmRenderConfig(localHost: 'misskey.io'),
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'URL (分解表示)',
-          syntax: 'https://example.org/notes/abcdef?from=timeline#reply',
-          mfm: 'https://example.org/notes/abcdef?from=timeline#reply',
-          description: 'スキーム・クエリは減光、ホストは太字、ハッシュは斜体で外部リンクアイコンを表示します',
+        MfmFeatureGroup(
+          id: 'links.link',
+          title: 'Link',
+          examples: [
+            MfmExample(
+              name: 'Link',
+              syntax: '[label](url)',
+              mfm: '[Misskey公式](https://misskey.io)',
+            ),
+            MfmExample(
+              name: 'Link (ラベル付き)',
+              setupSummary: 'localHost=misskey.io。example.orgへのリンクは外部リンクです。',
+              setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
+              syntax: '[label](https://example.org/@user)',
+              mfm: '[ユーザープロフィール](https://example.org/@user)',
+              description:
+                  '外部HTTP(S)リンクはラベルの末尾にアイコンを表示します。'
+                  'ラベル・アイコンのどちらも同じonLinkTapへ通知します。',
+              config: MfmRenderConfig(localHost: 'misskey.io'),
+            ),
+            MfmExample(
+              name: 'Link (自ホスト)',
+              setupSummary: 'localHost=misskey.io。リンク先と同じホストなのでアイコンを省略します。',
+              setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
+              syntax: '[label](https://misskey.io/@user)',
+              mfm: '[ローカルプロフィール](https://misskey.io/@user)',
+              description: 'localHost=misskey.ioではラベルを保ちアイコンを表示しません',
+              config: MfmRenderConfig(localHost: 'misskey.io'),
+            ),
+            MfmExample(
+              name: 'Link (装飾ラベル)',
+              setupSummary:
+                  'localHost=misskey.io。ラベルと外部アイコンは同じonLinkTapへ通知します。',
+              setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
+              syntax: '[**bold** <small>small</small>](url)',
+              mfm:
+                  r'[**太字** ~~取消~~ <small>小文字</small> $[fg.color=ff0000 赤]](https://example.org)',
+              description: '装飾を維持し、末尾の色やサイズをアイコンへ漏らしません',
+              config: MfmRenderConfig(localHost: 'misskey.io'),
+            ),
+            MfmExample(
+              name: 'Silent Link',
+              setupSummary: 'localHost=misskey.io。タップは共通のonLinkTapへ通知します。',
+              setupCode: '''MfmRenderConfig(localHost: 'misskey.io')''',
+              syntax: '?[label](url)',
+              mfm: '?[サイレントリンク](https://example.org)',
+              description: '通常リンクと同じ末尾アイコンとタップ動作です',
+              config: MfmRenderConfig(localHost: 'misskey.io'),
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'URL (punycode)',
-          syntax: 'https://xn--wgv71a119e.jp/%E3%83%86%E3%82%B9%E3%83%88',
-          mfm: 'https://xn--wgv71a119e.jp/%E3%83%86%E3%82%B9%E3%83%88',
-          description: 'ホストは日本語.jpに復号し、パスもデコードして表示します',
+        MfmFeatureGroup(
+          id: 'links.mention-syntax',
+          title: 'Mention／構文',
+          examples: [
+            MfmExample(
+              name: 'Mention',
+              syntax: '@user',
+              mfm: '@example_user',
+            ),
+            MfmExample(
+              name: 'Mention (リモート)',
+              syntax: '@user@host',
+              mfm: '@user@misskey.example',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'URL (自ホスト)',
-          syntax: 'https://misskey.io/@syuilo',
-          mfm: 'https://misskey.io/@syuilo',
-          description: 'localHost=misskey.ioではスキームとホストを省略して表示します',
-        ),
-        MfmExample(
-          name: 'Link',
-          syntax: '[label](url)',
-          mfm: '[Misskey公式](https://misskey.io)',
-        ),
-        MfmExample(
-          name: 'Link (ラベル付き)',
-          syntax: '[label](https://example.org/@user)',
-          mfm: '[ユーザープロフィール](https://example.org/@user)',
-          description: '外部HTTP(S)リンクはラベルの末尾にアイコンを表示します',
-          config: MfmRenderConfig(localHost: 'misskey.io'),
-        ),
-        MfmExample(
-          name: 'Link (自ホスト)',
-          syntax: '[label](https://misskey.io/@user)',
-          mfm: '[ローカルプロフィール](https://misskey.io/@user)',
-          description: 'localHost=misskey.ioではラベルを保ちアイコンを表示しません',
-          config: MfmRenderConfig(localHost: 'misskey.io'),
-        ),
-        MfmExample(
-          name: 'Link (装飾ラベル)',
-          syntax: '[**bold** <small>small</small>](url)',
-          mfm:
-              r'[**太字** ~~取消~~ <small>小文字</small> $[fg.color=ff0000 赤]](https://example.org)',
-          description: '装飾を維持し、末尾の色やサイズをアイコンへ漏らしません',
-          config: MfmRenderConfig(localHost: 'misskey.io'),
-        ),
-        MfmExample(
-          name: 'Silent Link',
-          syntax: '?[label](url)',
-          mfm: '?[サイレントリンク](https://example.org)',
-          description: '通常リンクと同じ末尾アイコンとタップ動作です',
-          config: MfmRenderConfig(localHost: 'misskey.io'),
-        ),
-        MfmExample(
-          name: 'Mention',
-          syntax: '@user',
-          mfm: '@example_user',
-        ),
-        MfmExample(
-          name: 'Mention (リモート)',
-          syntax: '@user@host',
-          mfm: '@user@misskey.example',
-        ),
-        MfmExample(
-          name: 'Hashtag',
-          syntax: '#tag',
-          mfm: '#MisskeyMFM',
+        MfmFeatureGroup(
+          id: 'links.hashtag',
+          title: 'Hashtag',
+          examples: [
+            MfmExample(
+              name: 'Hashtag',
+              syntax: '#tag',
+              mfm: '#MisskeyMFM',
+            ),
+          ],
         ),
       ],
     ),
-
-    // 絵文字
     MfmCategory(
+      id: 'emoji',
       title: '絵文字',
-      examples: [
-        MfmExample(
-          name: 'Unicode Emoji',
-          syntax: '絵文字をそのまま',
-          mfm: '🎉 こんにちは！ 😊',
+      description: 'Unicode・Twemoji・カスタム絵文字',
+      groups: [
+        MfmFeatureGroup(
+          id: 'emoji.unicode',
+          title: 'Unicode Emoji',
+          examples: [
+            MfmExample(
+              name: 'Unicode Emoji',
+              syntax: '絵文字をそのまま',
+              mfm: '🎉 こんにちは！ 😊',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Twemoji (offline)',
-          syntax: 'unicodeEmojiBuilder: MfmTwemojiBuilder.build',
-          mfm:
-              'Abg 😀 ❤️ 1️⃣ 🏳️‍🌈 👍🏽 🇯🇵 👩‍⚕️ '
-              '\u{1f3f4}\u{e0067}\u{e0062}\u{e0065}'
-              '\u{e006e}\u{e0067}\u{e007f} Abg',
-          description:
-              'Twemoji v17.0.3の未改変PNG8枚を同梱。'
-              'Twitter and contributors / CC-BY 4.0。'
-              '出典・ライセンスはexample/assets/twemoji/を参照。',
-          config: MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji),
+        MfmFeatureGroup(
+          id: 'emoji.twemoji',
+          title: 'Twemoji',
+          examples: [
+            MfmExample(
+              name: 'Twemoji (offline)',
+              setupSummary: '同梱画像専用のunicodeEmojiBuilder。未同梱画像は元Unicodeへ戻ります。',
+              setupCode: '''// _offlineTwemoji: このファイル末尾の同梱8画像用builder
+// assets/twemoji/ のPNG・ライセンスが必要です。
+MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji)''',
+              syntax: 'unicodeEmojiBuilder: MfmTwemojiBuilder.build',
+              mfm:
+                  'Abg 😀 ❤️ 1️⃣ 🏳️‍🌈 👍🏽 🇯🇵 👩‍⚕️ '
+                  '\u{1f3f4}\u{e0067}\u{e0062}\u{e0065}'
+                  '\u{e006e}\u{e0067}\u{e007f} Abg',
+              description:
+                  'Twemoji v17.0.3の未改変PNG8枚を同梱。'
+                  'Twitter and contributors / CC-BY 4.0。'
+                  '出典・ライセンスはexample/assets/twemoji/を参照。',
+              config: MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji),
+            ),
+            MfmExample(
+              name: 'Twemoji (fallback and size)',
+              setupSummary: '同梱画像専用のunicodeEmojiBuilder。small・x2のサイズにも追従します。',
+              setupCode: '''// _offlineTwemoji: このファイル末尾の同梱8画像用builder
+// assets/twemoji/ のPNG・ライセンスが必要です。
+MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji)''',
+              syntax: r'<small>😀 🚀</small> $[x2 ❤️]',
+              mfm: r'Abg 😀 🚀 <small>😀 🚀</small> $[x2 ❤️] Abg',
+              description:
+                  '未同梱の🚀は元Unicodeで表示し、画像は本文サイズに追従します。'
+                  'Twemoji: Twitter and contributors / CC-BY 4.0。',
+              config: MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji),
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Twemoji (fallback and size)',
-          syntax: r'<small>😀 🚀</small> $[x2 ❤️]',
-          mfm: r'Abg 😀 🚀 <small>😀 🚀</small> $[x2 ❤️] Abg',
-          description:
-              '未同梱の🚀は元Unicodeで表示し、画像は本文サイズに追従します。'
-              'Twemoji: Twitter and contributors / CC-BY 4.0。',
-          config: MfmRenderConfig(unicodeEmojiBuilder: _offlineTwemoji),
-        ),
-        MfmExample(
-          name: 'Custom Emoji (misskey.io)',
-          syntax: ':emoji1: :emoji2: :emoji3:',
-          mfm: ':ai_smile_misskeyio: :ai_pointing_misskeyio: :misskey_loading:',
-          description: 'Misskey.ioで実在するカスタム絵文字',
-        ),
-        MfmExample(
-          name: 'Custom Emoji + Text (misskey.io)',
-          syntax: 'テキスト :emoji: テキスト',
-          mfm: 'こんにちは :pudding_cat: よろしく :icon_syuilo:',
-          description: 'Misskey.ioの実在絵文字を混在表示',
-        ),
-        MfmExample(
-          name: 'Custom Emoji (存在しない)',
-          syntax: ':not_exist_emoji:',
-          mfm: ':not_exist_emoji:',
-          description: '未取得時は周囲の1emサイズと自然な文字ベースラインで表示します',
-        ),
-        MfmExample(
-          name: 'Custom Emoji (フォールバックの継承)',
-          syntax: '<small>**:not_exist_emoji:**</small>',
-          mfm: '本文 :not_exist_emoji: <small>**:not_exist_emoji:**</small>',
-          description: '未取得時も太字・smallのサイズと不透明度を継承します。plain表示とも比較できます',
-        ),
-        MfmExample(
-          name: 'Custom Emoji (リモート)',
-          syntax: ':ai_smile_misskeyio: :pudding_cat: :not_in_map:',
-          mfm: ':ai_smile_misskeyio: :pudding_cat: :not_in_map:',
-          description:
-              '設定パネルの「リモート投稿として扱う」「emojiUrls を渡す」「絵文字の文脈を表示」で経路が変わります。'
-              'ローカルresolver、直接URL、mapにキー無しならショートコード、'
-              'mapなしならリモートエンドポイント取得となり、失敗時はショートコード表示です',
-        ),
-        MfmExample(
-          name: 'Custom Emoji (x2)',
-          syntax: r'$[x2 :ai_smile_misskeyio:]',
-          mfm: r'$[x2 :ai_smile_misskeyio:]',
-          description: '絵文字も x2 の中では拡大します',
+        MfmFeatureGroup(
+          id: 'emoji.custom',
+          title: 'Custom Emoji',
+          examples: [
+            MfmExample(
+              name: 'Custom Emoji (misskey.io)',
+              syntax: ':emoji1: :emoji2: :emoji3:',
+              mfm:
+                  ':ai_smile_misskeyio: :ai_pointing_misskeyio: '
+                  ':misskey_loading:',
+              description:
+                  'Misskey.ioで実在するカスタム絵文字。オンライン同期が必要です。オフラインではショートコード表示。',
+            ),
+            MfmExample(
+              name: 'Custom Emoji + Text (misskey.io)',
+              syntax: 'テキスト :emoji: テキスト',
+              mfm: 'こんにちは :pudding_cat: よろしく :icon_syuilo:',
+              description:
+                  'Misskey.ioの実在絵文字を混在表示。オンライン同期が必要です。オフラインではショートコード表示。',
+            ),
+            MfmExample(
+              name: 'Custom Emoji (存在しない)',
+              setupSummary: 'ローカル投稿に固定し、nullを返すresolverで標準fallbackを確認。通信しません。',
+              setupCode:
+                  '''// core/emoji/offline_example_fixtures.dart の公開API使用例
+// offlineMissingEmoji: fromResolverで常にnullを返すresolverを使用
+MfmRenderConfig(
+  author: MfmAuthorContext(),
+  emojiBuilder: offlineMissingEmoji,
+)''',
+              syntax: ':not_exist_emoji:',
+              mfm: ':not_exist_emoji:',
+              description: '未取得時は周囲の1emサイズと自然な文字ベースラインで表示します',
+              config: MfmRenderConfig(
+                author: MfmAuthorContext(),
+                emojiBuilder: offlineMissingEmoji,
+              ),
+            ),
+            MfmExample(
+              name: 'Custom Emoji (フォールバックの継承)',
+              setupSummary:
+                  'ローカル投稿に固定。fromResolverがtextStyleを標準fallbackへ渡します。通信しません。',
+              setupCode:
+                  '''// core/emoji/offline_example_fixtures.dart の公開API使用例
+// offlineMissingEmoji: fromResolverで常にnullを返すresolverを使用
+MfmRenderConfig(
+  author: MfmAuthorContext(),
+  emojiBuilder: offlineMissingEmoji,
+)''',
+              syntax: '<small>**:not_exist_emoji:**</small>',
+              mfm: '本文 :not_exist_emoji: <small>**:not_exist_emoji:**</small>',
+              description: '未取得時も太字・smallのサイズと不透明度を継承します。plain表示とも比較できます',
+              config: MfmRenderConfig(
+                author: MfmAuthorContext(),
+                emojiBuilder: offlineMissingEmoji,
+              ),
+            ),
+            MfmExample(
+              name: 'Custom Emoji (リモート)',
+              syntax: ':ai_smile_misskeyio: :pudding_cat: :not_in_map:',
+              mfm: ':ai_smile_misskeyio: :pudding_cat: :not_in_map:',
+              description:
+                  '設定パネルの「リモート投稿として扱う」「emojiUrls を渡す」「絵文字の文脈を表示」で経路が変わります。'
+                  'ローカルresolver、直接URL、mapにキー無しならショートコード、'
+                  'mapなしならリモートエンドポイント取得となり、失敗時はショートコード表示です',
+            ),
+            MfmExample(
+              name: 'Custom Emoji (x2)',
+              syntax: r'$[x2 :ai_smile_misskeyio:]',
+              mfm: r'$[x2 :ai_smile_misskeyio:]',
+              description: '絵文字も x2 の中では拡大します',
+            ),
+          ],
         ),
       ],
     ),
-
-    // fn関数 - サイズ
     MfmCategory(
+      id: 'size',
       title: 'fn関数 - サイズ',
-      examples: [
-        MfmExample(
-          name: 'x2',
-          syntax: r'$[x2 text]',
-          mfm: r'$[x2 2倍サイズ]',
-          description: 'Advanced MFM をオフにすると拡大しません',
+      description: '文字の拡大とネスト',
+      groups: [
+        MfmFeatureGroup(
+          id: 'size.x2',
+          title: 'x2',
+          examples: [
+            MfmExample(
+              name: 'x2',
+              syntax: r'$[x2 text]',
+              mfm: r'$[x2 2倍サイズ]',
+              description: 'Advanced MFM をオフにすると拡大しません',
+            ),
+            MfmExample(
+              name: 'x2 (ネスト)',
+              syntax: r'$[x2 $[x2 text]]',
+              mfm: r'$[x2 $[x2 ネスト]]',
+              description: '実効サイズは3倍になり、3段目以降は拡大しません',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'x3',
-          syntax: r'$[x3 text]',
-          mfm: r'$[x3 3倍サイズ]',
+        MfmFeatureGroup(
+          id: 'size.x3',
+          title: 'x3',
+          examples: [
+            MfmExample(
+              name: 'x3',
+              syntax: r'$[x3 text]',
+              mfm: r'$[x3 3倍サイズ]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'x4',
-          syntax: r'$[x4 text]',
-          mfm: r'$[x4 4倍サイズ]',
-        ),
-        MfmExample(
-          name: 'x2 (ネスト)',
-          syntax: r'$[x2 $[x2 text]]',
-          mfm: r'$[x2 $[x2 ネスト]]',
-          description: '実効サイズは3倍になり、3段目以降は拡大しません',
+        MfmFeatureGroup(
+          id: 'size.x4',
+          title: 'x4',
+          examples: [
+            MfmExample(
+              name: 'x4',
+              syntax: r'$[x4 text]',
+              mfm: r'$[x4 4倍サイズ]',
+            ),
+          ],
         ),
       ],
     ),
-
-    // fn関数 - 変換
     MfmCategory(
+      id: 'transform',
       title: 'fn関数 - 変換',
-      examples: [
-        MfmExample(
-          name: 'Flip (horizontal)',
-          syntax: r'$[flip text]',
-          mfm: r'$[flip 左右反転]',
+      description: '反転・回転・拡縮・位置',
+      groups: [
+        MfmFeatureGroup(
+          id: 'transform.flip',
+          title: 'Flip',
+          examples: [
+            MfmExample(
+              name: 'Flip (horizontal)',
+              syntax: r'$[flip text]',
+              mfm: r'$[flip 左右反転]',
+            ),
+            MfmExample(
+              name: 'Flip (vertical)',
+              syntax: r'$[flip.v text]',
+              mfm: r'$[flip.v 上下反転]',
+            ),
+            MfmExample(
+              name: 'Flip (both)',
+              syntax: r'$[flip.h,v text]',
+              mfm: r'$[flip.h,v 両方反転]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Flip (vertical)',
-          syntax: r'$[flip.v text]',
-          mfm: r'$[flip.v 上下反転]',
+        MfmFeatureGroup(
+          id: 'transform.rotate',
+          title: 'Rotate',
+          examples: [
+            MfmExample(
+              name: 'Rotate',
+              syntax: r'$[rotate.deg=45 text]',
+              mfm: r'$[rotate.deg=45 45度回転]',
+            ),
+            MfmExample(
+              name: 'Rotate (負角度)',
+              syntax: r'$[rotate.deg=-30 text]',
+              mfm: r'$[rotate.deg=-30 左に30度回転]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Flip (both)',
-          syntax: r'$[flip.h,v text]',
-          mfm: r'$[flip.h,v 両方反転]',
+        MfmFeatureGroup(
+          id: 'transform.scale',
+          title: 'Scale',
+          examples: [
+            MfmExample(
+              name: 'Scale',
+              syntax: r'$[scale.x=2,y=0.5 text]',
+              mfm: r'$[scale.x=2,y=0.5 拡大縮小]',
+            ),
+            MfmExample(
+              name: 'Scale (上限)',
+              syntax: r'$[scale.x=10,y=10 text]',
+              mfm: r'$[scale.x=10,y=10 上限]',
+              description: '各軸の倍率は ±5 に制限されます',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Rotate',
-          syntax: r'$[rotate.deg=45 text]',
-          mfm: r'$[rotate.deg=45 45度回転]',
-        ),
-        MfmExample(
-          name: 'Rotate (負角度)',
-          syntax: r'$[rotate.deg=-30 text]',
-          mfm: r'$[rotate.deg=-30 左に30度回転]',
-        ),
-        MfmExample(
-          name: 'Scale',
-          syntax: r'$[scale.x=2,y=0.5 text]',
-          mfm: r'$[scale.x=2,y=0.5 拡大縮小]',
-        ),
-        MfmExample(
-          name: 'Scale (上限)',
-          syntax: r'$[scale.x=10,y=10 text]',
-          mfm: r'$[scale.x=10,y=10 上限]',
-          description: '各軸の倍率は ±5 に制限されます',
-        ),
-        MfmExample(
-          name: 'Position',
-          syntax: r'$[position.x=1,y=1 text]',
-          mfm: r'$[position.x=1,y=1 位置移動]',
-        ),
-        MfmExample(
-          name: 'Position (負値)',
-          syntax: r'$[position.x=-1,y=-0.5 text]',
-          mfm: r'$[position.x=-1,y=-0.5 左上へ移動]',
+        MfmFeatureGroup(
+          id: 'transform.position',
+          title: 'Position',
+          examples: [
+            MfmExample(
+              name: 'Position',
+              syntax: r'$[position.x=1,y=1 text]',
+              mfm: r'$[position.x=1,y=1 位置移動]',
+            ),
+            MfmExample(
+              name: 'Position (負値)',
+              syntax: r'$[position.x=-1,y=-0.5 text]',
+              mfm: r'$[position.x=-1,y=-0.5 左上へ移動]',
+            ),
+            MfmExample(
+              name: 'Position (現在の文字サイズ)',
+              syntax: r'$[x2 $[position.x=1 text]]',
+              mfm: r'$[x2 $[position.x=1 移動]]',
+              description: '現在の文字サイズの1em分だけ右へ移動',
+            ),
+          ],
         ),
       ],
     ),
-
-    // fn関数 - スタイル
     MfmCategory(
+      id: 'style',
       title: 'fn関数 - スタイル',
-      examples: [
-        MfmExample(
-          name: 'Foreground Color',
-          syntax: r'$[fg.color=ff0000 text]',
-          mfm: r'$[fg.color=ff0000 赤い文字]',
+      description: '文字色・背景色・枠線・フォント',
+      groups: [
+        MfmFeatureGroup(
+          id: 'style.foreground',
+          title: 'Foreground Color',
+          examples: [
+            MfmExample(
+              name: 'Foreground Color',
+              syntax: r'$[fg.color=ff0000 text]',
+              mfm: r'$[fg.color=ff0000 赤い文字]',
+            ),
+            MfmExample(
+              name: 'Foreground Color (3桁)',
+              syntax: r'$[fg.color=f00 text]',
+              mfm: r'$[fg.color=f00 3桁]',
+            ),
+            MfmExample(
+              name: 'Foreground Color (RGBA)',
+              syntax: r'$[fg.color=0f08 text]',
+              mfm: r'$[fg.color=0f08 4桁RGBA]',
+              description: '4桁のRGBA形式も指定できます',
+            ),
+            MfmExample(
+              name: 'Foreground Color (不正値)',
+              syntax: r'$[fg.color=zzz text]',
+              mfm: r'$[fg.color=zzz 不正値→赤]',
+              description: '3〜6桁の16進数以外は赤で表示されます',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Foreground Color (3桁)',
-          syntax: r'$[fg.color=f00 text]',
-          mfm: r'$[fg.color=f00 3桁]',
+        MfmFeatureGroup(
+          id: 'style.background',
+          title: 'Background Color',
+          examples: [
+            MfmExample(
+              name: 'Background Color',
+              syntax: r'$[bg.color=00ff00 text]',
+              mfm: r'$[bg.color=00ff00 緑の背景]',
+            ),
+            MfmExample(
+              name: 'Background Color (3桁)',
+              syntax: r'$[bg.color=ff0 text]',
+              mfm: r'$[bg.color=ff0 背景]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Foreground Color (RGBA)',
-          syntax: r'$[fg.color=0f08 text]',
-          mfm: r'$[fg.color=0f08 4桁RGBA]',
-          description: '4桁のRGBA形式も指定できます',
+        MfmFeatureGroup(
+          id: 'style.border',
+          title: 'Border',
+          examples: [
+            MfmExample(
+              name: 'Border',
+              syntax: r'$[border.color=0000ff text]',
+              mfm: r'$[border.color=0000ff 青い枠線]',
+            ),
+            MfmExample(
+              name: 'Border (オプション)',
+              syntax: r'$[border.width=3,radius=8 text]',
+              mfm: r'$[border.width=3,radius=8 枠線オプション]',
+            ),
+            MfmExample(
+              name: 'Border (破線指定)',
+              syntax: r'$[border.style=dashed text]',
+              mfm: r'$[border.style=dashed 破線指定]',
+              description: '閉じた輪郭に破線を均等配置します（ブラウザ依存の描画は近似）',
+            ),
+            MfmExample(
+              name: 'Border (全線種)',
+              syntax: r'$[border.style=double,width=6 text]',
+              mfm:
+                  r'$[border.style=hidden,width=6 hidden] '
+                  r'$[border.style=dotted,width=3 dotted] '
+                  r'$[border.style=dashed,width=3 dashed] '
+                  r'$[border.style=solid,width=6 solid] '
+                  r'$[border.style=double,width=6 double] '
+                  r'$[border.style=groove,width=6 groove] '
+                  r'$[border.style=ridge,width=6 ridge] '
+                  r'$[border.style=inset,width=6 inset] '
+                  r'$[border.style=outset,width=6 outset]',
+            ),
+            MfmExample(
+              name: 'Border (角丸clip)',
+              syntax: r'$[border.width=6,radius=20 text]',
+              mfm:
+                  r'$[border.width=6,radius=20 $[bg.color=ff8800 clip]] '
+                  r'$[border.width=6,radius=20,noclip '
+                  r'$[bg.color=ff8800 noclip]]',
+              description: '既定は枠の内縁でclip。noclipは子の描画clipを解除します',
+            ),
+            MfmExample(
+              name: 'Border (RGBA)',
+              syntax: r'$[border.color=f008,width=6 text]',
+              mfm: r'$[border.color=f008,width=6 半透明の赤]',
+              description: '4桁はRGBA順。透明色でも幅を確保します',
+            ),
+            MfmExample(
+              name: 'Border (既定色)',
+              syntax: r'$[border text]',
+              mfm: r'$[border 既定色]',
+              description: '色を省略すると accent 色の枠線になります',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Foreground Color (不正値)',
-          syntax: r'$[fg.color=zzz text]',
-          mfm: r'$[fg.color=zzz 不正値→赤]',
-          description: '3〜6桁の16進数以外は赤で表示されます',
-        ),
-        MfmExample(
-          name: 'Background Color',
-          syntax: r'$[bg.color=00ff00 text]',
-          mfm: r'$[bg.color=00ff00 緑の背景]',
-        ),
-        MfmExample(
-          name: 'Background Color (3桁)',
-          syntax: r'$[bg.color=ff0 text]',
-          mfm: r'$[bg.color=ff0 背景]',
-        ),
-        MfmExample(
-          name: 'Border',
-          syntax: r'$[border.color=0000ff text]',
-          mfm: r'$[border.color=0000ff 青い枠線]',
-        ),
-        MfmExample(
-          name: 'Border (オプション)',
-          syntax: r'$[border.width=3,radius=8 text]',
-          mfm: r'$[border.width=3,radius=8 枠線オプション]',
-        ),
-        MfmExample(
-          name: 'Border (破線指定)',
-          syntax: r'$[border.style=dashed text]',
-          mfm: r'$[border.style=dashed 破線指定]',
-          description: '閉じた輪郭に破線を均等配置します（ブラウザ依存の描画は近似）',
-        ),
-        MfmExample(
-          name: 'Border (全線種)',
-          syntax: r'$[border.style=double,width=6 text]',
-          mfm:
-              r'$[border.style=hidden,width=6 hidden] '
-              r'$[border.style=dotted,width=3 dotted] '
-              r'$[border.style=dashed,width=3 dashed] '
-              r'$[border.style=solid,width=6 solid] '
-              r'$[border.style=double,width=6 double] '
-              r'$[border.style=groove,width=6 groove] '
-              r'$[border.style=ridge,width=6 ridge] '
-              r'$[border.style=inset,width=6 inset] '
-              r'$[border.style=outset,width=6 outset]',
-        ),
-        MfmExample(
-          name: 'Border (角丸clip)',
-          syntax: r'$[border.width=6,radius=20 text]',
-          mfm:
-              r'$[border.width=6,radius=20 $[bg.color=ff8800 clip]] '
-              r'$[border.width=6,radius=20,noclip $[bg.color=ff8800 noclip]]',
-          description: '既定は枠の内縁でclip。noclipは子の描画clipを解除します',
-        ),
-        MfmExample(
-          name: 'Border (RGBA)',
-          syntax: r'$[border.color=f008,width=6 text]',
-          mfm: r'$[border.color=f008,width=6 半透明の赤]',
-          description: '4桁はRGBA順。透明色でも幅を確保します',
-        ),
-        MfmExample(
-          name: 'Border (既定色)',
-          syntax: r'$[border text]',
-          mfm: r'$[border 既定色]',
-          description: '色を省略すると accent 色の枠線になります',
-        ),
-        MfmExample(
-          name: 'Font',
-          syntax: r'$[font.monospace text]',
-          mfm: r'$[font.monospace 等幅フォント]',
-        ),
-        MfmExample(
-          name: 'Font (serif)',
-          syntax: r'$[font.serif text]',
-          mfm: r'$[font.serif セリフ体]',
-        ),
-        MfmExample(
-          name: 'Font (cursive)',
-          syntax: r'$[font.cursive text]',
-          mfm: r'$[font.cursive 筆記体]',
-        ),
-        MfmExample(
-          name: 'Font (fantasy)',
-          syntax: r'$[font.fantasy text]',
-          mfm: r'$[font.fantasy ファンタジー]',
+        MfmFeatureGroup(
+          id: 'style.font',
+          title: 'Font',
+          examples: [
+            MfmExample(
+              name: 'Font',
+              syntax: r'$[font.monospace text]',
+              mfm: r'$[font.monospace 等幅フォント]',
+            ),
+            MfmExample(
+              name: 'Font (serif)',
+              syntax: r'$[font.serif text]',
+              mfm: r'$[font.serif セリフ体]',
+            ),
+            MfmExample(
+              name: 'Font (cursive)',
+              syntax: r'$[font.cursive text]',
+              mfm: r'$[font.cursive 筆記体]',
+            ),
+            MfmExample(
+              name: 'Font (fantasy)',
+              syntax: r'$[font.fantasy text]',
+              mfm: r'$[font.fantasy ファンタジー]',
+            ),
+          ],
         ),
       ],
     ),
-
-    // fn関数 - 特殊
     MfmCategory(
+      id: 'special',
       title: 'fn関数 - 特殊',
-      examples: [
-        MfmExample(
-          name: 'Blur',
-          syntax: r'$[blur text]',
-          mfm: r'$[blur ぼかし（タップで解除）]',
-        ),
-        MfmExample(
-          name: 'Ruby',
-          syntax: r'$[ruby 漢字 振り仮名]',
-          mfm: r'$[ruby 漢字 かんじ]',
-        ),
-        MfmExample(
-          name: 'Ruby (装飾の継承)',
-          syntax: r'$[x2 $[fg.color=ff6600 $[ruby 漢字 かんじ]]]',
-          mfm: r'$[x2 $[fg.color=ff6600 $[ruby 漢字 かんじ]]]',
-          description: '本文は2倍、読みは本文の半分のサイズ。どちらも外側の色を継承',
-        ),
-        MfmExample(
-          name: 'Position (現在の文字サイズ)',
-          syntax: r'$[x2 $[position.x=1 text]]',
-          mfm: r'$[x2 $[position.x=1 移動]]',
-          description: '現在の文字サイズの1em分だけ右へ移動',
-        ),
-        MfmExample(
-          name: 'Unixtime (装飾の継承)',
-          syntax: r'<small>$[fg.color=ff6600 $[unixtime 1700000000]]</small>',
-          mfm: r'<small>$[fg.color=ff6600 $[unixtime 1700000000]]</small>',
-          description: 'smallのサイズ・透明度と外側の色を継承',
-        ),
-        MfmExample(
-          name: 'Unixtime (過去・detail)',
-          description: '端末localの絶対日時＋相対日時。日英locale対応・10秒共有更新',
-          syntax: r'$[unixtime 1700000000]',
-          mfm: r'$[unixtime 1700000000]',
-        ),
-        MfmExample(
-          name: 'Unixtime (未来)',
-          description: '未来は「〜後」。表示設定はMfmUnixtimeOptionsで変更可能',
-          syntax: r'$[unixtime 2000000000]',
-          mfm: r'$[unixtime 2000000000]',
-        ),
-        MfmExample(
-          name: 'Unixtime (日本語)',
-          syntax: r'$[unixtime 2000000000]',
-          mfm: r'$[unixtime 2000000000]',
-          config: MfmRenderConfig(
-            unixtimeOptions: MfmUnixtimeOptions(locale: Locale('ja')),
-          ),
-        ),
-        MfmExample(
-          name: 'Unixtime (English・absolute)',
-          syntax: r'$[unixtime 2000000000]',
-          mfm: r'$[unixtime 2000000000]',
-          config: MfmRenderConfig(
-            unixtimeOptions: MfmUnixtimeOptions(
-              locale: Locale('en'),
-              mode: MfmUnixtimeMode.absolute,
+      description: 'ぼかし・ルビ・日時・クリック',
+      groups: [
+        MfmFeatureGroup(
+          id: 'special.blur',
+          title: 'Blur',
+          examples: [
+            MfmExample(
+              name: 'Blur',
+              syntax: r'$[blur text]',
+              mfm: r'$[blur ぼかし（タップで解除）]',
             ),
-          ),
+          ],
         ),
-        MfmExample(
-          name: 'Unixtime (relative)',
-          syntax: r'$[unixtime 2000000000]',
-          mfm: r'$[unixtime 2000000000]',
-          config: MfmRenderConfig(
-            unixtimeOptions: MfmUnixtimeOptions(mode: MfmUnixtimeMode.relative),
-          ),
-        ),
-        MfmExample(
-          name: 'Unixtime (legacy・更新なし)',
-          syntax: r'$[unixtime 1700000000]',
-          mfm: r'$[unixtime 1700000000]',
-          description: '有効入力の従来timeago表示。解析・invalidは新仕様',
-          config: MfmRenderConfig(
-            unixtimeOptions: MfmUnixtimeOptions(
-              mode: MfmUnixtimeMode.relative,
-              formatter: mfmLegacyUnixtimeFormatter,
-              autoUpdate: false,
+        MfmFeatureGroup(
+          id: 'special.ruby',
+          title: 'Ruby',
+          examples: [
+            MfmExample(
+              name: 'Ruby',
+              syntax: r'$[ruby 漢字 振り仮名]',
+              mfm: r'$[ruby 漢字 かんじ]',
             ),
-          ),
+            MfmExample(
+              name: 'Ruby (装飾の継承)',
+              syntax: r'$[x2 $[fg.color=ff6600 $[ruby 漢字 かんじ]]]',
+              mfm: r'$[x2 $[fg.color=ff6600 $[ruby 漢字 かんじ]]]',
+              description: '本文は2倍、読みは本文の半分のサイズ。どちらも外側の色を継承',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Unixtime (整数prefix)',
-          syntax: r'$[unixtime 1700000000suffix]',
-          mfm: r'$[unixtime 1700000000suffix]',
-          description: '最初のtextの整数prefixを解析',
+        MfmFeatureGroup(
+          id: 'special.unixtime',
+          title: 'Unixtime',
+          examples: [
+            MfmExample(
+              name: 'Unixtime (装飾の継承)',
+              syntax:
+                  r'<small>$[fg.color=ff6600 $[unixtime 1700000000]]</small>',
+              mfm: r'<small>$[fg.color=ff6600 $[unixtime 1700000000]]</small>',
+              description: 'smallのサイズ・透明度と外側の色を継承',
+            ),
+            MfmExample(
+              name: 'Unixtime (過去・detail)',
+              description: '端末localの絶対日時＋相対日時。日英locale対応・10秒共有更新',
+              syntax: r'$[unixtime 1700000000]',
+              mfm: r'$[unixtime 1700000000]',
+            ),
+            MfmExample(
+              name: 'Unixtime (未来)',
+              description: '未来は「〜後」。表示設定はMfmUnixtimeOptionsで変更可能',
+              syntax: r'$[unixtime 2000000000]',
+              mfm: r'$[unixtime 2000000000]',
+            ),
+            MfmExample(
+              name: 'Unixtime (日本語)',
+              setupSummary: 'locale=ja。既定のdetail表示・自動更新を使用します。',
+              setupCode: '''MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(locale: Locale('ja')),
+)''',
+              syntax: r'$[unixtime 2000000000]',
+              mfm: r'$[unixtime 2000000000]',
+              config: MfmRenderConfig(
+                unixtimeOptions: MfmUnixtimeOptions(locale: Locale('ja')),
+              ),
+            ),
+            MfmExample(
+              name: 'Unixtime (English・absolute)',
+              setupSummary:
+                  'locale=en / mode=absolute。絶対日時のみを端末のtimezoneで表示します。',
+              setupCode: '''MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(
+    locale: Locale('en'),
+    mode: MfmUnixtimeMode.absolute,
+  ),
+)''',
+              syntax: r'$[unixtime 2000000000]',
+              mfm: r'$[unixtime 2000000000]',
+              config: MfmRenderConfig(
+                unixtimeOptions: MfmUnixtimeOptions(
+                  locale: Locale('en'),
+                  mode: MfmUnixtimeMode.absolute,
+                ),
+              ),
+            ),
+            MfmExample(
+              name: 'Unixtime (relative)',
+              setupSummary:
+                  'mode=relative。localeはアプリのLocalizationsから解決し、有効日時を自動更新します。',
+              setupCode: '''MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(mode: MfmUnixtimeMode.relative),
+)''',
+              syntax: r'$[unixtime 2000000000]',
+              mfm: r'$[unixtime 2000000000]',
+              config: MfmRenderConfig(
+                unixtimeOptions: MfmUnixtimeOptions(
+                  mode: MfmUnixtimeMode.relative,
+                ),
+              ),
+            ),
+            MfmExample(
+              name: 'Unixtime (legacy・更新なし)',
+              setupSummary:
+                  'mode=relative / formatter=mfmLegacyUnixtimeFormatter / autoUpdate=false。',
+              setupCode: '''MfmRenderConfig(
+  unixtimeOptions: MfmUnixtimeOptions(
+    mode: MfmUnixtimeMode.relative,
+    formatter: mfmLegacyUnixtimeFormatter,
+    autoUpdate: false,
+  ),
+)''',
+              syntax: r'$[unixtime 1700000000]',
+              mfm: r'$[unixtime 1700000000]',
+              description: '有効入力の従来timeago表示。解析・invalidは新仕様',
+              config: MfmRenderConfig(
+                unixtimeOptions: MfmUnixtimeOptions(
+                  mode: MfmUnixtimeMode.relative,
+                  formatter: mfmLegacyUnixtimeFormatter,
+                  autoUpdate: false,
+                ),
+              ),
+            ),
+            MfmExample(
+              name: 'Unixtime (整数prefix)',
+              syntax: r'$[unixtime 1700000000suffix]',
+              mfm: r'$[unixtime 1700000000suffix]',
+              description: '最初のtextの整数prefixを解析',
+            ),
+            MfmExample(
+              name: 'Unixtime (invalid)',
+              syntax: r'$[unixtime invalid]',
+              mfm: r'$[unixtime invalid]',
+              description: 'ピルを維持して解析失敗を表示',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Unixtime (invalid)',
-          syntax: r'$[unixtime invalid]',
-          mfm: r'$[unixtime invalid]',
-          description: 'ピルを維持して解析失敗を表示',
-        ),
-        MfmExample(
-          name: 'Clickable',
-          syntax: r'$[clickable.ev=hello text]',
-          mfm: r'$[clickable.ev=hello タップで onClickableEvent]',
-          description: 'タップすると onClickableEvent が呼ばれます',
+        MfmFeatureGroup(
+          id: 'special.clickable',
+          title: 'Clickable',
+          examples: [
+            MfmExample(
+              name: 'Clickable',
+              syntax: r'$[clickable.ev=hello text]',
+              mfm: r'$[clickable.ev=hello タップで onClickableEvent]',
+              description: 'タップすると onClickableEvent が呼ばれます',
+            ),
+          ],
         ),
       ],
     ),
-
-    // fn関数 - アニメーション
     MfmCategory(
+      id: 'animation',
       title: 'fn関数 - アニメーション',
-      examples: [
-        MfmExample(
-          name: 'Spin (Z軸)',
-          syntax: r'$[spin text]',
-          mfm: r'$[spin 回転]',
-          description: '通常のZ軸回転',
+      description: '回転・跳ね・揺れなどの動き',
+      groups: [
+        MfmFeatureGroup(
+          id: 'animation.spin',
+          title: 'Spin',
+          examples: [
+            MfmExample(
+              name: 'Spin (Z軸)',
+              syntax: r'$[spin text]',
+              mfm: r'$[spin 回転]',
+              description: '通常のZ軸回転',
+            ),
+            MfmExample(
+              name: 'Spin (X軸)',
+              syntax: r'$[spin.x text]',
+              mfm: r'$[spin.x X軸回転]',
+              description: '3D X軸回転',
+            ),
+            MfmExample(
+              name: 'Spin (Y軸)',
+              syntax: r'$[spin.y text]',
+              mfm: r'$[spin.y Y軸回転]',
+              description: '3D Y軸回転',
+            ),
+            MfmExample(
+              name: 'Spin (逆回転)',
+              syntax: r'$[spin.left text]',
+              mfm: r'$[spin.left 左回り]',
+              description: '逆方向に回転',
+            ),
+            MfmExample(
+              name: 'Spin (往復)',
+              syntax: r'$[spin.alternate text]',
+              mfm: r'$[spin.alternate 往復回転]',
+              description: '往復で回転',
+            ),
+            MfmExample(
+              name: 'Spin (速度調整)',
+              syntax: r'$[spin.speed=0.5s text]',
+              mfm: r'$[spin.speed=0.5s 高速回転]',
+              description: 'アニメーション速度を指定',
+            ),
+            MfmExample(
+              name: 'Spin (速度0)',
+              syntax: r'$[spin.speed=0s text]',
+              mfm: r'$[spin.speed=0s 通常表示]',
+              description: 'speed が 0 のときは通常表示になります',
+            ),
+            MfmExample(
+              name: 'Spin (負の遅延)',
+              syntax: r'$[spin.delay=-0.5s text]',
+              mfm: r'$[spin.delay=-0.5s 位相を進めて開始]',
+              description: '0.5秒進んだ位相から開始します',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Spin (X軸)',
-          syntax: r'$[spin.x text]',
-          mfm: r'$[spin.x X軸回転]',
-          description: '3D X軸回転',
+        MfmFeatureGroup(
+          id: 'animation.jump',
+          title: 'Jump',
+          examples: [
+            MfmExample(
+              name: 'Jump',
+              syntax: r'$[jump text]',
+              mfm: r'$[jump ジャンプ!]',
+              description: '跳ねるアニメーション',
+            ),
+            MfmExample(
+              name: 'Jump (速度調整)',
+              syntax: r'$[jump.speed=0.5s text]',
+              mfm: r'$[jump.speed=0.5s 速くジャンプ!]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Spin (Y軸)',
-          syntax: r'$[spin.y text]',
-          mfm: r'$[spin.y Y軸回転]',
-          description: '3D Y軸回転',
+        MfmFeatureGroup(
+          id: 'animation.bounce',
+          title: 'Bounce',
+          examples: [
+            MfmExample(
+              name: 'Bounce',
+              syntax: r'$[bounce text]',
+              mfm: r'$[bounce バウンス]',
+              description: '弾むアニメーション',
+            ),
+            MfmExample(
+              name: 'Bounce (速度調整)',
+              syntax: r'$[bounce.speed=0.5s text]',
+              mfm: r'$[bounce.speed=0.5s 速くバウンス]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Spin (逆回転)',
-          syntax: r'$[spin.left text]',
-          mfm: r'$[spin.left 左回り]',
-          description: '逆方向に回転',
+        MfmFeatureGroup(
+          id: 'animation.shake',
+          title: 'Shake',
+          examples: [
+            MfmExample(
+              name: 'Shake',
+              syntax: r'$[shake text]',
+              mfm: r'$[shake ガタガタ]',
+              description: '震えるアニメーション',
+            ),
+            MfmExample(
+              name: 'Shake (開始遅延)',
+              syntax: r'$[shake.delay=2s text]',
+              mfm: r'$[shake.delay=2s 2秒待ってから動く]',
+              description: '待機中は変形せず、2秒後にアニメーションを開始します',
+            ),
+            MfmExample(
+              name: 'Shake (速度調整)',
+              syntax: r'$[shake.speed=0.3s text]',
+              mfm: r'$[shake.speed=0.3s 激しく震える]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Spin (往復)',
-          syntax: r'$[spin.alternate text]',
-          mfm: r'$[spin.alternate 往復回転]',
-          description: '往復で回転',
+        MfmFeatureGroup(
+          id: 'animation.twitch',
+          title: 'Twitch',
+          examples: [
+            MfmExample(
+              name: 'Twitch',
+              syntax: r'$[twitch text]',
+              mfm: r'$[twitch ビクビク]',
+              description: 'ランダムに動くアニメーション',
+            ),
+            MfmExample(
+              name: 'Twitch (開始遅延)',
+              syntax: r'$[twitch.delay=2s text]',
+              mfm: r'$[twitch.delay=2s 2秒待ってから動く]',
+              description: '待機中は変形せず、2秒後にアニメーションを開始します',
+            ),
+            MfmExample(
+              name: 'Twitch (速度調整)',
+              syntax: r'$[twitch.speed=0.3s text]',
+              mfm: r'$[twitch.speed=0.3s 激しく動く]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Spin (速度調整)',
-          syntax: r'$[spin.speed=0.5s text]',
-          mfm: r'$[spin.speed=0.5s 高速回転]',
-          description: 'アニメーション速度を指定',
+        MfmFeatureGroup(
+          id: 'animation.jelly',
+          title: 'Jelly',
+          examples: [
+            MfmExample(
+              name: 'Jelly',
+              syntax: r'$[jelly text]',
+              mfm: r'$[jelly ぷるぷる]',
+              description: 'ゼリーのように揺れる',
+            ),
+            MfmExample(
+              name: 'Jelly (速度調整)',
+              syntax: r'$[jelly.speed=0.5s text]',
+              mfm: r'$[jelly.speed=0.5s 速く揺れる]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Spin (速度0)',
-          syntax: r'$[spin.speed=0s text]',
-          mfm: r'$[spin.speed=0s 通常表示]',
-          description: 'speed が 0 のときは通常表示になります',
+        MfmFeatureGroup(
+          id: 'animation.tada',
+          title: 'Tada',
+          examples: [
+            MfmExample(
+              name: 'Tada',
+              syntax: r'$[tada text]',
+              mfm: r'$[tada じゃーん!]',
+              description: '150%サイズで揺れ、Advanced MFM をオフにしても150%の拡大は残ります',
+            ),
+            MfmExample(
+              name: 'Tada (速度調整)',
+              syntax: r'$[tada.speed=0.5s text]',
+              mfm: r'$[tada.speed=0.5s 速くじゃーん!]',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Spin (負の遅延)',
-          syntax: r'$[spin.delay=-0.5s text]',
-          mfm: r'$[spin.delay=-0.5s 位相を進めて開始]',
-          description: '0.5秒進んだ位相から開始します',
+        MfmFeatureGroup(
+          id: 'animation.rainbow',
+          title: 'Rainbow',
+          examples: [
+            MfmExample(
+              name: 'Rainbow',
+              syntax: r'$[rainbow text]',
+              mfm: r'$[rainbow 虹色]',
+              description: 'レインボーカラーアニメーション',
+            ),
+            MfmExample(
+              name: 'Rainbow (速度調整)',
+              syntax: r'$[rainbow.speed=0.5s text]',
+              mfm: r'$[rainbow.speed=0.5s 速く虹色]',
+            ),
+            MfmExample(
+              name: 'Rainbow (無彩色)',
+              syntax: r'$[rainbow $[fg.color=888 text]]',
+              mfm: r'$[rainbow $[fg.color=888 灰色の本文]]',
+              description: 'hue-rotateのため無彩色は色相が循環せず、明度だけがわずかに変化します',
+            ),
+            MfmExample(
+              name: 'Rainbow (有彩色)',
+              syntax: r'$[rainbow $[fg.color=f00 text]]',
+              mfm: r'$[rainbow $[fg.color=f00 赤い文字]]',
+              description: 'アニメーション無効時は静的な虹色で表示します',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Jump',
-          syntax: r'$[jump text]',
-          mfm: r'$[jump ジャンプ!]',
-          description: '跳ねるアニメーション',
+        MfmFeatureGroup(
+          id: 'animation.sparkle',
+          title: 'Sparkle',
+          examples: [
+            MfmExample(
+              name: 'Sparkle',
+              syntax: r'$[sparkle text]',
+              mfm: r'$[sparkle ✨キラキラ✨]',
+              description: 'スパークルエフェクト',
+            ),
+            MfmExample(
+              name: 'Sparkle (短いテキスト)',
+              syntax: r'$[sparkle text]',
+              mfm: r'通常のテキスト紛れて $[sparkle ここだけ] 反映がされる',
+              description: 'エフェクトを特定のテキスト周辺のみに適用',
+            ),
+            MfmExample(
+              name: 'Sparkle (長いテキスト)',
+              syntax: r'$[sparkle text]',
+              mfm: r'$[sparkle 長めのテキストでsparkleエフェクトの範囲を確認するためのサンプル]',
+              description: '長めのテキストに対して全体にまんべんなくエフェクトが適用',
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Jump (速度調整)',
-          syntax: r'$[jump.speed=0.5s text]',
-          mfm: r'$[jump.speed=0.5s 速くジャンプ!]',
-        ),
-        MfmExample(
-          name: 'Bounce',
-          syntax: r'$[bounce text]',
-          mfm: r'$[bounce バウンス]',
-          description: '弾むアニメーション',
-        ),
-        MfmExample(
-          name: 'Bounce (速度調整)',
-          syntax: r'$[bounce.speed=0.5s text]',
-          mfm: r'$[bounce.speed=0.5s 速くバウンス]',
-        ),
-        MfmExample(
-          name: 'Shake',
-          syntax: r'$[shake text]',
-          mfm: r'$[shake ガタガタ]',
-          description: '震えるアニメーション',
-        ),
-        MfmExample(
-          name: 'Shake (開始遅延)',
-          syntax: r'$[shake.delay=2s text]',
-          mfm: r'$[shake.delay=2s 2秒待ってから動く]',
-          description: '待機中は変形せず、2秒後にアニメーションを開始します',
-        ),
-        MfmExample(
-          name: 'Shake (速度調整)',
-          syntax: r'$[shake.speed=0.3s text]',
-          mfm: r'$[shake.speed=0.3s 激しく震える]',
-        ),
-        MfmExample(
-          name: 'Twitch',
-          syntax: r'$[twitch text]',
-          mfm: r'$[twitch ビクビク]',
-          description: 'ランダムに動くアニメーション',
-        ),
-        MfmExample(
-          name: 'Twitch (開始遅延)',
-          syntax: r'$[twitch.delay=2s text]',
-          mfm: r'$[twitch.delay=2s 2秒待ってから動く]',
-          description: '待機中は変形せず、2秒後にアニメーションを開始します',
-        ),
-        MfmExample(
-          name: 'Twitch (速度調整)',
-          syntax: r'$[twitch.speed=0.3s text]',
-          mfm: r'$[twitch.speed=0.3s 激しく動く]',
-        ),
-        MfmExample(
-          name: 'Twitch / Shake (easing)',
-          syntax: r'$[twitch text] $[shake text]',
-          mfm: r'$[twitch twitch] $[shake shake]',
-          description: 'どちらも隣接するキーフレーム間ごとに ease を適用します',
-        ),
-        MfmExample(
-          name: 'Jelly',
-          syntax: r'$[jelly text]',
-          mfm: r'$[jelly ぷるぷる]',
-          description: 'ゼリーのように揺れる',
-        ),
-        MfmExample(
-          name: 'Jelly (速度調整)',
-          syntax: r'$[jelly.speed=0.5s text]',
-          mfm: r'$[jelly.speed=0.5s 速く揺れる]',
-        ),
-        MfmExample(
-          name: 'Tada',
-          syntax: r'$[tada text]',
-          mfm: r'$[tada じゃーん!]',
-          description: '150%サイズで揺れ、Advanced MFM をオフにしても150%の拡大は残ります',
-        ),
-        MfmExample(
-          name: 'Tada (速度調整)',
-          syntax: r'$[tada.speed=0.5s text]',
-          mfm: r'$[tada.speed=0.5s 速くじゃーん!]',
-        ),
-        MfmExample(
-          name: 'Rainbow',
-          syntax: r'$[rainbow text]',
-          mfm: r'$[rainbow 虹色]',
-          description: 'レインボーカラーアニメーション',
-        ),
-        MfmExample(
-          name: 'Rainbow (速度調整)',
-          syntax: r'$[rainbow.speed=0.5s text]',
-          mfm: r'$[rainbow.speed=0.5s 速く虹色]',
-        ),
-        MfmExample(
-          name: 'Rainbow (無彩色)',
-          syntax: r'$[rainbow $[fg.color=888 text]]',
-          mfm: r'$[rainbow $[fg.color=888 灰色の本文]]',
-          description: 'hue-rotateのため無彩色は色相が循環せず、明度だけがわずかに変化します',
-        ),
-        MfmExample(
-          name: 'Rainbow (有彩色)',
-          syntax: r'$[rainbow $[fg.color=f00 text]]',
-          mfm: r'$[rainbow $[fg.color=f00 赤い文字]]',
-          description: 'アニメーション無効時は静的な虹色で表示します',
-        ),
-        MfmExample(
-          name: 'Sparkle',
-          syntax: r'$[sparkle text]',
-          mfm: r'$[sparkle ✨キラキラ✨]',
-          description: 'スパークルエフェクト',
-        ),
-        MfmExample(
-          name: 'Sparkle (短いテキスト)',
-          syntax: r'$[sparkle text]',
-          mfm: r'通常のテキスト紛れて $[sparkle ここだけ] 反映がされる',
-          description: 'エフェクトを特定のテキスト周辺のみに適用',
-        ),
-        MfmExample(
-          name: 'Sparkle (長いテキスト)',
-          syntax: r'$[sparkle text]',
-          mfm: r'$[sparkle 長めのテキストでsparkleエフェクトの範囲を確認するためのサンプル]',
-          description: '長めのテキストに対して全体にまんべんなくエフェクトが適用',
-        ),
-        MfmExample(
-          name: 'アニメーション遅延',
-          syntax: r'$[spin.delay=1s text]',
-          mfm: r'$[spin.delay=1s 1秒後に回転]',
-          description: 'アニメーション開始を遅延',
+        MfmFeatureGroup(
+          id: 'animation.timing',
+          title: '遅延・easing比較',
+          examples: [
+            MfmExample(
+              name: 'Twitch / Shake (easing)',
+              syntax: r'$[twitch text] $[shake text]',
+              mfm: r'$[twitch twitch] $[shake shake]',
+              description: 'どちらも隣接するキーフレーム間ごとに ease を適用します',
+            ),
+            MfmExample(
+              name: 'アニメーション遅延',
+              syntax: r'$[spin.delay=1s text]',
+              mfm: r'$[spin.delay=1s 1秒後に回転]',
+              description: 'アニメーション開始を遅延',
+            ),
+          ],
         ),
       ],
     ),
-
-    // 組み合わせ
     MfmCategory(
+      id: 'combinations',
       title: '組み合わせ例',
-      examples: [
-        MfmExample(
-          name: 'ネスト',
-          syntax: '複数のMFMを組み合わせ',
-          mfm: r'**$[fg.color=ff6600 オレンジの太字]**',
-        ),
-        MfmExample(
-          name: '複合例',
-          syntax: '様々な要素を含むテキスト',
-          mfm: r'''こんにちは！ 😊
+      description: '構文の組み合わせと共通設定の効果',
+      groups: [
+        MfmFeatureGroup(
+          id: 'combinations.combined',
+          title: '組み合わせ',
+          examples: [
+            MfmExample(
+              name: 'ネスト',
+              syntax: '複数のMFMを組み合わせ',
+              mfm: r'**$[fg.color=ff6600 オレンジの太字]**',
+            ),
+            MfmExample(
+              name: '複合例',
+              syntax: '様々な要素を含むテキスト',
+              mfm: r'''こんにちは！ 😊
 
 **太字**や*斜体*、~~打ち消し~~も使えます。
 
@@ -880,25 +1261,11 @@ class MfmExamples {
 $[x2 大きな文字]も$[fg.color=ff0000 色付き文字]も！
 
 @user さんへの #MFM のデモです。''',
-        ),
-        MfmExample(
-          name: 'Nyaize',
-          syntax: '通常の文章',
-          mfm: 'なんとなく、明日はいい天気になりそうだな。Everyone, good morning!',
-          description: '設定の nyaize モードと「投稿者は猫」で変化します',
-        ),
-        MfmExample(
-          name: 'Plain / Nowrap',
-          syntax: '複数行の長文',
-          mfm:
-              'これは複数行で表示するための少し長いテキストです。構文の **太字** も含みます。\n'
-              '設定の plain では改行が空白になり、nowrap では1行に省略表示されます。',
-          description: '設定の plain で改行が空白に、nowrap で1行に省略表示されます',
-        ),
-        MfmExample(
-          name: '本家ノート風の複合例',
-          syntax: 'メンション・タグ・URL・引用・コード・絵文字・fnを含む投稿',
-          mfm: r'''@alice こんにちは、#MFM の確認です。
+            ),
+            MfmExample(
+              name: '本家ノート風の複合例',
+              syntax: 'メンション・タグ・URL・引用・コード・絵文字・fnを含む投稿',
+              mfm: r'''@alice こんにちは、#MFM の確認です。
 https://example.org/notes/abcdef?from=timeline#reply
 > $[fg.color=0af 引用内の色付きテキスト]
 > 2行目の引用です。
@@ -907,45 +1274,140 @@ https://example.org/notes/abcdef?from=timeline#reply
 final message = 'hello';
 ```
 $[x2 $[rainbow 完了！]] ?[関連リンク](https://example.org/docs)''',
-          description: '本家のノートに近い複数要素の組み合わせです',
+              description: '本家のノートに近い複数要素の組み合わせです',
+            ),
+          ],
+        ),
+        MfmFeatureGroup(
+          id: 'combinations.settings',
+          title: '表示設定の効果',
+          examples: [
+            MfmExample(
+              name: 'Nyaize',
+              syntax: '通常の文章',
+              mfm: 'なんとなく、明日はいい天気になりそうだな。Everyone, good morning!',
+              description: '設定の nyaize モードと「投稿者は猫」で変化します',
+            ),
+            MfmExample(
+              name: 'Plain / Nowrap',
+              syntax: '複数行の長文',
+              mfm:
+                  'これは複数行で表示するための少し長いテキストです。構文の **太字** も含みます。\n'
+                  '設定の plain では改行が空白になり、nowrap では1行に省略表示されます。',
+              description: '設定の plain で改行が空白に、nowrap で1行に省略表示されます',
+            ),
+          ],
         ),
       ],
     ),
     MfmCategory(
+      id: 'mentions',
       title: 'メンション・表示名',
-      examples: [
-        MfmExample(
-          name: 'Mention Capsule',
-          syntax: '@alice @bob@remote.test',
-          mfm: '@alice @bob@remote.test',
-          config: MfmRenderConfig(
-            localHost: 'local.test',
-            mentionOptions: MfmMentionOptions(viewerAcct: '@alice'),
-          ),
-        ),
-        MfmExample(
-          name: 'Mention Text',
-          syntax: '@alice @bob@remote.test',
-          mfm: '@alice @bob@remote.test',
-          config: MfmRenderConfig(
-            localHost: 'local.test',
-            mentionOptions: MfmMentionOptions(
-              presentation: MfmMentionPresentation.text,
+      description: 'メンションの表示設定・アバター・表示名',
+      groups: [
+        MfmFeatureGroup(
+          id: 'mentions.presentation',
+          title: 'Mention／表示設定',
+          examples: [
+            MfmExample(
+              name: 'Mention Capsule',
+              setupSummary:
+                  'localHost=local.test / viewerAcct=@alice。投稿者hostはローカル固定。@aliceが自分宛て配色です。',
+              setupCode: '''MfmRenderConfig(
+  author: MfmAuthorContext(),
+  localHost: 'local.test',
+  mentionOptions: MfmMentionOptions(viewerAcct: '@alice'),
+)''',
+              syntax: '@alice @bob@remote.test',
+              mfm: '@alice @bob@remote.test',
+              config: MfmRenderConfig(
+                author: MfmAuthorContext(),
+                localHost: 'local.test',
+                mentionOptions: MfmMentionOptions(viewerAcct: '@alice'),
+              ),
             ),
-          ),
+            MfmExample(
+              name: 'Mention Text',
+              setupSummary: 'presentation=textでcapsuleを使わず文字表示。投稿者hostはローカル固定。',
+              setupCode: '''MfmRenderConfig(
+  author: MfmAuthorContext(),
+  localHost: 'local.test',
+  mentionOptions: MfmMentionOptions(presentation: MfmMentionPresentation.text),
+)''',
+              syntax: '@alice @bob@remote.test',
+              mfm: '@alice @bob@remote.test',
+              config: MfmRenderConfig(
+                author: MfmAuthorContext(),
+                localHost: 'local.test',
+                mentionOptions: MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
+              ),
+            ),
+            MfmExample(
+              name: 'Mention Avatar (offline)',
+              syntax: '@alice @bob@remote.test',
+              mfm: '@alice @bob@remote.test',
+              description:
+                  'Aliceは同梱画像、Bobはplaceholder。実ユーザーの画像ではありません。'
+                  'Twemoji: Twitter and contributors / CC-BY 4.0。'
+                  '出典・ライセンス: example/assets/twemoji/。',
+              setupSummary:
+                  'viewerAcct=@alice / avatarProvider=offlineMentionAvatar。'
+                  'localOriginは未指定。指定すると組み込み画像取得が通信するため、この例では使用しません。',
+              setupCode:
+                  '''// core/emoji/offline_example_fixtures.dart の同梱画像provider
+// assets/twemoji/1f600.png とCC-BY帰属が必要です。
+MfmRenderConfig(
+  author: MfmAuthorContext(),
+  localHost: 'local.test',
+  mentionOptions: MfmMentionOptions(
+    viewerAcct: '@alice',
+    avatarProvider: offlineMentionAvatar,
+  ),
+)''',
+              config: MfmRenderConfig(
+                author: MfmAuthorContext(),
+                localHost: 'local.test',
+                mentionOptions: MfmMentionOptions(
+                  viewerAcct: '@alice',
+                  avatarProvider: offlineMentionAvatar,
+                ),
+              ),
+            ),
+          ],
         ),
-        MfmExample(
-          name: 'Display Name',
-          syntax: 'plain + nowrap + author + emojiUrls',
-          mfm: 'Alice :offline: @alice',
-          plain: true,
-          nowrap: true,
-          description: 'オフライン絵文字fixture。@aliceはメンションではなく文字列。',
-          config: MfmRenderConfig(
-            author: MfmAuthorContext(host: 'remote.test'),
-            emojiUrls: {'offline': 'https://fixture.invalid/offline.png'},
-            emojiBuilder: _offlineDisplayEmoji,
-          ),
+        MfmFeatureGroup(
+          id: 'mentions.display-name',
+          title: 'Display Name',
+          examples: [
+            MfmExample(
+              name: 'Display Name',
+              setupSummary:
+                  'plain=true / nowrap=true。リモート投稿文脈と専用builderを指定。URLは画像取得に使いません。',
+              setupCode: '''// _offlineDisplayEmoji: このファイル末尾の通信しない色面builder
+MfmText(
+  text: 'Alice :offline: @alice',
+  plain: true,
+  nowrap: true,
+  config: MfmRenderConfig(
+    author: MfmAuthorContext(host: 'remote.test'),
+    emojiUrls: {'offline': 'https://fixture.invalid/offline.png'},
+    emojiBuilder: _offlineDisplayEmoji,
+  ),
+)''',
+              syntax: 'plain + nowrap + author + emojiUrls',
+              mfm: 'Alice :offline: @alice',
+              plain: true,
+              nowrap: true,
+              description: 'オフライン絵文字fixture。@aliceはメンションではなく文字列。',
+              config: MfmRenderConfig(
+                author: MfmAuthorContext(host: 'remote.test'),
+                emojiUrls: {'offline': 'https://fixture.invalid/offline.png'},
+                emojiBuilder: _offlineDisplayEmoji,
+              ),
+            ),
+          ],
         ),
       ],
     ),

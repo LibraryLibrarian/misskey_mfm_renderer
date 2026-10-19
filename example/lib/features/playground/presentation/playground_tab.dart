@@ -1,112 +1,92 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/example_setup_panel.dart';
+import '../application/playground_controller.dart';
 import 'widgets/mfm_input_field.dart';
 import 'widgets/mfm_preview_panel.dart';
 
 /// プレイグラウンドタブ
-class PlaygroundTab extends StatefulWidget {
-  const PlaygroundTab({super.key});
+class PlaygroundTab extends StatelessWidget {
+  const PlaygroundTab({
+    super.key,
+    required this.controller,
+    required this.onClear,
+  });
 
-  @override
-  State<PlaygroundTab> createState() => _PlaygroundTabState();
-}
-
-class _PlaygroundTabState extends State<PlaygroundTab>
-    with AutomaticKeepAliveClientMixin {
-  final _controller = TextEditingController();
-  String _mfmText = '';
-
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.text = '''こんにちは！ 😊
-
-@user #tag https://example.org/path?q=1#frag
-
-\$[clickable.ev=hello タップ]
-
-**太字**や*斜体*も使えます。
-
-\$[x2 大きな文字]
-
-\$[fg.color=ff0000 赤い文字]
-
-\$[rotate.deg=10 傾いたテキスト]''';
-    _mfmText = _controller.text;
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final PlaygroundController controller;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     final theme = Theme.of(context);
 
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLow,
-            border: Border(
-              bottom: BorderSide(
-                color: theme.colorScheme.outlineVariant,
-              ),
-            ),
-          ),
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, child) {
+        final example = controller.example;
+        return SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              MfmInputField(
-                controller: _controller,
-                onChanged: (value) {
-                  setState(() {
-                    _mfmText = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: _clearInput,
-                  icon: const Icon(Icons.clear),
-                  label: const Text('クリア'),
+              Material(
+                color: theme.colorScheme.surfaceContainerLow,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (example != null) ...[
+                        ExampleSetupPanel(
+                          key: ValueKey(controller.loadRevision),
+                          summary: example.setupSummary,
+                          code: example.setupCode,
+                        ),
+                        if (example.hasOverrides)
+                          const Text(
+                            '個別設定を優先し、未指定の項目は共通設定を継承します。'
+                            'plain / nowrapも個別指定が優先します。',
+                          ),
+                      ],
+                      const SizedBox(height: 12),
+                      MfmInputField(controller: controller.editor),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          key: const Key('clearPlaygroundText'),
+                          onPressed: onClear,
+                          icon: const Icon(Icons.clear),
+                          label: const Text('本文をクリア'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                color: theme.colorScheme.primaryContainer,
+                child: Text(
+                  'プレビュー',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+              MfmPreviewPanel(
+                key: ValueKey(controller.loadRevision),
+                mfmText: controller.text,
+                config: example?.config,
+                plain: example?.plain,
+                nowrap: example?.nowrap,
               ),
             ],
           ),
-        ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: theme.colorScheme.primaryContainer,
-          child: Text(
-            'プレビュー',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.onPrimaryContainer,
-            ),
-          ),
-        ),
-        Expanded(
-          child: MfmPreviewPanel(
-            mfmText: _mfmText,
-          ),
-        ),
-      ],
+        );
+      },
     );
-  }
-
-  void _clearInput() {
-    _controller.clear();
-    setState(() {
-      _mfmText = '';
-    });
   }
 }

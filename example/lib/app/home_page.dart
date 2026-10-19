@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../core/emoji/example_startup.dart';
+import '../core/widgets/example_page.dart';
+import '../features/catalog/data/mfm_examples.dart';
 import '../features/catalog/presentation/catalog_tab.dart';
+import '../features/playground/application/playground_controller.dart';
 import '../features/playground/presentation/playground_tab.dart';
-import 'widgets/settings_drawer.dart';
+import 'settings_page.dart';
 
 /// ホーム画面
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.emojiInitialized});
+  const HomePage({super.key, required this.emojiStatus});
 
-  final bool emojiInitialized;
+  final ExampleEmojiStatus emojiStatus;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -17,10 +21,15 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _pages = [
-    CatalogTab(),
-    PlaygroundTab(),
-  ];
+  final _playground = PlaygroundController();
+  bool _settingsOpen = false;
+  bool _confirming = false;
+
+  @override
+  void dispose() {
+    _playground.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,24 +37,14 @@ class _HomePageState extends State<HomePage> {
       builder: (context, constraints) {
         final useNavigationRail = constraints.maxWidth >= 600;
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('MFM Renderer'),
-            actions: [
-              Builder(
-                builder: (context) => IconButton(
-                  key: const Key('openSettingsDrawerButton'),
-                  tooltip: '表示設定',
-                  icon: const Icon(Icons.tune),
-                  onPressed: () => Scaffold.of(context).openEndDrawer(),
-                ),
-              ),
-            ],
-          ),
-          endDrawer: SettingsDrawer(emojiInitialized: widget.emojiInitialized),
-          body: useNavigationRail
-              ? Row(
-                  children: [
-                    NavigationRail(
+          body: SafeArea(
+            top: false,
+            bottom: false,
+            child: Row(
+              children: [
+                if (useNavigationRail) ...[
+                  SafeArea(
+                    child: NavigationRail(
                       selectedIndex: _selectedIndex,
                       onDestinationSelected: _selectDestination,
                       labelType: NavigationRailLabelType.all,
@@ -62,11 +61,39 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ],
                     ),
-                    const VerticalDivider(width: 1),
-                    Expanded(child: _pageStack),
-                  ],
-                )
-              : _pageStack,
+                  ),
+                  const VerticalDivider(width: 1),
+                ],
+                Expanded(
+                  key: const Key('pageRegion'),
+                  child: IndexedStack(
+                    index: _selectedIndex,
+                    children: [
+                      TickerMode(
+                        enabled: _selectedIndex == 0,
+                        child: CatalogTab(
+                          onTryExample: _loadExample,
+                          onOpenSettings: _openSettings,
+                          canHandleBack: _selectedIndex == 0,
+                        ),
+                      ),
+                      TickerMode(
+                        enabled: _selectedIndex == 1,
+                        child: ExamplePage(
+                          title: 'MFM Renderer',
+                          onOpenSettings: _openSettings,
+                          child: PlaygroundTab(
+                            controller: _playground,
+                            onClear: _clearText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           bottomNavigationBar: useNavigationRail
               ? null
               : NavigationBar(
@@ -90,8 +117,62 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget get _pageStack =>
-      IndexedStack(index: _selectedIndex, children: _pages);
+  Future<void> _openSettings() async {
+    if (_settingsOpen) return;
+    _settingsOpen = true;
+    try {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => SettingsPage(emojiStatus: widget.emojiStatus),
+        ),
+      );
+    } finally {
+      _settingsOpen = false;
+    }
+  }
+
+  Future<void> _loadExample(MfmExample example) async {
+    await _withDiscardConfirmation(() {
+      _playground.load(example);
+      _selectDestination(1);
+    });
+  }
+
+  Future<void> _clearText() async {
+    await _withDiscardConfirmation(_playground.clearText);
+  }
+
+  Future<void> _withDiscardConfirmation(VoidCallback apply) async {
+    if (_confirming) return;
+    if (!_playground.needsDiscardConfirmation) {
+      apply();
+      return;
+    }
+    _confirming = true;
+    try {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('編集した本文を破棄しますか？'),
+          content: const Text('現在の本文への変更は失われます。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('破棄して続ける'),
+            ),
+          ],
+        ),
+      );
+      if (mounted && accepted == true) apply();
+    } finally {
+      _confirming = false;
+    }
+  }
 
   void _selectDestination(int index) {
     setState(() {
