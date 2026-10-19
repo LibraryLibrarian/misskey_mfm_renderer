@@ -12,7 +12,9 @@ npm ci
 
 Commit `package-lock.json` alongside intentional dependency changes. Do not commit `node_modules`, `.docusaurus`, or `build`.
 
-Webpack is overridden to `5.105.4`, matching the reference site's locked version. Docusaurus 3.9.2's webpackbar integration passes progress options rejected by Webpack 5.112.0. Revisit this compatibility pin with a coordinated toolchain update; it is not a security fix. Dependency audit warnings must be reviewed separately rather than suppressed or handled with `npm audit fix --force`.
+Docusaurus packages are pinned together at `3.10.2`. The lockfile uses Webpack 5.112.0 / webpackbar 7.0.0 without the former Webpack compatibility override. Scoped overrides address vulnerable build dependencies; see [the dependency security review](dependency-security.md) before changing them.
+
+One **unfixed** braces advisory remains under an exact-version, lockfile-bound exception expiring **2026-11-18 00:00:00 UTC**. `npm run check:audit` reports it explicitly and rejects new findings, dependency changes, expired exceptions, or audit failures. A passing policy check is not a vulnerability-free audit. Do not automatically refresh the exception hash/expiry or use `npm audit fix --force`.
 
 ## Local development
 
@@ -34,6 +36,7 @@ Run these steps serially:
 
 ```bash
 npm test
+npm run check:audit
 npm run check:translations
 npm run typecheck
 npm run build

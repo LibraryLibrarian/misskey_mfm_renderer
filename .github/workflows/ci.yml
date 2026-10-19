@@ -241,6 +241,8 @@ jobs:
         working-directory: docs
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -250,6 +252,7 @@ jobs:
 
       - run: npm ci
       - run: npm test
+      - run: npm run check:audit
       - run: npm run check:translations
       - run: npm run typecheck
       - run: npm run build

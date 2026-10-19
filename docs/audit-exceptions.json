@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "lockSha256": "3bee9c8e85b4d20482e3de0682b4b316cb0857f696505e6cfd3a81c9f13c227b",
+  "exceptions": [
+    {
+      "package": "braces",
+      "advisory": "GHSA-vfj7-8cjw-p6xm",
+      "version": "3.0.3",
+      "severity": "high",
+      "nodes": [
+        "node_modules/braces"
+      ],
+      "expiresAt": "2026-11-18T00:00:00.000Z",
+      "reason": "No patched release. Reviewed build/dev paths expand repository-controlled glob patterns, not visitor input or Markdown body text. Reassess on any lockfile, plugin, glob-input, or trust-boundary change; see dependency-security.md. This does not remove the vulnerability."
+    }
+  ]
+}
