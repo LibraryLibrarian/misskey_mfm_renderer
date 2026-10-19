@@ -1,0 +1,76 @@
+{
+  "name": "misskey-mfm-renderer-docs",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "docusaurus start",
+    "build": "docusaurus build",
+    "serve": "docusaurus serve",
+    "typecheck": "tsc --noEmit",
+    "check:translations": "node scripts/check-translations.mjs",
+    "test": "node --test scripts/*.test.mjs",
+    "check:audit": "node scripts/check-audit.mjs"
+  },
+  "dependencies": {
+    "@docusaurus/core": "3.10.2",
+    "@docusaurus/preset-classic": "3.10.2",
+    "@mdx-js/react": "^3.0.0",
+    "clsx": "^2.0.0",
+    "prism-react-renderer": "^2.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@docusaurus/module-type-aliases": "3.10.2",
+    "@docusaurus/tsconfig": "3.10.2",
+    "@docusaurus/types": "3.10.2",
+    "typescript": "~5.6.2"
+  },
+  "browserslist": {
+    "production": [
+      ">0.5%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 3 chrome version",
+      "last 3 firefox version",
+      "last 5 safari version"
+    ]
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "overrides": {
+    "@docusaurus/core": {
+      "tinypool": "2.2.0"
+    },
+    "copy-webpack-plugin": {
+      "serialize-javascript": "7.1.2"
+    },
+    "css-minimizer-webpack-plugin": {
+      "serialize-javascript": "7.1.2"
+    },
+    "sockjs": {
+      "uuid": "11.1.1"
+    },
+    "postcss-calc": {
+      "postcss-selector-parser": "7.1.6"
+    },
+    "postcss-discard-unused": {
+      "postcss-selector-parser": "7.1.6"
+    },
+    "postcss-merge-rules": {
+      "postcss-selector-parser": "7.1.6"
+    },
+    "postcss-minify-selectors": {
+      "postcss-selector-parser": "7.1.6"
+    },
+    "postcss-unique-selectors": {
+      "postcss-selector-parser": "7.1.6"
+    },
+    "stylehacks": {
+      "postcss-selector-parser": "7.1.6"
+    }
+  }
+}
