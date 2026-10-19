@@ -3,6 +3,7 @@ import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 import '../core/emoji/example_startup.dart';
 import '../core/settings/example_settings.dart';
+import 'cat_language_settings_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.emojiStatus});
@@ -15,6 +16,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _confirmingReset = false;
+  bool _catLanguageSettingsOpen = false;
 
   @override
   Widget build(BuildContext context) {
@@ -111,39 +113,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 _Section(
                   title: '投稿者・猫変換',
-                  child: Column(
-                    children: [
-                      _SegmentedSetting<MfmNyaizeMode>(
-                        key: const Key('nyaizeModeSetting'),
-                        title: 'nyaize モード',
-                        subtitle: '投稿本文の語尾を猫らしい表現へ変換する方法です',
-                        selected: {settings.nyaizeMode},
-                        onSelectionChanged: (selection) {
-                          settings.nyaizeMode = selection.single;
-                        },
-                        segments: const [
-                          ButtonSegment(
-                            value: MfmNyaizeMode.disabled,
-                            label: Text('オフ'),
-                          ),
-                          ButtonSegment(
-                            value: MfmNyaizeMode.enabled,
-                            label: Text('オン'),
-                          ),
-                          ButtonSegment(
-                            value: MfmNyaizeMode.respectAuthor,
-                            label: Text('投稿者'),
-                          ),
-                        ],
-                      ),
-                      SwitchListTile(
-                        key: const Key('authorIsCatSwitch'),
-                        title: const Text('投稿者は猫'),
-                        subtitle: const Text('nyaize の「投稿者」モードで変換を有効にします'),
-                        value: settings.authorIsCat,
-                        onChanged: (value) => settings.authorIsCat = value,
-                      ),
-                    ],
+                  child: ListTile(
+                    key: const Key('catLanguageSettingsTile'),
+                    title: const Text('猫語変換'),
+                    subtitle: Text(switch (settings.nyaizeMode) {
+                      MfmNyaizeMode.disabled => '変換しない',
+                      MfmNyaizeMode.enabled => '常に変換',
+                      MfmNyaizeMode.respectAuthor => '投稿者に従う',
+                    }),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _openCatLanguageSettings,
                   ),
                 ),
                 _Section(
@@ -277,6 +256,21 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _openCatLanguageSettings() async {
+    if (_catLanguageSettingsOpen) return;
+    _catLanguageSettingsOpen = true;
+    try {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const CatLanguageSettingsPage(),
+        ),
+      );
+    } finally {
+      _catLanguageSettingsOpen = false;
+    }
   }
 
   Future<void> _confirmReset() async {

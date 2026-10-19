@@ -114,12 +114,37 @@ void main() {
       MfmConfig.of(tester.element(find.byType(SettingsPage))).enableAdvancedMfm,
       isFalse,
     );
-    await _reveal(tester, find.text('投稿者'));
-    await tester.tap(find.text('投稿者'));
+    final catSettings = find.byKey(const Key('catLanguageSettingsTile'));
+    await _reveal(tester, catSettings);
+    final parentOffset = tester
+        .state<ScrollableState>(_scroll())
+        .position
+        .pixels;
+    await tester.tap(catSettings);
+    await _pumpTransition(tester);
+    await tester.tap(find.byKey(const Key('nyaizeRespectAuthorRadio')));
     await tester.pump();
     expect(settings.nyaizeMode, MfmNyaizeMode.respectAuthor);
+    final authorSwitch = find.byKey(const Key('authorIsCatSwitch'));
+    await tester.scrollUntilVisible(
+      authorSwitch,
+      200,
+      scrollable: find.descendant(
+        of: find.byKey(const PageStorageKey('cat-language-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.tap(authorSwitch);
+    await tester.pump();
+    expect(settings.authorIsCat, isTrue);
+    await tester.tap(find.byType(BackButton));
+    await _pumpTransition(tester);
+    expect(tester.state(find.byType(SettingsPage)), same(pageState));
+    expect(
+      tester.state<ScrollableState>(_scroll()).position.pixels,
+      closeTo(parentOffset, 1),
+    );
     for (final entry in <(String, bool Function())>[
-      ('authorIsCat', () => settings.authorIsCat),
       ('remoteAuthor', () => settings.remoteAuthor),
       ('useEmojiUrls', () => settings.useEmojiUrls),
       ('showEmojiContext', () => settings.showEmojiContext),

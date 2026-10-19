@@ -72,8 +72,15 @@ author/nyaize, custom emoji, and MfmText behavior. Changes apply immediately;
 there is no save step. Use the back arrow or the platform's back gesture to
 return to the same page and editing state.
 
+**猫語変換** opens a detail screen with explained choices: never transform,
+always transform, or follow the author's cat setting. The sample author switch
+is editable only in the last mode; switching modes retains its value. The
+explanation stays in the scrolling page, and back returns to Display settings.
+This simulates author information without changing a real account.
+
 **既定値に戻す** at the bottom asks for confirmation before resetting shared
-settings. Canceling leaves them unchanged. Confirming keeps the settings screen
+settings, including the cat-language mode and sample author. Canceling leaves
+them unchanged. Confirming keeps the settings screen
 open and does not clear Playground text or per-example overrides. Settings are
 not persisted between app launches.
 

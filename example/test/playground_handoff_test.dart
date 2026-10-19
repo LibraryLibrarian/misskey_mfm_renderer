@@ -65,8 +65,18 @@ void main() {
       await tester.tap(find.text('ダーク'));
       await _pumpTransition(tester);
       expect(settings.themeMode, ThemeMode.dark);
+      final catSettings = find.byKey(const Key('catLanguageSettingsTile'));
+      await tester.scrollUntilVisible(catSettings, 200);
+      await tester.tap(catSettings);
+      await _pumpTransition(tester);
+      await tester.tap(find.byKey(const Key('nyaizeEnabledRadio')));
+      await _pumpTransition(tester);
+      expect(settings.nyaizeMode, MfmNyaizeMode.enabled);
       await tester.binding.setSurfaceSize(const Size(1000, 800));
       await _pumpTransition(tester);
+      await tester.binding.handlePopRoute();
+      await _pumpTransition(tester);
+      expect(find.byKey(const Key('catLanguageSettingsTile')), findsOneWidget);
       await tester.tap(find.byType(BackButton));
       await _pumpTransition(tester);
       expect(find.byType(NavigationRail), findsOneWidget);
