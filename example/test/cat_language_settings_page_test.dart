@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:example/app/app.dart';
 import 'package:example/app/cat_language_settings_page.dart';
 import 'package:example/app/home_page.dart';
@@ -172,40 +174,40 @@ void main() {
     ) async {
       await _start(tester);
       await _open(tester);
-      expect(
-        tester.getSemantics(find.byKey(const Key('nyaizeDisabledRadio'))),
-        containsSemantics(isChecked: true, isInMutuallyExclusiveGroup: true),
-      );
+      final disabledRadio = tester
+          .getSemantics(find.byKey(const Key('nyaizeDisabledRadio')))
+          .getSemanticsData();
+      expect(disabledRadio.flagsCollection.isChecked, ui.CheckedState.isTrue);
+      expect(disabledRadio.flagsCollection.isInMutuallyExclusiveGroup, isTrue);
       await _reveal(tester, _author);
-      expect(
-        tester.getSemantics(_author),
-        containsSemantics(
-          hasEnabledState: true,
-          isEnabled: false,
-          isToggled: false,
-        ),
-      );
-      expect(
-        tester.getSemantics(find.text('サンプルの投稿者')),
-        containsSemantics(isHeader: true),
-      );
+      final disabledAuthor = tester.getSemantics(_author).getSemanticsData();
+      expect(disabledAuthor.flagsCollection.isEnabled, ui.Tristate.isFalse);
+      expect(disabledAuthor.flagsCollection.isToggled, ui.Tristate.isFalse);
+      final heading = tester
+          .getSemantics(find.text('サンプルの投稿者'))
+          .getSemanticsData();
+      expect(heading.flagsCollection.isHeader, isTrue);
       await _select(tester, 'nyaizeRespectAuthorRadio');
+      final respectAuthorRadio = tester
+          .getSemantics(find.byKey(const Key('nyaizeRespectAuthorRadio')))
+          .getSemanticsData();
       expect(
-        tester.getSemantics(find.byKey(const Key('nyaizeRespectAuthorRadio'))),
-        containsSemantics(isChecked: true, isInMutuallyExclusiveGroup: true),
+        respectAuthorRadio.flagsCollection.isChecked,
+        ui.CheckedState.isTrue,
+      );
+      expect(
+        respectAuthorRadio.flagsCollection.isInMutuallyExclusiveGroup,
+        isTrue,
       );
       await _reveal(tester, _author);
       await tester.tap(_author);
       await tester.pump();
-      expect(
-        tester.getSemantics(_author),
-        containsSemantics(isEnabled: true, isToggled: true),
-      );
+      final enabledAuthor = tester.getSemantics(_author).getSemanticsData();
+      expect(enabledAuthor.flagsCollection.isEnabled, ui.Tristate.isTrue);
+      expect(enabledAuthor.flagsCollection.isToggled, ui.Tristate.isTrue);
       await _reveal(tester, _explanation);
-      expect(
-        tester.getSemantics(_explanation),
-        containsSemantics(label: tester.widget<Text>(_explanation).data),
-      );
+      final explanation = tester.getSemantics(_explanation).getSemanticsData();
+      expect(explanation.label, tester.widget<Text>(_explanation).data);
     },
   );
 
