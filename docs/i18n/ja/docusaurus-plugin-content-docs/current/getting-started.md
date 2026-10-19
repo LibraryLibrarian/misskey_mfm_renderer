@@ -70,7 +70,7 @@ flutter run -d <device-id>
 
 `:custom_emoji:`のようなショートコードを書くだけでは、サーバーの設定や画像の解決は行われません。最小例ではその設定を省いており、利用側から`misskey_client`への直接依存を追加する必要もありません。
 
-カスタム絵文字の設定は、既存の[READMEのクイックスタート](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/README.ja.md#クイックスタート)を参照してください。設定ハンドルの所有者と破棄の説明も含まれています。このREADMEは開発中のソースに追従するため、利用するバージョンと[CHANGELOG](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/CHANGELOG.md)を照合してください。
+公開版の設定API、所有権、非同期の後始末、リモート投稿のコンテキストは[カスタム絵文字](custom-emoji.md)で説明しています。
 
 ## 次に試すこと
 

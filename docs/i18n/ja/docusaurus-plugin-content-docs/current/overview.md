@@ -15,10 +15,14 @@ sidebar_label: 概要
 
 - [インストールと最初の表示](getting-started.md)：サーバー接続を設定せずにMFMを表示します。
 - [サンプルアプリ](example.md)：カタログを閲覧し、Playgroundで本文や設定を試します。
-- [詳細なREADME](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/README.ja.md)：既存の機能一覧、設定方法、移行情報を確認します。
+- [MFMの描画](rendering.md)：入力、表示モード、対応構文と制限を確認します。
+- [設定](configuration.md)：共有スタイル、配色、フォント、猫語変換を設定します。
+- [カスタム絵文字](custom-emoji.md)：初期化、所有権、リモート投稿、独自builderを扱います。
+- [操作とコールバック](interactions.md)：コールバックとアプリの遷移方針を確認します。
+- [アニメーションとアクセシビリティ](animation-accessibility.md)：動きを減らす設定と読み上げの制限を確認します。
 - [APIリファレンス](https://pub.dev/documentation/misskey_mfm_renderer/latest/)：最新の公開パッケージから生成されたAPI定義を確認します。
 
-現在のサイトは導入と基本的な使い方を案内するための基盤です。詳細ガイドはまだ移行しておらず、引き続きREADMEで管理しています。
+コピー可能なガイドの例は導入ページの公開済みパッケージを対象にしています。開発版限定の機能・画像はサンプルアプリのページで区別しています。
 
 ## 表示できるもの
 
@@ -26,7 +30,7 @@ sidebar_label: 概要
 - Unicode絵文字と、解決方法や描画方法を設定できるカスタム絵文字
 - サイズ、変形、スタイル、アニメーションを扱うMFMの`fn`関数
 
-色、文字スタイル、コールバック、アニメーション設定などで表示を調整できます。対応する関数と制約は[READMEの対応fn関数一覧](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/README.ja.md#対応fn関数)を参照してください。Misskeyのすべての機能を実装しているという意味ではありません。
+色、文字スタイル、コールバック、アニメーション設定などで表示を調整できます。対応する関数と制約は[描画ガイド](rendering.md)を参照してください。Misskeyのすべての機能を実装しているという意味ではありません。
 
 ## 対応環境
 
@@ -36,7 +40,7 @@ sidebar_label: 概要
 
 描画した本文の文字選択には対応していません。コピー機能が必要な場合は、アプリ側で元のMFM文字列を利用してください。
 
-カスタム絵文字には、同梱の`misskey_emoji`を利用します。標準の設定は永続化用のSQLiteストアを所有し、初期化と破棄が必要です。[最小のテキスト表示例](getting-started.md)では、この設定は不要です。ストレージや画像読み込みを設定する際は、既存の[プラットフォームに関する注記](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/README.ja.md#プラットフォームに関する注記)も確認してください。
+カスタム絵文字には、同梱の`misskey_emoji`を利用します。標準の設定は永続化用のSQLiteストアを所有し、初期化と破棄が必要です。[最小のテキスト表示例](getting-started.md)では、この設定は不要です。ストレージや画像読み込みを設定する際は、[カスタム絵文字ガイド](custom-emoji.md)も確認してください。
 
 ## 公開パッケージと開発中のサンプル
 
