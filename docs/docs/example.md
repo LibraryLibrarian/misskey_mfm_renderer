@@ -49,6 +49,38 @@ With the offline flag, the app skips custom-emoji initialization. Online-only re
 
 The flag controls runtime startup, not the build environment. Dependency resolution and the SQLite build hook can still require network access. It does not add Web support.
 
+## Development-only differences
+
+The guides target the published dependency in Getting started. The captured development checkout additionally contains the following changes; this table is **not** a copyable API recipe for the published package.
+
+| Area | Development checkout (not the published guide API) |
+| --- | --- |
+| Mentions | Capsule presentation and `MfmMentionOptions`, presentation/avatar-provider options. |
+| Timestamps | `MfmUnixtimeOptions`, absolute/relative formatting and periodic relative-label refresh. |
+| Emoji | `MfmTwemojiBuilder`, emoji-context `textStyle` and custom-emoji `fallbackTextStyle`. |
+| Search and links | Editable search and external icons on labelled links (bare URL icons already exist in the published package). |
+| Borders | Expanded nine-style borders, RGBA and clipping behavior. |
+
+## Actual example screens
+
+These are unmodified Android emulator captures of the **development checkout**, using offline synthetic data and the Japanese UI. They are illustrations, not a claim that the published package produces the same pixels. No iOS visual verification is represented here.
+
+<figure className="example-capture">
+
+![Android development-checkout example: text-formatting catalog, offline synthetic data, Japanese UI.](/img/example-text-format-android-develop.png)
+
+<figcaption>Android development example — text-formatting catalog, offline synthetic data, Japanese UI. Light theme and default shared settings.</figcaption>
+</figure>
+
+<figure className="example-capture">
+
+![Android development-checkout example: Playground, offline synthetic data, Japanese UI.](/img/example-playground-android-develop.png)
+
+<figcaption>Android development example — Playground, offline synthetic data, Japanese UI. The selected catalog sample is loaded with its settings, without edits.</figcaption>
+</figure>
+
+Capture revision, original PNG hashes and reproduction settings are recorded in the repository's [screenshot provenance](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/docs/screenshots.md).
+
 ## More information
 
 The [example README](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/example/README.md) describes the catalog, settings, local fixtures, and platform setup in more detail. To add the library to your own application instead, start with [Getting started](getting-started.md).

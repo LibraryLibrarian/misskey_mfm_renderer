@@ -49,6 +49,38 @@ flutter run -d <device-id> --dart-define=MFM_EXAMPLE_OFFLINE=true
 
 この指定が制御するのはアプリ起動時の挙動です。依存関係の解決やSQLiteのビルドフックには通信が必要な場合があり、Web対応を追加するものでもありません。
 
+## 開発版との差分
+
+ガイドの対象は導入ページの公開済み依存です。撮影した開発checkoutには次の変更も含まれます。この表は**公開版へコピーして使うAPI例ではありません**。
+
+| 分類 | 開発checkoutの変更（公開版ガイドのAPI対象外） |
+| --- | --- |
+| メンション | カプセル表示と`MfmMentionOptions`、表示・アバターproviderのオプション。 |
+| 日時 | `MfmUnixtimeOptions`、絶対／相対日時の整形、相対ラベルの定期更新。 |
+| 絵文字 | `MfmTwemojiBuilder`、絵文字contextの`textStyle`、カスタム絵文字の`fallbackTextStyle`。 |
+| 検索・リンク | 編集可能な検索、ラベル付きリンクの外部アイコン（裸のURLのアイコンは公開版にも存在）。 |
+| 枠線 | 9種類の枠線、RGBA、クリッピングの拡張。 |
+
+## サンプルの実画面
+
+**開発checkout**のexampleを、新規Androidエミュレーターで撮影した未加工の画像です。オフラインの架空データ・日本語UIを使っています。公開版の描画結果が同じであるという保証ではありません。iOSの表示検証を示す画像でもありません。
+
+<figure className="example-capture">
+
+![Androidの開発checkoutのexample：オフラインの架空データ・日本語UIで表示したテキスト整形カタログ。](/img/example-text-format-android-develop.png)
+
+<figcaption>Androidの開発版example — テキスト整形カタログ。オフラインの架空データ、日本語UI、ライトテーマ、共有設定の初期値で撮影。</figcaption>
+</figure>
+
+<figure className="example-capture">
+
+![Androidの開発checkoutのexample：オフラインの架空データ・日本語UIで表示したPlayground。](/img/example-playground-android-develop.png)
+
+<figcaption>Androidの開発版example — Playground。オフラインの架空データ・日本語UIで、カタログのサンプルを設定とともに読み込み、編集せず撮影。</figcaption>
+</figure>
+
+撮影revision、元PNGのハッシュ、再現条件はリポジトリの[画像の来歴](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/docs/screenshots.md)に記録しています。
+
 ## 詳しい説明
 
 カタログ、設定、ローカルデータ、プラットフォームごとの準備については、[サンプルのREADME](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/example/README.md)に説明があります。自分のアプリへライブラリを組み込む場合は、[インストールと最初の表示](getting-started.md)から始めてください。

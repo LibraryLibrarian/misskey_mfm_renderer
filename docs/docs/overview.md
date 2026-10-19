@@ -15,10 +15,14 @@ The library turns MFM text or parsed nodes into Flutter widgets. It does not fet
 
 - [Getting started](getting-started.md): display your first MFM text without setting up a server connection.
 - [Example app](example.md): browse the catalog and try text and settings in the Playground.
-- [Detailed README](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/README.md): the existing feature tables, configuration guides, and migration notes.
+- [Rendering](rendering.md): inputs, display modes, supported syntax and limitations.
+- [Configuration](configuration.md): shared styles, colors, fonts and cat-language conversion.
+- [Custom emoji](custom-emoji.md): setup, ownership, remote posts and custom builders.
+- [Interactions](interactions.md): callbacks and application navigation policy.
+- [Animation and accessibility](animation-accessibility.md): reduced motion and reading limitations.
 - [API reference](https://pub.dev/documentation/misskey_mfm_renderer/latest/): the generated API documentation for the latest published package.
 
-This documentation foundation covers introduction and setup. Detailed guides are still maintained in the README; they have not yet been moved to this site.
+The copyable guide examples target the published package in Getting started. Development-only features and screenshots are identified separately on the example page.
 
 ## What you can render
 
@@ -26,7 +30,7 @@ This documentation foundation covers introduction and setup. Detailed guides are
 - Unicode emoji and custom emoji, with configurable resolution and rendering.
 - MFM `fn` functions for size, transforms, styles, and animation.
 
-Rendering can be customized with colors, text styles, callbacks, and animation settings. The [README's supported-function table](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/README.md#supported-fn-functions) describes the supported functions and limitations; this is not a promise that every Misskey feature is implemented.
+Rendering can be customized with colors, text styles, callbacks, and animation settings. The [rendering guide](rendering.md) describes the supported functions and limitations; this is not a promise that every Misskey feature is implemented.
 
 ## Supported environments
 
@@ -36,7 +40,7 @@ The package supports **Android, iOS, macOS, Linux, and Windows**. It requires Fl
 
 Rendered text does not support text selection. Applications that need a copy action should use the original MFM text.
 
-Custom emoji support uses `misskey_emoji`, which is included with this package. The default setup owns a persistent SQLite store and requires initialization and disposal. It is not needed for the [minimal text example](getting-started.md). See the existing [platform notes](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/README.md#platform-notes) before configuring native storage and image loading.
+Custom emoji support uses `misskey_emoji`, which is included with this package. The default setup owns a persistent SQLite store and requires initialization and disposal. It is not needed for the [minimal text example](getting-started.md). See the [custom-emoji guide](custom-emoji.md) before configuring native storage and image loading.
 
 ## Published package and development examples
 

@@ -16,7 +16,7 @@ function fixture(t) {
   t.after(() => rmSync(root, {recursive: true, force: true}));
   for (const directory of ['docs', jaRoot]) {
     mkdirSync(join(root, directory), {recursive: true});
-    for (const [id, slug] of [['overview', '/'], ['getting-started', '/getting-started'], ['example', '/example']]) {
+    for (const [id, slug] of [['overview', '/'], ['getting-started', '/getting-started'], ['rendering', '/rendering'], ['configuration', '/configuration'], ['custom-emoji', '/custom-emoji'], ['interactions', '/interactions'], ['animation-accessibility', '/animation-accessibility'], ['example', '/example']]) {
       writeFileSync(join(root, directory, `${id}.md`), `---\nid: ${id}\nslug: ${slug}\ntitle: Title\nsidebar_label: Label\n---\nBody\n`);
     }
   }
@@ -86,5 +86,40 @@ for (const missing of [true, false]) {
     else navbar['item.label.Docs'].message = '  ';
     writeFileSync(path, JSON.stringify(navbar));
     assert.throws(() => checkTranslations(root), /missing or empty item.label.Docs/);
+  });
+}
+
+for (const id of ['rendering', 'configuration', 'custom-emoji', 'interactions', 'animation-accessibility']) {
+  test(`rejects a missing Japanese guide: ${id}`, (t) => {
+    const root = fixture(t);
+    rmSync(join(root, jaRoot, `${id}.md`));
+    assert.throws(() => checkTranslations(root), /document set/);
+  });
+}
+
+for (const field of ['id', 'slug']) {
+  test(`rejects a mismatched guide ${field}`, (t) => {
+    const root = fixture(t);
+    const value = field === 'id' ? 'rendering' : '/rendering';
+    change(root, `${jaRoot}/rendering.md`, `${field}: ${value}`, `${field}: wrong`);
+    assert.throws(() => checkTranslations(root), /unexpected/);
+  });
+}
+
+const first = '```dart\nconst first = 1;\n```\n';
+const second = '```dart title="second.dart"\nconst second = 2;\n```\n';
+for (const [name, translated, valid] of [
+  ['matching blocks', first + second, true],
+  ['missing block', first, false],
+  ['reordered blocks', second + first, false],
+  ['changed contents', first + second.replace('= 2', '= 3'), false],
+  ['extra block', first + second + first, false],
+]) {
+  test(`Dart parity: ${name}`, (t) => {
+    const root = fixture(t);
+    change(root, 'docs/rendering.md', 'Body', 'Body\n' + first + second);
+    change(root, `${jaRoot}/rendering.md`, 'Body', '翻訳\n' + translated);
+    if (valid) assert.doesNotThrow(() => checkTranslations(root));
+    else assert.throws(() => checkTranslations(root), /Dart code blocks differ/);
   });
 }

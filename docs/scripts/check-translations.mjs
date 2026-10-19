@@ -8,6 +8,11 @@ const siteRoot = resolve(dirname(scriptPath), '..');
 const pages = [
   {id: 'overview', slug: '/'},
   {id: 'getting-started', slug: '/getting-started'},
+  {id: 'rendering', slug: '/rendering'},
+  {id: 'configuration', slug: '/configuration'},
+  {id: 'custom-emoji', slug: '/custom-emoji'},
+  {id: 'interactions', slug: '/interactions'},
+  {id: 'animation-accessibility', slug: '/animation-accessibility'},
   {id: 'example', slug: '/example'},
 ];
 const navbarKeys = [
@@ -41,9 +46,10 @@ function field(frontMatter, key, file) {
 
 export function checkTranslations(root = siteRoot) {
   const expectedFiles = pages.map(({id}) => `${id}.md`).sort();
+  const sourceBlocks = new Map();
   for (const directory of ['docs', 'i18n/ja/docusaurus-plugin-content-docs/current']) {
     const contentRoot = join(root, directory);
-    assert.deepEqual(markdownFiles(contentRoot), expectedFiles, `${directory}: document set does not match the three-page manifest`);
+    assert.deepEqual(markdownFiles(contentRoot), expectedFiles, `${directory}: document set does not match the eight-page manifest`);
     for (const {id, slug} of pages) {
       const file = `${directory}/${id}.md`;
       const text = readFileSync(join(root, file), 'utf8').replace(/\r\n/g, '\n');
@@ -54,6 +60,10 @@ export function checkTranslations(root = siteRoot) {
       field(match[1], 'title', file);
       field(match[1], 'sidebar_label', file);
       assert(match[2].trim(), `${file}: document body is empty`);
+      // Content uses unindented triple-backtick Dart fences in both locales.
+      const blocks = [...match[2].matchAll(/^```dart[^\n]*\n([\s\S]*?)^```[ \t]*$/gm)].map((block) => block[1]);
+      if (directory === 'docs') sourceBlocks.set(id, blocks);
+      else assert.deepEqual(blocks, sourceBlocks.get(id), `${file}: Dart code blocks differ from English`);
     }
   }
 

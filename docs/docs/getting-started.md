@@ -70,7 +70,7 @@ This example does not initialize a custom-emoji client or persistent store and d
 
 Adding a shortcode such as `:custom_emoji:` does not automatically configure a server or resolve an image. The minimal example deliberately avoids that setup, and no additional direct dependency on `misskey_client` is needed for it.
 
-For custom emoji, see the existing [README Quick Start](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/README.md#quick-start), including ownership and disposal of the configuration handle. That README tracks development source; check its [CHANGELOG](https://github.com/LibraryLibrarian/misskey_mfm_renderer/blob/develop/CHANGELOG.md) against the version you use.
+See [Custom emoji](custom-emoji.md) for the published setup API, ownership, asynchronous cleanup and remote-post context.
 
 ## Next steps
 
