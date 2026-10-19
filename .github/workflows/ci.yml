@@ -232,16 +232,38 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+  docs:
+    name: Docs (English / Japanese)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: docs/.node-version
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run check:translations
+      - run: npm run typecheck
+      - run: npm run build
+
   gate:
     name: all checks passed
-    needs: [quality, example, golden]
+    needs: [quality, example, golden, docs]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Ensure all deps succeeded
         env:
-          # スキップされたジョブは skipped となり、失敗扱いにしない
-          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+          # 既存ジョブのスキップは許容するが、docsは成功を必須とする
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || needs.docs.result != 'success' }}
         run: |
           echo 'Needs: ${{ toJson(needs) }}'
           if [[ "$FAILED" == "true" ]]; then
