@@ -1,6 +1,7 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import i18n from './locales.json';
 
 const config: Config = {
   title: 'misskey_mfm_renderer',
@@ -16,14 +17,7 @@ const config: Config = {
       onBrokenMarkdownLinks: 'throw',
     },
   },
-  i18n: {
-    defaultLocale: 'en',
-    locales: ['en', 'ja'],
-    localeConfigs: {
-      en: {label: 'English'},
-      ja: {label: '日本語'},
-    },
-  },
+  i18n,
   presets: [
     [
       'classic',

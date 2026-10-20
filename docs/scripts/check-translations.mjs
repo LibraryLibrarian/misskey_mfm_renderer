@@ -44,10 +44,48 @@ function field(frontMatter, key, file) {
   return value;
 }
 
+function readLocales(root) {
+  const config = JSON.parse(readFileSync(join(root, 'locales.json'), 'utf8'));
+  assert(config && typeof config === 'object', 'locales.json: expected an object');
+  assert.equal(config.defaultLocale, 'en', 'locales.json: defaultLocale must be en');
+  assert(Array.isArray(config.locales) && config.locales.length > 0, 'locales.json: expected locales');
+  assert.equal(config.locales[0], 'en', 'locales.json: English must be first');
+  assert.equal(new Set(config.locales).size, config.locales.length, 'locales.json: duplicate locale');
+  for (const locale of config.locales) {
+    assert(typeof locale === 'string' && /^[a-z]{2}(?:-[A-Za-z0-9]+)*$/.test(locale), 'locales.json: invalid locale code');
+    const label = config.localeConfigs?.[locale]?.label;
+    assert(typeof label === 'string' && label.trim(), `locales.json: missing label for ${locale}`);
+  }
+  assert.deepEqual(Object.keys(config.localeConfigs).sort(), [...config.locales].sort(), 'locales.json: localeConfigs mismatch');
+  return config.locales;
+}
+
+function codeBlocks(body, file) {
+  // Guides use unindented triple-backtick fences; preserve info strings and bodies.
+  const blocks = [];
+  let block;
+  for (const line of body.split('\n')) {
+    if (block) {
+      if (/^```[ \t]*$/.test(line)) {
+        blocks.push(block);
+        block = undefined;
+      } else {
+        block.body += `${line}\n`;
+      }
+    } else if (line.startsWith('```')) {
+      block = {info: line.slice(3), body: ''};
+    }
+  }
+  assert(!block, `${file}: unclosed code fence`);
+  return blocks;
+}
+
 export function checkTranslations(root = siteRoot) {
+  const locales = readLocales(root);
   const expectedFiles = pages.map(({id}) => `${id}.md`).sort();
   const sourceBlocks = new Map();
-  for (const directory of ['docs', 'i18n/ja/docusaurus-plugin-content-docs/current']) {
+  for (const locale of locales) {
+    const directory = locale === 'en' ? 'docs' : `i18n/${locale}/docusaurus-plugin-content-docs/current`;
     const contentRoot = join(root, directory);
     assert.deepEqual(markdownFiles(contentRoot), expectedFiles, `${directory}: document set does not match the eight-page manifest`);
     for (const {id, slug} of pages) {
@@ -60,25 +98,25 @@ export function checkTranslations(root = siteRoot) {
       field(match[1], 'title', file);
       field(match[1], 'sidebar_label', file);
       assert(match[2].trim(), `${file}: document body is empty`);
-      // Content uses unindented triple-backtick Dart fences in both locales.
-      const blocks = [...match[2].matchAll(/^```dart[^\n]*\n([\s\S]*?)^```[ \t]*$/gm)].map((block) => block[1]);
-      if (directory === 'docs') sourceBlocks.set(id, blocks);
-      else assert.deepEqual(blocks, sourceBlocks.get(id), `${file}: Dart code blocks differ from English`);
+      const blocks = codeBlocks(match[2], file);
+      if (locale === 'en') sourceBlocks.set(id, blocks);
+      else assert.deepEqual(blocks, sourceBlocks.get(id), `${file}: code blocks differ from English`);
     }
-  }
-
-  const navbarFile = 'i18n/ja/docusaurus-theme-classic/navbar.json';
-  const navbar = JSON.parse(readFileSync(join(root, navbarFile), 'utf8'));
-  for (const key of navbarKeys) {
-    const message = navbar[key]?.message;
-    assert(typeof message === 'string' && message.trim(), `${navbarFile}: missing or empty ${key}`);
+    if (locale !== 'en') {
+      const navbarFile = `i18n/${locale}/docusaurus-theme-classic/navbar.json`;
+      const navbar = JSON.parse(readFileSync(join(root, navbarFile), 'utf8'));
+      for (const key of navbarKeys) {
+        const message = navbar?.[key]?.message;
+        assert(typeof message === 'string' && message.trim(), `${navbarFile}: missing or empty ${key}`);
+      }
+    }
   }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === scriptPath) {
   try {
     checkTranslations(process.argv[2] ? resolve(process.argv[2]) : siteRoot);
-    console.log('English/Japanese document structure and navbar translations are complete.');
+    console.log('All configured locales have complete document structure, matching code examples and navbar translations.');
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
