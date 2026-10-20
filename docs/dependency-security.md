@@ -8,7 +8,7 @@ The original lockfile reported **49 affected package entries**, arising from **8
 
 Seven originating advisories have been removed from the resolved dependency tree by updating the affected packages or removing their dependency path. **The braces vulnerability is not fixed.** Its narrowly scoped, temporary exception is described below; a successful policy check is not a clean `npm audit` result. Raw `npm audit` still exits nonzero.
 
-These dependencies run on developer machines and CI. A static deployment does not run the Node build toolchain for each visitor, but that alone does not make build dependencies safe. MDX, configuration, plugins, and npm scripts are executable code. Do not build an unreviewed pull request on a privileged local machine on the assumption that this review makes its source trustworthy. The docs CI uses a hosted runner, read-only repository permissions, no deployment credentials, and checkout without persisted credentials.
+These dependencies run on developer machines and CI. A static deployment does not run the Node build toolchain for each visitor, but that alone does not make build dependencies safe. MDX, configuration, plugins, and npm scripts are executable code. Do not build an unreviewed pull request on a privileged local machine on the assumption that this review makes its source trustworthy. The docs build job uses a hosted runner, read-only repository permissions, no deployment credentials, and checkout without persisted credentials. The later PR4 deployment boundary is described separately below.
 
 ## Advisory-by-advisory assessment
 
@@ -63,6 +63,39 @@ PR2 static-asset reassessment (2026-10-20): inspected Docusaurus 3.10.2 `StaticD
 The threat boundary is reviewed source/configuration and installed dependencies, **not all pull requests being trusted**. An attacker able to supply arbitrary build scripts or configuration can already execute code in that build. This exception does not make that execution safe. Future plugins, user-provided glob strings, unusual repository path names, a public preview server, or a different trust boundary require a new assessment.
 
 Do not extend the expiry automatically or add another exception merely to make CI pass. Check for an upstream fix first. If the remaining risk cannot be accepted, keep the change unmerged rather than describing it as fixed.
+
+## PR4 publication boundary reassessment (2026-10-20)
+
+The six-language build reuses the reviewed dependency tree, static roots, copy
+settings and glob inputs. Deployment changes the trust boundary, not the audit
+exception: **braces remains unfixed**, with the same version, lock hash, scope
+and expiry. No visitor request executes the Node toolchain, but reviewed build
+inputs and dependencies can still execute code on the build runner.
+
+- The `docs` job retains `contents: read`, no deployment permissions and checkout
+  without persisted credentials. npm scripts, MDX and plugins run only there.
+- Only canonical-repository `push` runs on `refs/heads/develop` upload the built
+  `docs/build` directory. PR and fork builds do not publish artifacts for Pages.
+- A separate deployment job requires successful docs and the existing CI gate.
+  Only that job has `pages: write` / `id-token: write`, plus `contents: read` for
+  a current-develop-SHA check. It has no checkout, npm installation, MDX build or
+  repository-script execution; it deploys the same run's static artifact.
+- The independent `github-pages` environment must restrict deployment to the
+  `develop` branch. Settings activation requires separate approval. No PAT,
+  release App credentials, automatic Pages enablement, privileged PR workflow or
+  cross-workflow artifact download is introduced.
+- Stale SHA candidates are skipped, API failures stop deployment, and active
+  deployments are not intentionally cancelled by a newer push. This does not
+  make SHA lookup/deployment atomic or guarantee FIFO/latest-run publication.
+
+The artifact contains HTML/JavaScript served to visitors. Separating permissions
+reduces build-token exposure; it does **not** establish the safety of arbitrary
+content emitted by a compromised dependency or an unreviewed change. Source,
+workflow and dependency review remain necessary. There are no new public preview
+servers, static roots, copy transforms or visitor-controlled glob inputs.
+See [deployment](deployment.md) for conditions, actual-publication checks and
+recovery. This assessment is not evidence that GitHub Pages has been enabled or
+that a deployment has succeeded.
 
 ## Audit gate and maintenance
 

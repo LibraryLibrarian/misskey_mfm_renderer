@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !(github.repository == 'LibraryLibrarian/misskey_mfm_renderer' && github.event_name == 'push' && github.ref == 'refs/heads/develop') }}
 
 jobs:
   quality:
@@ -256,6 +256,55 @@ jobs:
       - run: npm run check:translations
       - run: npm run typecheck
       - run: npm run build
+
+      - name: Upload Pages artifact
+        if: github.repository == 'LibraryLibrarian/misskey_mfm_renderer' && github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/build
+
+  deploy-pages:
+    name: Deploy Docs
+    needs: [docs, gate]
+    if: github.repository == 'LibraryLibrarian/misskey_mfm_renderer' && github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.docs.result == 'success' && needs.gate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Check current develop commit
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/develop" --jq '.object.sha')
+          if [[ ! "$current_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not read a valid develop commit"
+            exit 1
+          fi
+          if [[ "$current_sha" != "$EXPECTED_SHA" ]]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Docs deployment skipped: this run is no longer the develop HEAD." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "Docs deployment candidate: $EXPECTED_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy Pages
+        id: deployment
+        if: steps.current.outputs.publish == 'true'
+        uses: actions/deploy-pages@v4
 
   gate:
     name: all checks passed
