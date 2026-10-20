@@ -1,0 +1,17 @@
+{
+  "title": {
+    "message": "misskey_mfm_renderer"
+  },
+  "item.label.Docs": {
+    "message": "문서"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub"
+  },
+  "item.label.pub.dev": {
+    "message": "pub.dev"
+  },
+  "item.label.API reference": {
+    "message": "API 참조"
+  }
+}

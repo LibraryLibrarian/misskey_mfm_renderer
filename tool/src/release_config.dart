@@ -10,6 +10,10 @@ const releaseConfig = ReleaseConfig(
     'README.ja.md',
     'docs/docs/getting-started.md',
     'docs/i18n/ja/docusaurus-plugin-content-docs/current/getting-started.md',
+    'docs/i18n/zh-Hans/docusaurus-plugin-content-docs/current/getting-started.md',
+    'docs/i18n/de/docusaurus-plugin-content-docs/current/getting-started.md',
+    'docs/i18n/fr/docusaurus-plugin-content-docs/current/getting-started.md',
+    'docs/i18n/ko/docusaurus-plugin-content-docs/current/getting-started.md',
   ],
   // Each entry point includes an installation example. The count is not fixed
   // so adding or removing an example stays a documentation change rather
