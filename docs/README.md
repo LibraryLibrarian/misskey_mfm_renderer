@@ -1,6 +1,6 @@
 # Documentation development
 
-This directory contains the Docusaurus documentation in English, Japanese, Simplified Chinese, German, French and Korean. It is not yet deployed. The canonical URL in the configuration is reserved for a future publication step; the root READMEs remain the existing entry points.
+This directory contains the Docusaurus documentation in English, Japanese, Simplified Chinese, German, French and Korean. The publication target is <https://librarylibrarian.github.io/misskey_mfm_renderer/>; the root READMEs provide short entry points to these guides and the published API reference. Repository configuration alone does not mean the site is live: see [deployment](deployment.md) for the separate first-publication approval, administrator setup and verification.
 
 ## Requirements and installation
 
@@ -79,7 +79,7 @@ Do not rebuild into a directory that another preview server is serving. Stop you
 - Register every locale’s getting-started page in `../tool/src/release_config.dart`. Preserve `misskey_mfm_renderer: ^<version>` in the YAML example. `test/tool/docs_locale_release_config_test.dart` checks locale/reference coverage; the existing release tests verify the referenced files.
 - The example app uses development source and can include unreleased features. Do not present those as already available in the published package.
 
-The existing repository CI validates this site without publishing it. Deployment configuration belongs to subsequent work.
+The existing repository CI validates pull requests without publishing them. After the required administrator setup, a successful canonical-repository `develop` push can deploy the complete six-language build through a separate, narrowly privileged job. The existing CI gate and a current-SHA check must pass; an old run can be skipped without publishing. See [deployment](deployment.md) for exact conditions, concurrency limits and recovery. Do not use `main` or package-release automation to deploy docs.
 
 ## Screenshot maintenance
 
