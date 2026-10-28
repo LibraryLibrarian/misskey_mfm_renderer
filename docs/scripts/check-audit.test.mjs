@@ -62,8 +62,18 @@ test('accepts zero findings without exceptions', () => {
   const input = fixture();
   input.report.vulnerabilities = {};
   input.report.metadata.vulnerabilities = counts(0);
-  input.policy.exceptions = [];
+  input.policy = {version: 1, exceptions: []};
   assert.equal(validateAudit(input).counts.total, 0);
+});
+
+test('rejects low-severity findings without exceptions', () => {
+  const input = fixture();
+  input.policy = {version: 1, exceptions: []};
+  input.report.metadata.vulnerabilities = {...counts(0), low: 2, total: 2};
+  input.report.vulnerabilities.braces.severity = 'low';
+  input.report.vulnerabilities.braces.via[0].severity = 'low';
+  input.report.vulnerabilities.parent.severity = 'low';
+  assert.throws(() => validateAudit(input), /Unreviewed advisory: braces .* \(low\)/);
 });
 
 test('permits reference cycles only when every entry reaches a reviewed origin', () => {

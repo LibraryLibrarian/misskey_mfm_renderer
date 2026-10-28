@@ -135,10 +135,11 @@ Do not use an old run rerun, `main`, release automation or manual dispatch as th
 standard rollback. Disabling publication, unpublishing the site or changing
 repository settings requires separate administrator approval.
 
-The [dependency review](dependency-security.md) still records an **unfixed** High
-`braces` advisory. Its current exception expires on **2026-11-18 00:00:00 UTC**;
-expiry or new findings can block publication. Do not extend the exception or
-refresh its lock hash just to get a deployment through.
+The [current dependency review](dependency-security.md#current-dependency-reassessment-2026-10-28)
+records an **unresolved** Low `deepmerge` advisory, with no exception. The audit
+gate therefore still blocks publication despite the other dependency fixes.
+The old `braces` advisory was withdrawn upstream and its unused exception removed,
+not extended. Do not add or renew exceptions merely to get a deployment through.
 
 ## References
 

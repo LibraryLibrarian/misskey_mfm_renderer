@@ -1,8 +1,40 @@
 # Documentation dependency security review
 
-Reviewed on **2026-10-19**, for the Node 22 / Docusaurus 3.10.2 English/Japanese site. This is an assessment of the documentation toolchain, not a security certification of the Flutter library or every possible Docusaurus configuration.
+Initial review on **2026-10-19**, for the Node 22 / Docusaurus 3.10.2 English/Japanese site, with subsequent dated reassessments below. This is an assessment of the documentation toolchain, not a security certification of the Flutter library or every possible Docusaurus configuration.
 
-## Result and limits
+## Current dependency reassessment (2026-10-28)
+
+A fresh audit including dev, optional and peer dependencies found **23 affected package entries** (1 High, 1 Moderate, 21 Low), from **7 advisories in 4 packages**, in the previously reviewed lockfile. Fixing only the first CI error, `body-parser`, would not restore the audit gate.
+
+| Dependency update | Advisories removed from the resolved tree |
+|---|---|
+| `body-parser` **1.20.8 → 1.20.9** | High: [GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828), unhandled errors from trailing bytes after a compressed request body. |
+| `fast-uri` **3.1.8 → 3.1.9** | Moderate/Low: [scheme decoding](https://github.com/advisories/GHSA-w74x-v6f9-j3xg), [relative-path equivalence](https://github.com/advisories/GHSA-xhq7-xmqj-769h), [host canonicalization](https://github.com/advisories/GHSA-wjr9-j795-jxcr), and [suffix-reference scheme injection](https://github.com/advisories/GHSA-333x-w4r6-6crp). |
+| `serialize-javascript` **7.1.2 → 7.1.3** | Low: [GHSA-m5mm-p8h7-m29v](https://github.com/advisories/GHSA-m5mm-p8h7-m29v), an unescaped script-closing sequence at the end of a serialized function body. |
+
+These are patch updates, not a framework or plugin-stack upgrade. `fast-uri` remains within Ajv's `^3.0.1` requirement. The two existing parent-scoped `serialize-javascript` overrides move to 7.1.3; their cross-major compatibility obligation described in the original review still applies.
+
+`body-parser` is installed through `@docusaurus/core → webpack-dev-server → express`. Express 4.22.3's `~1.20.5` range permits 1.20.9, but npm 10.9.2's named update retained 1.20.8, including with refreshed registry metadata. An override scoped to **Express → body-parser 1.20.9** makes the intended resolution explicit. Reassess/remove this pin when updating Express; do not carry it into an incompatible parent range. The lockfile was generated with npm's targeted update and `npm install --package-lock-only --ignore-scripts`, not edited by hand. Only these three package entries change, each in version, registry URL and integrity; all parent dependency edges and the other installed versions remain unchanged.
+
+### Remaining blocker: deepmerge
+
+[GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) reports Low-severity prototype poisoning of returned objects in **deepmerge 4.3.1**. The installed path is `@docusaurus/preset-classic → @docusaurus/plugin-svgr → @svgr/webpack → @svgr/plugin-svgo → deepmerge`. As of this review, the registry's latest deepmerge is still 4.3.1, the advisory lists no patched version, and the latest `@svgr/plugin-svgo` (8.1.0) still requires `deepmerge ^4.3.1`.
+
+The updated audit reports **5 Low affected package entries**, all propagating from this one advisory, and no High, Moderate or Critical findings. **This finding is unresolved and has no exception. Both raw `npm audit` and `npm run check:audit` remain failing.** Do not merge or publish on the basis of the other checks passing. Removing this path requires a separately reviewed dependency/configuration change, or an upstream fixed release; merely disabling a plugin does not remove installed packages from the audit. The checker, severity policy and CI publication gate are unchanged.
+
+### Removed historical braces exception
+
+GitHub [withdrew GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) on **2026-10-23 at 12:53:02 UTC**, stating that it is not a practically exploitable vulnerability. The fresh npm audit no longer reports it. This is an advisory withdrawal, **not a package fix**: `braces` remains at 3.0.3.
+
+The now-unused braces exception and its lock hash are removed; `audit-exceptions.json` contains an empty exception list. No expiry is extended, no replacement exception is added, and no lock hash is renewed to bypass review. The historical assessment and original expiry below are retained as a record, not as a current allowance. Static roots, glob inputs, plugins and deployment trust boundaries are unchanged.
+
+### Local validation of the patch updates
+
+Under Node 22.15.0 / npm 10.9.2, an isolated site copy passed `npm ci`, **347 tests**, translation checks, typechecking and the production build of all **six locales / 48 routes**. The test suite also verifies an empty exception policy without a lock hash and rejection of Low-severity findings. The full raw audit and policy check both returned **exit 1** for deepmerge; running the other checks locally does not bypass that CI failure.
+
+Targeted, bounded compatibility fixtures passed for Express JSON (uncompressed, gzip and deflate), form/text bodies, Ajv relative-URI/fragment schema references, both parents' resolution of serialize-javascript 7.1.3, uncached parallel CSS minimization, and copy-plugin transform-cache/transformAll. No exploit or resource-exhaustion payload was used. Optional pooled SSG, SockJS and browser interaction checks were not repeated; their dependencies and site configuration are unchanged. No Pages deployment, public-URL verification or native build was performed.
+
+## Initial review result and limits (2026-10-19)
 
 The original lockfile reported **49 affected package entries**, arising from **8 advisories in 6 underlying packages**. The updated lockfile reports **28 High entries, all propagating from one remaining advisory in `braces@3.0.3`**. It reports no Critical or Moderate entries. The increase in the High subtotal is reclassification of dependency ancestors that previously had higher-severity findings, not 28 new independent vulnerabilities.
 
@@ -38,9 +70,9 @@ These overrides cross the parents' declared major ranges. They are local compati
 
 A first version-range-only selector override left an old hoisted 6.1.4 copy in the generated lockfile. The final parent-scoped overrides were checked against the actual installed versions and a fresh audit, not just the manifest. Lockfiles are generated by npm, never hand-edited to claim a fix.
 
-## Temporary braces exception
+## Historical braces exception (removed 2026-10-28)
 
-`audit-exceptions.json` binds the exception to:
+The former `audit-exceptions.json` bound the exception to:
 
 - package **braces**, version **3.0.3**;
 - advisory **GHSA-vfj7-8cjw-p6xm**, reviewed severity **High**, only;
@@ -115,7 +147,7 @@ Changes to dependency inputs must be reviewed in addition to this mechanical gat
 
 When updating these dependencies, revalidate:
 
-1. A clean install, complete audit, tests, typecheck, and bilingual production build.
+1. A clean install, complete audit, tests, typecheck, and six-language production build.
 2. Actual pooled SSG with at least two workers in a disposable site copy; keep the main site's default config unchanged.
 3. Uncached CSS worker serialization and representative selector behavior, plus copy-plugin transform-cache/transformAll paths in small fixtures.
 4. SockJS's resolved CommonJS UUID import and actual connection construction.

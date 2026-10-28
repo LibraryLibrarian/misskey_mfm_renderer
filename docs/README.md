@@ -14,7 +14,7 @@ Commit `package-lock.json` alongside intentional dependency changes. Do not comm
 
 Docusaurus packages are pinned together at `3.10.2`. The lockfile uses Webpack 5.112.0 / webpackbar 7.0.0 without the former Webpack compatibility override. Scoped overrides address vulnerable build dependencies; see [the dependency security review](dependency-security.md) before changing them.
 
-One **unfixed** braces advisory remains under an exact-version, lockfile-bound exception expiring **2026-11-18 00:00:00 UTC**. `npm run check:audit` reports it explicitly and rejects new findings, dependency changes, expired exceptions, or audit failures. A passing policy check is not a vulnerability-free audit. Do not automatically refresh the exception hash/expiry or use `npm audit fix --force`.
+The **2026-10-28** reassessment patches `body-parser`, `fast-uri` and `serialize-javascript`. The former braces advisory was withdrawn upstream, so its unused exception is removed rather than renewed. **The audit gate still fails on the unresolved Low-severity deepmerge advisory; there are no active exceptions.** See [the current assessment](dependency-security.md#current-dependency-reassessment-2026-10-28) before merging or publishing. Findings of any severity and audit failures remain blocking. Do not add exceptions merely to pass CI, automatically refresh an exception hash/expiry, or use `npm audit fix --force`.
 
 ## Local development
 
