@@ -136,10 +136,12 @@ standard rollback. Disabling publication, unpublishing the site or changing
 repository settings requires separate administrator approval.
 
 The [current dependency review](dependency-security.md#current-dependency-reassessment-2026-10-28)
-records an **unresolved** Low `deepmerge` advisory, with no exception. The audit
-gate therefore still blocks publication despite the other dependency fixes.
-The old `braces` advisory was withdrawn upstream and its unused exception removed,
-not extended. Do not add or renew exceptions merely to get a deployment through.
+records patch updates and removal of the unused preset/SVG path to `deepmerge`.
+The reviewed graph has zero audit findings and no exceptions; the former `braces`
+advisory was withdrawn upstream and its unused exception removed, not extended.
+This does not replace the audit on each CI run or authorize Pages activation.
+New findings of any severity still block publication. Do not add or renew
+exceptions merely to get a deployment through.
 
 ## References
 

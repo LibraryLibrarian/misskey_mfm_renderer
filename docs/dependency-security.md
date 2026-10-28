@@ -14,25 +14,39 @@ A fresh audit including dev, optional and peer dependencies found **23 affected 
 
 These are patch updates, not a framework or plugin-stack upgrade. `fast-uri` remains within Ajv's `^3.0.1` requirement. The two existing parent-scoped `serialize-javascript` overrides move to 7.1.3; their cross-major compatibility obligation described in the original review still applies.
 
-`body-parser` is installed through `@docusaurus/core → webpack-dev-server → express`. Express 4.22.3's `~1.20.5` range permits 1.20.9, but npm 10.9.2's named update retained 1.20.8, including with refreshed registry metadata. An override scoped to **Express → body-parser 1.20.9** makes the intended resolution explicit. Reassess/remove this pin when updating Express; do not carry it into an incompatible parent range. The lockfile was generated with npm's targeted update and `npm install --package-lock-only --ignore-scripts`, not edited by hand. Only these three package entries change, each in version, registry URL and integrity; all parent dependency edges and the other installed versions remain unchanged.
+`body-parser` is installed through `@docusaurus/core → webpack-dev-server → express`. Express 4.22.3's `~1.20.5` range permits 1.20.9, but npm 10.9.2's named update retained 1.20.8, including with refreshed registry metadata. An override scoped to **Express → body-parser 1.20.9** makes the intended resolution explicit. Reassess/remove this pin when updating Express; do not carry it into an incompatible parent range. The patch-update lockfile was generated with npm's targeted update and `npm install --package-lock-only --ignore-scripts`, not edited by hand. That first stage changed only these three package entries, each in version, registry URL and integrity. The subsequent dependency-path removal is described below.
 
-### Remaining blocker: deepmerge
+### Removed dependency path: deepmerge
 
-[GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) reports Low-severity prototype poisoning of returned objects in **deepmerge 4.3.1**. The installed path is `@docusaurus/preset-classic → @docusaurus/plugin-svgr → @svgr/webpack → @svgr/plugin-svgo → deepmerge`. As of this review, the registry's latest deepmerge is still 4.3.1, the advisory lists no patched version, and the latest `@svgr/plugin-svgo` (8.1.0) still requires `deepmerge ^4.3.1`.
+[GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) reports Low-severity prototype poisoning of returned objects in **deepmerge 4.3.1**. After the patch updates, **5 Low affected package entries** remained through `@docusaurus/preset-classic → @docusaurus/plugin-svgr → @svgr/webpack → @svgr/plugin-svgo → deepmerge`. That intermediate state correctly failed the audit gate. As of this review, the registry's latest deepmerge is still 4.3.1, the advisory lists no patched version, and the latest `@svgr/plugin-svgo` (8.1.0) still requires `deepmerge ^4.3.1`.
 
-The updated audit reports **5 Low affected package entries**, all propagating from this one advisory, and no High, Moderate or Critical findings. **This finding is unresolved and has no exception. Both raw `npm audit` and `npm run check:audit` remain failing.** Do not merge or publish on the basis of the other checks passing. Removing this path requires a separately reviewed dependency/configuration change, or an upstream fixed release; merely disabling a plugin does not remove installed packages from the audit. The checker, severity policy and CI publication gate are unchanged.
+The final configuration **removes that dependency path**, rather than adding an exception, downgrading deepmerge or substituting an API-incompatible alias. `preset-classic` is replaced by explicitly registered official docs/pages plugins and the same classic theme. Sitemap remains production-only and debug remains development-only; CSS, locale settings and page URLs are preserved. All directly used Docusaurus packages, including the theme-common type dependency, are pinned to **3.10.2**. The unused SVG-component loader, search and analytics dependencies no longer enter through the preset. Blog still exists as a theme dependency but is not registered as a content plugin.
+
+No authored source/static asset or reviewed installed theme code needs SVG-file-to-React-component imports. Removing SVGR intentionally removes that facility; TypeScript still has an ambient SVG declaration, so typechecking alone cannot validate future SVG component imports. New SVG-component, search, analytics or CSS-cascade features require explicit dependency/configuration review. Setting `svgr: false` alone would not remove the installed npm dependency.
+
+Relative to the patch-update stage, npm removes **52 package entries**, adds none and changes no retained package version or metadata; only the root dependency declarations change. **The complete audit now reports zero findings, without exceptions.** This is a point-in-time dependency audit, not a security certification. The checker, all-severity policy and CI publication gate are unchanged, and new findings still block publication.
 
 ### Removed historical braces exception
 
 GitHub [withdrew GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) on **2026-10-23 at 12:53:02 UTC**, stating that it is not a practically exploitable vulnerability. The fresh npm audit no longer reports it. This is an advisory withdrawal, **not a package fix**: `braces` remains at 3.0.3.
 
-The now-unused braces exception and its lock hash are removed; `audit-exceptions.json` contains an empty exception list. No expiry is extended, no replacement exception is added, and no lock hash is renewed to bypass review. The historical assessment and original expiry below are retained as a record, not as a current allowance. Static roots, glob inputs, plugins and deployment trust boundaries are unchanged.
+The now-unused braces exception and its lock hash are removed; `audit-exceptions.json` contains an empty exception list. No expiry is extended, no replacement exception is added, and no lock hash is renewed to bypass review. The historical assessment and original expiry below are retained as a record, not as a current allowance. Static roots, glob inputs and deployment trust boundaries are unchanged; plugin registration changes only as described above.
 
-### Local validation of the patch updates
+### Validation of the initial patch-update stage
 
 Under Node 22.15.0 / npm 10.9.2, an isolated site copy passed `npm ci`, **347 tests**, translation checks, typechecking and the production build of all **six locales / 48 routes**. The test suite also verifies an empty exception policy without a lock hash and rejection of Low-severity findings. The full raw audit and policy check both returned **exit 1** for deepmerge; running the other checks locally does not bypass that CI failure.
 
 Targeted, bounded compatibility fixtures passed for Express JSON (uncompressed, gzip and deflate), form/text bodies, Ajv relative-URI/fragment schema references, both parents' resolution of serialize-javascript 7.1.3, uncached parallel CSS minimization, and copy-plugin transform-cache/transformAll. No exploit or resource-exhaustion payload was used. Optional pooled SSG, SockJS and browser interaction checks were not repeated; their dependencies and site configuration are unchanged. No Pages deployment, public-URL verification or native build was performed.
+
+### Validation of the final dependency graph
+
+After removing the unused dependency path, a clean isolated install under Node 22.15.0 / npm 10.9.2 passed **353 tests**, translation checks, typechecking and all six production builds. Both the full raw npm audit (including dev, optional and peer dependencies) and the unchanged audit policy check returned **exit 0, zero findings and zero exceptions**. The six new tests cover explicit package pins, absence of the removed path, environment-specific plugin registration and the locale/URL contract.
+
+All **48 generated pages** match the previous preset-based build in main text, document links/images and canonical/alternate tags. The six sitemap files retain the same eight URLs each. This generated-content comparison does not by itself establish browser/UI equivalence or certify future dependency updates.
+
+A separate English development build passed with docs/pages/debug and the classic theme registered, debug routes present and no sitemap generated. Browser checks against a loopback-only server serving the production build passed all 48 direct-entry/reload routes, 60 same-page language switches, 48 desktop/mobile light/dark route combinations, 12 keyboard-operated locale menus, example-image loading, an actual theme toggle and sidebar navigation. Representative desktop/mobile screenshots were visually inspected. No JavaScript runtime exceptions, console errors or unexpected external requests were recorded; the only browser HTTP error was the expected absent `/favicon.ico`. A separately requested missing page returned 404. The owned browser and server were closed, and before/after inventories found no evidence-owned Chrome processes.
+
+These are local production-build browser checks and a development build, not a development-server/HMR test or proof of GitHub Pages settings, OIDC or deployment. No public-URL verification, native build or publication was performed.
 
 ## Initial review result and limits (2026-10-19)
 
@@ -141,9 +155,9 @@ npm run typecheck
 npm run build
 ```
 
-The audit gate includes dev, optional, and peer dependencies. It resolves npm's inherited `via` entries back to originating advisories. Unknown advisories of **any severity**, changed affected versions/paths, a changed lockfile, expired or unused exceptions, malformed/unsupported reports, and registry/process failures all fail the check. It also checks installed versions against the lockfile. A permitted finding is printed as **UNFIXED**, not suppressed.
+The audit gate includes dev, optional, and peer dependencies. It resolves npm's inherited `via` entries back to originating advisories. Unknown advisories of **any severity**, changes to the affected versions/paths covered by an exception, expired or unused exceptions, malformed/unsupported reports, and registry/process failures all fail the check. For packages reported as affected, it checks installed versions against the lockfile. A permitted finding is printed as **UNFIXED**, not suppressed.
 
-Changes to dependency inputs must be reviewed in addition to this mechanical gate. The gate does not infer the meaning of new source/configuration. Updating the recorded lock hash without reassessing those paths defeats the exception's purpose.
+When exceptions exist, a changed lockfile invalidates their recorded hash and requires reassessment of the dependency paths. With no exceptions, the gate does not enforce a lock hash: a changed dependency graph with zero findings can pass. Dependency changes still require ordinary review and a fresh audit, not hash renewal. The gate does not infer the meaning of new source/configuration. Updating an active exception's recorded lock hash without reassessing those paths defeats the exception's purpose.
 
 When updating these dependencies, revalidate:
 

@@ -14,7 +14,20 @@ Commit `package-lock.json` alongside intentional dependency changes. Do not comm
 
 Docusaurus packages are pinned together at `3.10.2`. The lockfile uses Webpack 5.112.0 / webpackbar 7.0.0 without the former Webpack compatibility override. Scoped overrides address vulnerable build dependencies; see [the dependency security review](dependency-security.md) before changing them.
 
-The **2026-10-28** reassessment patches `body-parser`, `fast-uri` and `serialize-javascript`. The former braces advisory was withdrawn upstream, so its unused exception is removed rather than renewed. **The audit gate still fails on the unresolved Low-severity deepmerge advisory; there are no active exceptions.** See [the current assessment](dependency-security.md#current-dependency-reassessment-2026-10-28) before merging or publishing. Findings of any severity and audit failures remain blocking. Do not add exceptions merely to pass CI, automatically refresh an exception hash/expiry, or use `npm audit fix --force`.
+The **2026-10-28** reassessment patches `body-parser`, `fast-uri` and `serialize-javascript`, and removes the unused preset/SVG dependency path to `deepmerge`. The former braces advisory was withdrawn upstream, so its unused exception is removed rather than renewed. **The reviewed dependency graph has zero audit findings and no active exceptions.** See [the current assessment](dependency-security.md#current-dependency-reassessment-2026-10-28) for scope and limitations. Findings of any severity and audit failures remain blocking. Do not add exceptions merely to pass CI, automatically refresh an exception hash/expiry, or use `npm audit fix --force`.
+
+## Plugin configuration
+
+The site registers official plugins directly in `docusaurus.config.ts`, without `@docusaurus/preset-classic`:
+
+- `plugin-content-docs` keeps the existing sidebar and `/` route; `plugin-content-pages` retains the preset's normal-page support.
+- `theme-classic` keeps the existing custom CSS and UI; `theme-common` is a direct dependency for its configuration types.
+- `plugin-sitemap` loads only for `NODE_ENV=production`; `plugin-debug` loads otherwise, matching the former preset's defaults.
+- Blog, search, analytics, SVG-component conversion and CSS-cascade-layer plugins are not registered. The blog package remains a theme dependency, not an enabled blog.
+
+Keep these packages pinned to the same version as core. Future search, analytics, SVG-component imports or CSS-cascade features require explicit plugin/dependency setup and a new security review; changing a theme or future flag alone no longer enables a preset plugin. Ambient TypeScript SVG declarations remain, so a passing typecheck does not establish support for importing SVG files as React components.
+
+`npm test` covers the explicit dependencies, absence of the removed dependency path, production/development plugin selection and stable locale/URL configuration. Builds and browser checks are still required for actual rendering behavior.
 
 ## Local development
 
