@@ -2,7 +2,30 @@
 
 Initial review on **2026-10-19**, for the Node 22 / Docusaurus 3.10.2 English/Japanese site, with subsequent dated reassessments below. This is an assessment of the documentation toolchain, not a security certification of the Flutter library or every possible Docusaurus configuration.
 
+## Current dependency reassessment (2026-11-09)
+
+The 2026-11-08 develop build stopped at the audit gate before the first Pages deployment. A complete audit found **2 High affected package entries from 2 independent advisories**, both published on 2026-10-30 after the previous review. The first-error CI log named only `follow-redirects`; updating that package alone still leaves the `joi` finding.
+
+| Dependency update | Advisory and scope |
+|---|---|
+| `follow-redirects` **1.16.1 → 1.16.2** | High: [GHSA-mrwp-f3q8-3g9p](https://github.com/advisories/GHSA-mrwp-f3q8-3g9p). A cross-realm `sensitiveHeaders` array can be discarded, allowing a caller-declared custom credential header to follow a cross-origin redirect. The patch uses `Array.isArray` for this option. |
+| `joi` **17.13.8 → 17.13.9** | High: [GHSA-4528-x5fx-h6hg](https://github.com/advisories/GHSA-4528-x5fx-h6hg). The split in `string().email({multiple: true})` can take quadratic time on crafted input. The patch also hardens localized message handling and object rename bookkeeping; it is not solely an email-regex change. |
+
+Both updates remain within their parents' existing requirements: `http-proxy` requests `follow-redirects ^1.0.0`, and `@docusaurus/types` / `@docusaurus/utils-validation` request `joi ^17.9.2`. No major upgrade, manifest change or new override is required. The lockfile is regenerated with Node 22.15.0 / npm 10.9.2 using `npm update follow-redirects joi --package-lock-only --ignore-scripts --no-audit --no-fund`, rather than edited by hand.
+
+Only these two package entries change, each in version, registry URL and integrity. No package is added or removed, and the remaining dependency metadata is unchanged. The audit checker, empty exception policy, Docusaurus configuration, published-version guides and deployment workflow remain unchanged. No exception is added to pass the gate; a successful audit is still a point-in-time result, not a security certification.
+
+### Validation of the two patch updates
+
+A clean isolated install under Node 22.15.0 / npm 10.9.2 passed **353 tests**, translation checks, typechecking and all **six production builds / 48 generated routes**. Both the complete raw npm audit (including dev, optional and peer dependencies) and the unchanged audit gate returned **exit 0, zero findings and zero exceptions** on 2026-11-09.
+
+Bounded compatibility fixtures confirmed the fixed versions resolved by the real `http-proxy` and `@docusaurus/utils-validation` parents. Normal loopback proxy requests and redirects with `followRedirects: true` passed, as did ordinary Joi multiple-email validation, rejection of an invalid email, object renaming and custom messages. Both owned HTTP servers were closed. No real credentials, cross-origin credential-disclosure scenario or resource-exhaustion payload was used; these are normal-operation compatibility checks, not exploit reproductions.
+
+Browser interaction, development-server/HMR, optional pooled SSG, SockJS and native checks were not repeated for these two Node-toolchain patch updates. No Pages settings were changed, no deployment was triggered, and public-URL verification remains a post-deployment step.
+
 ## Current dependency reassessment (2026-10-28)
+
+This dated assessment is retained as historical evidence; the current follow-up is above.
 
 A fresh audit including dev, optional and peer dependencies found **23 affected package entries** (1 High, 1 Moderate, 21 Low), from **7 advisories in 4 packages**, in the previously reviewed lockfile. Fixing only the first CI error, `body-parser`, would not restore the audit gate.
 
