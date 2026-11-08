@@ -135,11 +135,11 @@ Do not use an old run rerun, `main`, release automation or manual dispatch as th
 standard rollback. Disabling publication, unpublishing the site or changing
 repository settings requires separate administrator approval.
 
-The [current dependency review](dependency-security.md#current-dependency-reassessment-2026-10-28)
-records patch updates and removal of the unused preset/SVG path to `deepmerge`.
-The reviewed graph has zero audit findings and no exceptions; the former `braces`
-advisory was withdrawn upstream and its unused exception removed, not extended.
-This does not replace the audit on each CI run or authorize Pages activation.
+The [current dependency review](dependency-security.md#current-dependency-reassessment-2026-11-09)
+records the `follow-redirects` and `joi` patch updates within existing dependency
+constraints. Both advisories were published after the previous clean audit;
+that historical result does not replace the audit on each CI run. The exception
+list remains empty. A dependency review does not authorize Pages activation.
 New findings of any severity still block publication. Do not add or renew
 exceptions merely to get a deployment through.
 
