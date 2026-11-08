@@ -1,6 +1,8 @@
 import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
-import type * as Preset from '@docusaurus/preset-classic';
+import type {Config, ThemeConfig} from '@docusaurus/types';
+import type {Options as DocsOptions} from '@docusaurus/plugin-content-docs';
+import type {Options as ThemeOptions} from '@docusaurus/theme-classic';
+import type {UserThemeConfig} from '@docusaurus/theme-common';
 import i18n from './locales.json';
 
 const config: Config = {
@@ -18,20 +20,18 @@ const config: Config = {
     },
   },
   i18n,
-  presets: [
+  themes: [
+    ['@docusaurus/theme-classic', {customCss: './src/css/custom.css'} satisfies ThemeOptions],
+  ],
+  plugins: [
     [
-      'classic',
-      {
-        docs: {
-          sidebarPath: './sidebars.ts',
-          routeBasePath: '/',
-        },
-        blog: false,
-        theme: {
-          customCss: './src/css/custom.css',
-        },
-      } satisfies Preset.Options,
+      '@docusaurus/plugin-content-docs',
+      {sidebarPath: './sidebars.ts', routeBasePath: '/'} satisfies DocsOptions,
     ],
+    '@docusaurus/plugin-content-pages',
+    ...(process.env.NODE_ENV === 'production'
+      ? ['@docusaurus/plugin-sitemap']
+      : ['@docusaurus/plugin-debug']),
   ],
   themeConfig: {
     colorMode: {
@@ -64,7 +64,7 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['dart', 'yaml', 'bash'],
     },
-  } satisfies Preset.ThemeConfig,
+  } satisfies ThemeConfig & UserThemeConfig,
 };
 
 export default config;
