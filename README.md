@@ -201,6 +201,14 @@ depth, while nominal context multipliers 2/3/4 still propagate: the latter examp
 keeps a 14px font but passes scale 6. Disabling only `enableAnimation` does not
 change size functions.
 
+### Font families
+
+`$[font.serif]`, `monospace`, `cursive` and `fantasy` have built-in fallbacks.
+`$[font.emoji]` and `$[font.math]` have none: Flutter's backends cannot guarantee
+the same assignment as the CSS `emoji` and `math` generic families, so their content
+keeps the inherited font. To use a specific font, register it in your app and
+return its family name from `MfmRenderConfig.fontFamilyResolver`.
+
 ### Border clipping
 
 The `border` function's `noclip` argument disables its child paint clipping; it

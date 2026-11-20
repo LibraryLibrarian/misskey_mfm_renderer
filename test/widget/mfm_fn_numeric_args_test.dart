@@ -181,9 +181,9 @@ void main() {
   });
 
   for (final family in ['emoji', 'math']) {
-    testWidgets('仕様未決: font.$familyはフォント指定を追加しない現状を記録する', (tester) async {
-      // 仕様未決: 本家はfont-family: emoji / mathを指定する。
-      // 対応するFlutter側の期待値が決まるまでは現状の記録としてskipする。
+    testWidgets('font.$familyは既定のフォント指定を追加しない', (tester) async {
+      // 本家はfont-family: emoji / mathを指定するが、Flutterでは同じ割り当てを
+      // 保証できないため、fontFamilyResolverで指定されない限り継承したままにする。
       await _pumpMfm(
         tester,
         '\$[font.$family x]',
@@ -204,12 +204,35 @@ void main() {
         expect(span.style?.fontFamilyFallback, isNull);
       }
 
-      expectNoFont(richText.text);
-      richText.text.visitChildren((span) {
-        expectNoFont(span);
-        return true;
-      });
-    }, skip: true);
+      _allSpans(richText.text).forEach(expectNoFont);
+    });
+
+    testWidgets('font.$familyはfontFamilyResolverの指定を使う', (tester) async {
+      final requested = <String>[];
+      await _pumpMfm(
+        tester,
+        '\$[font.$family x]',
+        config: MfmRenderConfig(
+          baseTextStyle: const TextStyle(fontSize: 20),
+          fontFamilyResolver: (type) {
+            requested.add(type);
+            return 'Custom$family';
+          },
+        ),
+      );
+
+      expect(requested, [family]);
+      final richText = tester.widget<RichText>(
+        find.descendant(
+          of: find.byType(MfmText),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(
+        _allSpans(richText.text).map((span) => span.style?.fontFamily),
+        contains('Custom$family'),
+      );
+    });
   }
 
   testWidgets('仕様未決: border.width=2000は1024に制限する現状を記録する', (tester) async {
@@ -263,4 +286,17 @@ Future<List<MfmEmojiContext>> _pumpEmojiContexts(
   );
   expect(contexts, hasLength(1));
   return contexts;
+}
+
+/// 文字を持たない入れ子のTextSpanも含めて、すべてのspanを列挙する。
+Iterable<InlineSpan> _allSpans(InlineSpan root) sync* {
+  yield root;
+  final children = <InlineSpan>[];
+  root.visitDirectChildren((child) {
+    children.add(child);
+    return true;
+  });
+  for (final child in children) {
+    yield* _allSpans(child);
+  }
 }

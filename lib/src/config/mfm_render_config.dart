@@ -289,6 +289,10 @@ class MfmRenderConfig {
   /// MFMの`$[font.xxx]`構文で使用されるフォントタイプ（'serif', 'monospace'等）を
   /// 実際のフォントファミリー名に変換
   ///
+  /// 'emoji'と'math'には既定の指定がない。FlutterではCSSの総称ファミリー
+  /// `emoji` / `math` と同じ割り当てを保証できないため、nullを返すと継承した
+  /// フォントのまま表示する。使う場合はアプリでフォントを登録し、ここで返す。
+  ///
   /// 例: Google Fontsを使用する場合
   /// ```dart
   /// MfmRenderConfig(

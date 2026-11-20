@@ -699,7 +699,8 @@ class MfmFnHandler {
           fontFamilyFallback: ['fantasy'],
         );
       default:
-        // emoji, mathはデフォルトフォント
+        // emoji, mathは各バックエンドで本家のCSS総称ファミリーと同じ割り当てを
+        // 保証できないため、fontFamilyResolverで指定されない限り継承したままにする。
         return TextSpan(children: builder.buildNodes(node.children));
     }
 

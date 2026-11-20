@@ -187,6 +187,14 @@ Microsoft Visual C++ Runtime（`VCRUNTIME140.dll`）が必要です。
 維持しつつ、公称倍率2/3/4は伝播します。後者の例は14pxのままscale 6を渡します。
 `enableAnimation` だけを無効にしてもサイズ関数の動作は変わりません。
 
+### フォントの指定
+
+`$[font.serif]`、`monospace`、`cursive`、`fantasy` には既定の指定があります。
+`$[font.emoji]` と `$[font.math]` にはありません。Flutterの各バックエンドでCSSの総称ファミリー
+`emoji` / `math` と同じ割り当てを保証できないため、中身は継承したフォントのまま表示します。
+特定のフォントを使う場合は、アプリにフォントを登録し、`MfmRenderConfig.fontFamilyResolver` で
+そのファミリー名を返してください。
+
 ### borderのクリッピング
 
 `border` 関数の `noclip` 引数は子要素の描画クリッピングを無効にしますが、祖先のヒット領域は
