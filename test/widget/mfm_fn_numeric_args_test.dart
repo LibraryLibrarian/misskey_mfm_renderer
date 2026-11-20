@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_border.dart';
@@ -291,12 +291,10 @@ void main() {
         await tester.pumpWidget(
           MfmConfig(
             config: const MfmRenderConfig(maxBorderWidth: 3000),
-            child: MaterialApp(
-              home: Scaffold(
-                body: MfmText(
-                  text: r'$[border.width=2000 x]',
-                  config: explicit ?? const MfmRenderConfig(),
-                ),
+            child: _host(
+              MfmText(
+                text: r'$[border.width=2000 x]',
+                config: explicit ?? const MfmRenderConfig(),
               ),
             ),
           ),
@@ -318,11 +316,7 @@ void main() {
               config: const MfmRenderConfig(maxBorderWidth: double.maxFinite),
             );
             await tester.pumpWidget(
-              MaterialApp(
-                home: Scaffold(
-                  body: list ? ListView(children: [text]) : text,
-                ),
-              ),
+              _host(list ? ListView(children: [text]) : text),
             );
 
             expect(tester.takeException(), isNull, reason: '$width $list');
@@ -342,12 +336,14 @@ Future<void> _pumpMfm(
   MfmRenderConfig config = const MfmRenderConfig(
     baseTextStyle: TextStyle(fontSize: 20),
   ),
-}) => tester.pumpWidget(
-  MaterialApp(
-    home: Scaffold(
-      body: MfmText(text: text, config: config),
-    ),
-  ),
+}) async {
+  await tester.pumpWidget(_host(MfmText(text: text, config: config)));
+}
+
+/// MaterialAppを使わず、左上寄せのゆるい制約でMfmTextを置く。
+Widget _host(Widget child) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: Align(alignment: Alignment.topLeft, child: child),
 );
 
 Finder _findTransform() =>
