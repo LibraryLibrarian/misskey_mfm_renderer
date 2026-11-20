@@ -87,12 +87,17 @@ jobs:
               "'GlobalCupertinoLocalizations' is deprecated and shouldn't be used. Use GlobalCupertinoLocalizations from package:cupertino_ui/cupertino_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre.",
           }
 
-          # machine 形式は | 区切りで、値の中の \ と | は \ でエスケープされる
+          # machine 形式は | 区切りで、値の中の \ | 改行 復帰は \\ \| \n \r にエスケープされる。
+          # それ以外のエスケープや末尾の孤立した \ は形式外として None を返す
+          ESCAPES = {"\\": "\\", "|": "|", "n": "\n", "r": "\r"}
+
           def split(line):
               fields, current, escaped = [], [], False
               for ch in line:
                   if escaped:
-                      current.append(ch)
+                      if ch not in ESCAPES:
+                          return None
+                      current.append(ESCAPES[ch])
                       escaped = False
                   elif ch == "\\":
                       escaped = True
@@ -101,22 +106,39 @@ jobs:
                       current = []
                   else:
                       current.append(ch)
+              if escaped:
+                  return None
               fields.append("".join(current))
+              return fields
+
+          def is_int(value, minimum):
+              return value.isascii() and value.isdigit() and int(value) >= minimum
+
+          def parse(line):
+              fields = split(line)
+              if fields is None or len(fields) != 8:
+                  return None
+              severity, kind, code, file, row, col, length, message = fields
+              if (severity not in ("INFO", "WARNING", "ERROR") or not kind or not code
+                      or not file or not is_int(row, 1) or not is_int(col, 1)
+                      or not is_int(length, 0)):
+                  return None
               return fields
 
           workspace = os.path.realpath(os.environ.get("GITHUB_WORKSPACE", os.getcwd()))
           excluded = collections.Counter()
           remaining, unexpected = [], []
           with open(path, encoding="utf-8") as f:
-              for line in f.read().splitlines():
+              for line in f.read().split("\n"):
                   if not line.strip():
                       continue
-                  fields = split(line)
-                  if len(fields) != 8 or fields[0] not in ("INFO", "WARNING", "ERROR"):
+                  fields = parse(line)
+                  if fields is None:
                       unexpected.append(line)
                       continue
-                  severity, _, code, file, row, col, _, message = fields
-                  if severity == "INFO" and code == "DEPRECATED_MEMBER_USE" and message in EXCLUDED:
+                  severity, kind, code, file, row, col, _, message = fields
+                  if (severity == "INFO" and kind == "HINT" and code == "DEPRECATED_MEMBER_USE"
+                          and message in EXCLUDED):
                       excluded[message] += 1
                       continue
                   remaining.append((severity, code, os.path.relpath(file, workspace), row, col, message))
@@ -140,9 +162,13 @@ jobs:
           if remaining or unexpected:
               print(f"::error::{len(remaining)} diagnostic(s) and {len(unexpected)} unexpected line(s) remain after the exclusion.")
               sys.exit(1)
-          # 診断を1件も出さずに失敗した場合は、解析そのものが動いていない
-          if status != 0 and total == 0:
-              print(f"::error::dart analyze exited with {status} without reporting diagnostics.")
+          # --fatal-infos では、診断なしが 0、info だけが 1。warning・error は 2・3 で、
+          # それ以外 (解析の異常終了など) は除外件数にかかわらず失敗させる
+          if status not in (0, 1):
+              print(f"::error::dart analyze exited with {status}.")
+              sys.exit(1)
+          if status == 1 and total == 0:
+              print("::error::dart analyze exited with 1 without reporting diagnostics.")
               sys.exit(1)
           PY
 
