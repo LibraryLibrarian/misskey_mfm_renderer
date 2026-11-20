@@ -12,6 +12,7 @@ import '../fn/mfm_fn_handler.dart';
 import '../utils/mention_display.dart';
 import '../utils/nyaize.dart';
 import '../utils/paragraph_semantics.dart';
+import '../utils/plain_text.dart';
 import '../utils/tap_recognizer_pool.dart';
 import '../utils/url_display.dart';
 import '../widgets/mfm_code_block.dart';
@@ -19,6 +20,8 @@ import '../widgets/mfm_link_span.dart';
 import '../widgets/mfm_mention.dart';
 import '../widgets/mfm_mention_text_span.dart';
 import '../widgets/mfm_search.dart';
+
+const _maxNodeDepth = 100;
 
 /// MfmNodeをWidgetに変換するビルダー
 class MfmNodeBuilder {
@@ -37,7 +40,12 @@ class MfmNodeBuilder {
     this.rainbowScope,
     this.rainbowForeground = false,
     this.recognizerPool,
-  }) : unattenuatedStyle = unattenuatedStyle ?? effectiveStyle;
+    int depth = 0,
+  }) : _depth = depth,
+       unattenuatedStyle = unattenuatedStyle ?? effectiveStyle;
+
+  /// 現在のノードまでの深さ。子リストの構築ごとに1段進める。
+  final int _depth;
 
   /// レンダリング設定
   final MfmRenderConfig config;
@@ -89,6 +97,7 @@ class MfmNodeBuilder {
     TextStyle? unattenuatedStyle,
     double? scale,
     int? sizeDepth,
+    int? depth,
     double? opacity,
     bool? disableNyaize,
     bool? plain,
@@ -100,6 +109,7 @@ class MfmNodeBuilder {
     return MfmNodeBuilder(
       config: config,
       recognizerPool: recognizerPool,
+      depth: depth ?? _depth,
       colorScheme: colorScheme,
       effectiveStyle: effectiveStyle ?? this.effectiveStyle,
       unattenuatedStyle: unattenuatedStyle ?? this.unattenuatedStyle,
@@ -221,11 +231,22 @@ class MfmNodeBuilder {
 
   /// ノードリストをWidgetリストに変換
   List<InlineSpan> buildNodes(List<MfmNode> nodes) {
-    return nodes.map(buildNode).toList();
+    // fnハンドラーを含め、子ノードは必ずこの入口を通る。
+    final nested = _copyWith(depth: _depth + 1);
+    if (nested._depth > _maxNodeDepth) {
+      return [
+        TextSpan(
+          text: mfmPlainText(nodes, plain: plain, shouldNyaize: shouldNyaize),
+        ),
+      ];
+    }
+    return nodes.map(nested._buildNode).toList();
   }
 
-  /// 単一ノードをInlineSpanに変換
-  InlineSpan buildNode(MfmNode node) {
+  /// 単一ノードでもリストと同じ深さ制限を適用する。
+  InlineSpan buildNode(MfmNode node) => buildNodes([node]).single;
+
+  InlineSpan _buildNode(MfmNode node) {
     return node.map(
       text: _buildText,
       bold: _buildBold,

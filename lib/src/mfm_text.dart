@@ -9,6 +9,7 @@ import 'config/mfm_inherited_config.dart';
 import 'config/mfm_render_config.dart';
 import 'utils/mention_display.dart';
 import 'utils/paragraph_semantics.dart';
+import 'utils/parse_text.dart';
 import 'utils/tap_recognizer_pool.dart';
 
 /// MFMテキストをレンダリングするウィジェット
@@ -71,6 +72,8 @@ class _MfmTextBody extends StatefulWidget {
 
 class _MfmTextBodyState extends State<_MfmTextBody> {
   final _recognizerPool = MfmTapRecognizerPool();
+  (String?, bool)? _parseKey;
+  late List<MfmNode> _parsedTextNodes;
 
   @override
   void dispose() {
@@ -151,21 +154,15 @@ class _MfmTextBodyState extends State<_MfmTextBody> {
 
   /// テキストをパースしてノードリストを取得
   List<MfmNode> _parseText() {
-    final source = widget.data.text;
-    if (source == null || source.isEmpty) {
-      return [];
-    }
+    final mfm = widget.data;
+    final simple = mfm.simple || mfm.plain;
+    final key = (mfm.text, simple);
+    if (_parseKey == key) return _parsedTextNodes;
 
-    final parser = (widget.data.simple || widget.data.plain)
-        ? MfmParser().buildSimple()
-        : MfmParser().build();
-    final result = parser.parse(source);
-    try {
-      return result.value;
-    } on FormatException {
-      // パース失敗時はプレーンテキストとして返す
-      return [TextNode(source)];
-    }
+    final nodes = parseMfmText(mfm.text, simple: simple);
+    _parseKey = key;
+    _parsedTextNodes = nodes;
+    return nodes;
   }
 }
 
