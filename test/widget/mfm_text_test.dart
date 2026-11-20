@@ -1,11 +1,14 @@
-import 'package:flutter/cupertino.dart' show CupertinoApp, CupertinoThemeData;
+import 'package:flutter/cupertino.dart'
+    show CupertinoApp, CupertinoTextField, CupertinoThemeData;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_highlight/themes/dracula.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_spin_widget.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_border.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
 
 void main() {
@@ -170,23 +173,23 @@ void main() {
   group('MfmText smallの親相対サイズと減光', () {
     const baseStyle = TextStyle(fontSize: 14, color: Colors.blue);
     final textCases = [
-      (name: '単独', text: '<small>abc</small>', size: 11.2, alpha: 0.7),
+      (name: '単独', text: '<small>abc</small>', size: 14 / 1.2, alpha: 0.7),
       (
         name: 'サイズ関数の内側',
         text: r'$[x2 <small>abc</small>]',
-        size: 22.4,
+        size: 28 / 1.2,
         alpha: 0.7,
       ),
       (
         name: '二重のsmall',
         text: '<small><small>abc</small></small>',
-        size: 8.96,
+        size: 14 / 1.2 / 1.2,
         alpha: 0.49,
       ),
       (
         name: 'サイズ関数を挟む二重のsmall',
         text: r'<small>$[x2 <small>abc</small>]</small>',
-        size: 17.92,
+        size: 28 / 1.2 / 1.2,
         alpha: 0.49,
       ),
     ];
@@ -305,7 +308,12 @@ void main() {
               home: Scaffold(
                 body: MfmText(
                   text: text,
-                  config: const MfmRenderConfig(baseTextStyle: baseStyle),
+                  config: const MfmRenderConfig(
+                    baseTextStyle: baseStyle,
+                    mentionOptions: MfmMentionOptions(
+                      presentation: MfmMentionPresentation.text,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -333,7 +341,7 @@ void main() {
       }
     }
 
-    testWidgets('継承色が未指定なら色patchを追加しない', (tester) async {
+    testWidgets('継承色が未指定でもRichText既定の黒をsmallで減光する', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -347,8 +355,8 @@ void main() {
 
       final richText = _rootRichText(tester);
       final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
-      expect(style!.fontSize, closeTo(11.2, 0.000001));
-      expect(style.color, isNull);
+      expect(style!.fontSize, closeTo(14 / 1.2, 0.000001));
+      expect(style.color, const Color(0xFF000000).withValues(alpha: 0.7));
     });
 
     for (final emoji in [':emoji:', '😀']) {
@@ -422,7 +430,10 @@ void main() {
           );
           expect(formula?.text, 'x');
           final style = _effectiveStyleForText(root, 'x')!;
-          expect(style.fontSize, closeTo([14.0, 11.2, 8.96][depth], 0.000001));
+          expect(
+            style.fontSize,
+            closeTo([14.0, 14 / 1.2, 14 / 1.2 / 1.2][depth], 0.000001),
+          );
           expect(style.color!.a, closeTo([1.0, 0.7, 0.49][depth], 0.000001));
           expect(_firstWidgetSpan(root), isNull);
           expect(find.byType(Container), findsNothing);
@@ -485,7 +496,34 @@ void main() {
             of: find.byWidget(child is Opacity ? child.child! : child),
             matching: find.byType(Opacity),
           );
-          if (depth == 0) {
+          if (testCase.name == '日時' || testCase.name == 'ルビ') {
+            expect(child, isNot(isA<Opacity>()));
+            expect(opacityFinder, findsNothing);
+            final TextStyle style;
+            if (testCase.name == '日時') {
+              style = tester
+                  .widget<Text>(
+                    find.descendant(
+                      of: find.byWidget(child),
+                      matching: find.byType(Text),
+                    ),
+                  )
+                  .style!;
+            } else {
+              style = tester
+                  .widget<RichText>(
+                    find
+                        .descendant(
+                          of: find.byWidget(child),
+                          matching: find.byType(RichText),
+                        )
+                        .first,
+                  )
+                  .text
+                  .style!;
+            }
+            expect(style.color!.a, closeTo([1.0, 0.7, 0.49][depth], 0.000001));
+          } else if (depth == 0) {
             // コードブロックのコピーボタン内にあるOpacityは対象外。
             expect(child, isNot(isA<Opacity>()));
             expect(opacityFinder, findsNothing);
@@ -499,6 +537,7 @@ void main() {
             }
           }
           expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
         });
       }
     }
@@ -543,7 +582,7 @@ void main() {
             final style = tester.widget<Text>(find.text('code')).style!;
             expect(
               style.fontSize,
-              closeTo([14.0, 11.2, 8.96][depth], 0.000001),
+              closeTo([14.0, 14 / 1.2, 14 / 1.2 / 1.2][depth], 0.000001),
             );
             expect(style.color!.withValues(alpha: 1), const Color(0xFF2196F3));
             expect(style.color!.a, closeTo(alpha, 0.000001));
@@ -614,7 +653,7 @@ void main() {
         final innerText = container.child! as RichText;
         expect(
           innerText.text.style!.fontSize,
-          closeTo(depth == 0 ? 14 : 11.2, 0.000001),
+          closeTo(depth == 0 ? 14 : 14 / 1.2, 0.000001),
         );
         expect(innerText.text.style!.color!.a, closeTo(expected, 0.000001));
         expect(
@@ -661,7 +700,7 @@ void main() {
       expect(richTextFinder, findsOneWidget);
       final richText = tester.widget<RichText>(richTextFinder);
       final style = _effectiveStyleForText(richText.text as TextSpan, 'abc ');
-      expect(style!.fontSize, closeTo(17.92, 0.000001));
+      expect(style!.fontSize, closeTo(28 / 1.2 / 1.2, 0.000001));
       expect(style.color!.a, closeTo(0.49, 0.000001));
       expect(
         find.ancestor(of: richTextFinder, matching: find.byType(Opacity)),
@@ -706,11 +745,9 @@ void main() {
           decorationColor = child.color;
           innerText = child.child! as RichText;
         } else {
-          final container = child as Container;
-          final border =
-              (container.decoration! as BoxDecoration).border! as Border;
-          decorationColor = border.top.color;
-          innerText = container.child! as RichText;
+          final border = child as MfmBorder;
+          decorationColor = border.color;
+          innerText = border.child as RichText;
         }
         expect(decorationColor.a, closeTo(0.7, 0.000001));
         expect(innerText.text.style!.color!.a, closeTo(0.7, 0.000001));
@@ -951,7 +988,7 @@ void main() {
       final iconFinder = _externalLinkIconFinder();
       expect(iconFinder, findsOneWidget);
       final icon = tester.widget<Icon>(iconFinder);
-      expect(icon.size, closeTo(10.08, 0.000001));
+      expect(icon.size, closeTo(14 / 1.2 * 0.9, 0.000001));
       expect(icon.color!.a, closeTo(0.42, 0.000001));
       expect(icon.semanticLabel, 'External link');
       final widgetSpan = _firstWidgetSpan(root)!;
@@ -1131,7 +1168,16 @@ void main() {
     testWidgets('メンションをリンク色でレンダリングできる', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(body: MfmText(text: '@user')),
+          home: Scaffold(
+            body: MfmText(
+              text: '@user',
+              config: MfmRenderConfig(
+                mentionOptions: MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
+              ),
+            ),
+          ),
         ),
       );
 
@@ -1186,7 +1232,12 @@ void main() {
                 home: Scaffold(
                   body: MfmText(
                     text: testCase.source,
-                    config: MfmRenderConfig(brightness: brightness),
+                    config: MfmRenderConfig(
+                      brightness: brightness,
+                      mentionOptions: const MfmMentionOptions(
+                        presentation: MfmMentionPresentation.text,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1223,7 +1274,12 @@ void main() {
             home: Scaffold(
               body: MfmText(
                 text: testCase.source,
-                config: const MfmRenderConfig(lightColorScheme: scheme),
+                config: const MfmRenderConfig(
+                  lightColorScheme: scheme,
+                  mentionOptions: MfmMentionOptions(
+                    presentation: MfmMentionPresentation.text,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1590,58 +1646,57 @@ void main() {
         ),
       );
 
-      final query = tester.widget<Text>(find.text('test query'));
+      final query = tester.widget<CupertinoTextField>(
+        find.byType(CupertinoTextField),
+      );
       final button = tester.widget<Text>(find.text('Search'));
-      expect(query.style, baseStyle);
+      expect(query.style, baseStyle.copyWith(inherit: false));
       expect(button.style, baseStyle);
 
-      final inputContainer = tester
-          .element(find.text('test query'))
-          .findAncestorWidgetOfExactType<Container>()!;
       final buttonContainer = tester
           .element(find.text('Search'))
           .findAncestorWidgetOfExactType<Container>()!;
-      final inputDecoration = inputContainer.decoration! as BoxDecoration;
+      final inputDecoration = query.decoration!;
       final buttonDecoration = buttonContainer.decoration! as BoxDecoration;
       final inputBorder = inputDecoration.border! as Border;
-      final buttonBorder = buttonDecoration.border! as Border;
+      final buttonBorder = buttonDecoration.border! as BorderDirectional;
       for (final side in [
         inputBorder.top,
         inputBorder.right,
         inputBorder.bottom,
         inputBorder.left,
         buttonBorder.top,
-        buttonBorder.right,
+        buttonBorder.end,
         buttonBorder.bottom,
       ]) {
         expect(side.color, const Color(0xFFE8E8E8));
         expect(side.width, 1);
         expect(side.style, BorderStyle.solid);
       }
-      expect(buttonBorder.left.style, BorderStyle.none);
+      expect(buttonBorder.start.style, BorderStyle.none);
       expect(inputDecoration.color, isNull);
       expect(buttonDecoration.color, isNull);
       expect(
         inputDecoration.borderRadius,
-        const BorderRadius.only(
-          topLeft: Radius.circular(4),
-          bottomLeft: Radius.circular(4),
+        const BorderRadiusDirectional.only(
+          topStart: Radius.circular(4),
+          bottomStart: Radius.circular(4),
         ),
       );
       expect(
         buttonDecoration.borderRadius,
-        const BorderRadius.only(
-          topRight: Radius.circular(4),
-          bottomRight: Radius.circular(4),
+        const BorderRadiusDirectional.only(
+          topEnd: Radius.circular(4),
+          bottomEnd: Radius.circular(4),
         ),
       );
 
       final row = tester
-          .element(find.text('test query'))
+          .element(find.byType(CupertinoTextField))
           .findAncestorWidgetOfExactType<Row>()!;
       expect(row.children, hasLength(2));
       expect(row.children.first, isA<Expanded>());
-      expect(row.children.last, isA<GestureDetector>());
+      expect(row.children.last, isA<ConstrainedBox>());
     });
 
     testWidgets('検索ブロックはカスタムdividerを両controlへ使う', (tester) async {
@@ -1659,45 +1714,52 @@ void main() {
         ),
       );
 
-      for (final label in ['test query', 'Search']) {
-        final container = tester
-            .element(find.text(label))
-            .findAncestorWidgetOfExactType<Container>()!;
-        final border =
-            (container.decoration! as BoxDecoration).border! as Border;
+      final input = tester.widget<CupertinoTextField>(
+        find.byType(CupertinoTextField),
+      );
+      final button = tester
+          .element(find.text('Search'))
+          .findAncestorWidgetOfExactType<Container>()!;
+      for (final decoration in [
+        input.decoration!,
+        button.decoration! as BoxDecoration,
+      ]) {
+        final border = decoration.border!;
         expect(border.top.color, divider);
+        expect(border.top.width, 1);
       }
     });
   });
 
   group('MfmText コールバック', () {
-    testWidgets('URLタップ時にonLinkTapが呼ばれる', (tester) async {
-      String? tappedUrl;
-
+    testWidgets('URLタップ時にonLinkTapが1回だけ呼ばれる', (tester) async {
+      final calls = <String>[];
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: MfmText(
               text: 'https://example.com',
-              config: MfmRenderConfig(onLinkTap: (url) => tappedUrl = url),
+              config: MfmRenderConfig(onLinkTap: calls.add),
             ),
           ),
         ),
       );
-
       final richText = _rootRichText(tester);
-      final textSpan = richText.text as TextSpan;
-
-      final hostSpan = _findSpanWithText(textSpan, 'example.com');
+      final hostSpan = _findSpanWithText(
+        richText.text as TextSpan,
+        'example.com',
+      );
       expect(hostSpan, isNotNull);
-
-      // recognizerを呼び出してタップをシミュレート
-      final recognizer = hostSpan?.recognizer;
-      if (recognizer is TapGestureRecognizer) {
-        recognizer.onTap?.call();
-      }
-
-      expect(tappedUrl, 'https://example.com');
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.byWidget(richText),
+      );
+      final box = paragraph
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 8, extentOffset: 9),
+          )
+          .single;
+      await tester.tapAt(paragraph.localToGlobal(box.toRect().center));
+      expect(calls, ['https://example.com']);
     });
 
     testWidgets('メンションタップ時にonMentionTapが呼ばれる', (tester) async {
@@ -1709,6 +1771,9 @@ void main() {
             body: MfmText(
               text: '@user@example.com',
               config: MfmRenderConfig(
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1719,7 +1784,7 @@ void main() {
       final richText = _rootRichText(tester);
       final textSpan = richText.text as TextSpan;
 
-      final mentionSpan = _findSpanWithText(textSpan, '@user@example.com');
+      final mentionSpan = _findSpanWithText(textSpan, '@user');
       expect(mentionSpan, isNotNull);
 
       final mentionRecognizer = mentionSpan?.recognizer;
@@ -1741,6 +1806,9 @@ void main() {
               config: MfmRenderConfig(
                 author: const MfmAuthorContext(host: 'remote.example'),
                 localHost: 'local.example',
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1763,6 +1831,9 @@ void main() {
               config: MfmRenderConfig(
                 author: const MfmAuthorContext(),
                 localHost: 'local.example',
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1784,6 +1855,9 @@ void main() {
               text: '@alice',
               config: MfmRenderConfig(
                 localHost: 'local.example',
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1806,6 +1880,9 @@ void main() {
               config: MfmRenderConfig(
                 author: const MfmAuthorContext(host: 'remote.example'),
                 localHost: 'local.example',
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),
@@ -1813,7 +1890,7 @@ void main() {
         ),
       );
 
-      _invokeSpanTap(tester, '@alice@explicit.example');
+      _invokeSpanTap(tester, '@alice');
       expect(tappedMention, '@alice@explicit.example');
     });
 
@@ -1831,6 +1908,9 @@ void main() {
               body: MfmText(
                 text: '@alice',
                 config: MfmRenderConfig(
+                  mentionOptions: const MfmMentionOptions(
+                    presentation: MfmMentionPresentation.text,
+                  ),
                   onMentionTap: (acct) => tappedMention = acct,
                 ),
               ),
@@ -1852,6 +1932,9 @@ void main() {
             body: MfmText(
               text: '@alice',
               config: MfmRenderConfig(
+                mentionOptions: const MfmMentionOptions(
+                  presentation: MfmMentionPresentation.text,
+                ),
                 onMentionTap: (acct) => tappedMention = acct,
               ),
             ),

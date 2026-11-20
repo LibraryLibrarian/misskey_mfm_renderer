@@ -5,12 +5,35 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 
 import '../config/mfm_color_scheme.dart';
+import '../config/mfm_mention_options.dart';
 import '../config/mfm_render_config.dart';
 import '../fn/animated/mfm_rainbow_text.dart';
 import '../fn/mfm_fn_handler.dart';
+import '../utils/mention_display.dart';
 import '../utils/nyaize.dart';
+import '../utils/paragraph_semantics.dart';
+import '../utils/plain_text.dart';
+import '../utils/tap_recognizer_pool.dart';
 import '../utils/url_display.dart';
 import '../widgets/mfm_code_block.dart';
+import '../widgets/mfm_link_span.dart';
+import '../widgets/mfm_mention.dart';
+import '../widgets/mfm_mention_text_span.dart';
+import '../widgets/mfm_search.dart';
+
+const _maxNodeDepth = 100;
+final _leadingLineBreak = RegExp(r'^[\n\u2028\u2029]');
+final _trailingLineBreak = RegExp(r'[\n\u2028\u2029]$');
+
+// Rendered blocks whose parsers consume the surrounding line breaks.
+bool _isBlockNode(MfmNode node) => switch (node) {
+  CenterNode() || QuoteNode() || CodeBlockNode() || SearchNode() => true,
+  _ => false,
+};
+
+// 本家の<small>はUAのfont-size: smallerを使用する。
+// Blink font_description.ccのSmallerSizeとFirefoxに合わせ、親サイズを1.2で割る。
+const double _smallFontSizeRatio = 1 / 1.2;
 
 /// MfmNodeをWidgetに変換するビルダー
 class MfmNodeBuilder {
@@ -18,6 +41,7 @@ class MfmNodeBuilder {
     required this.config,
     required this.colorScheme,
     required this.effectiveStyle,
+    TextStyle? unattenuatedStyle,
     this.scale = 1.0,
     this.sizeDepth = 0,
     this.opacity = 1.0,
@@ -27,7 +51,13 @@ class MfmNodeBuilder {
     this.isNote = true,
     this.rainbowScope,
     this.rainbowForeground = false,
-  });
+    this.recognizerPool,
+    int depth = 0,
+  }) : _depth = depth,
+       unattenuatedStyle = unattenuatedStyle ?? effectiveStyle;
+
+  /// 現在のノードまでの深さ。子リストの構築ごとに1段進める。
+  final int _depth;
 
   /// レンダリング設定
   final MfmRenderConfig config;
@@ -37,6 +67,9 @@ class MfmNodeBuilder {
 
   /// 祖先ノードの差分スタイルを反映した現在の実効スタイル
   final TextStyle effectiveStyle;
+
+  /// ウィジェット用。small / quoteの累積opacityを適用する前のスタイル。
+  final TextStyle unattenuatedStyle;
 
   /// 現在のスケール（ネストしたscale fnで使用）
   final double scale;
@@ -54,7 +87,7 @@ class MfmNodeBuilder {
   /// 本家MkMfmのplain表示を使うか。
   final bool plain;
 
-  /// 1行に収める表示を使うか。
+  /// 明示的な改行を保持し、自動折り返しを止めるか。
   final bool nowrap;
 
   /// ハッシュタグをノート用の遷移先へ向けるか。
@@ -64,14 +97,19 @@ class MfmNodeBuilder {
   final MfmRainbowScope? rainbowScope;
   final bool rainbowForeground;
 
+  /// MfmTextが所有するrecognizer。直接使う場合は従来どおり呼び出し側で管理する。
+  final MfmTapRecognizerPool? recognizerPool;
+
   /// 実効文字色にはsmall等の減光を反映済み。shaderでもそのalphaを維持する。
   double get foregroundOpacity =>
       effectiveStyle.foreground?.color.a ?? effectiveStyle.color?.a ?? opacity;
 
   MfmNodeBuilder _copyWith({
     TextStyle? effectiveStyle,
+    TextStyle? unattenuatedStyle,
     double? scale,
     int? sizeDepth,
+    int? depth,
     double? opacity,
     bool? disableNyaize,
     bool? plain,
@@ -82,8 +120,11 @@ class MfmNodeBuilder {
   }) {
     return MfmNodeBuilder(
       config: config,
+      recognizerPool: recognizerPool,
+      depth: depth ?? _depth,
       colorScheme: colorScheme,
       effectiveStyle: effectiveStyle ?? this.effectiveStyle,
+      unattenuatedStyle: unattenuatedStyle ?? this.unattenuatedStyle,
       scale: scale ?? this.scale,
       sizeDepth: sizeDepth ?? this.sizeDepth,
       opacity: opacity ?? this.opacity,
@@ -107,9 +148,10 @@ class MfmNodeBuilder {
   }
 
   /// 差分スタイル（inherit: true）を実効スタイルに反映したビルダーを返す
-  MfmNodeBuilder withStyle(TextStyle patch) {
+  MfmNodeBuilder withStyle(TextStyle patch, {TextStyle? unattenuatedPatch}) {
     return _copyWith(
       effectiveStyle: effectiveStyle.merge(patch),
+      unattenuatedStyle: unattenuatedStyle.merge(unattenuatedPatch ?? patch),
       rainbowForeground:
           rainbowForeground && patch.color == null && patch.foreground == null,
     );
@@ -131,8 +173,9 @@ class MfmNodeBuilder {
     TextStyle patch,
     List<MfmNode> nodes, {
     GestureRecognizer? recognizer,
+    TextStyle? unattenuatedPatch,
   }) {
-    final styled = withStyle(patch);
+    final styled = withStyle(patch, unattenuatedPatch: unattenuatedPatch);
     final children = styled.buildNodes(nodes);
     return styled.rainbowForeground
         ? MfmRainbowSpan(
@@ -171,9 +214,21 @@ class MfmNodeBuilder {
           )
         : TextSpan(style: effectiveStyle, children: children);
     final scope = rainbowScope;
+    // 両方とも既定のoverflow: clipを維持し、nowrapでも明示改行を残す。
     return scope == null
-        ? RichText(textAlign: textAlign, text: text)
-        : MfmRainbowRichText(scope: scope, textAlign: textAlign, text: text);
+        ? RichText(
+            key: paragraphSemanticsKey(text),
+            textAlign: textAlign,
+            softWrap: !nowrap,
+            text: text,
+          )
+        : MfmRainbowRichText(
+            key: paragraphSemanticsKey(text),
+            scope: scope,
+            textAlign: textAlign,
+            softWrap: !nowrap,
+            text: text,
+          );
   }
 
   /// 現在の文脈で nyaize 変換を適用すべきか
@@ -191,11 +246,46 @@ class MfmNodeBuilder {
 
   /// ノードリストをWidgetリストに変換
   List<InlineSpan> buildNodes(List<MfmNode> nodes) {
-    return nodes.map(buildNode).toList();
+    // fnハンドラーを含め、子ノードは必ずこの入口を通る。
+    final nested = _copyWith(depth: _depth + 1);
+    if (nested._depth > _maxNodeDepth) {
+      return [
+        TextSpan(
+          text: mfmPlainText(
+            nodes,
+            plain: plain,
+            shouldNyaize: shouldNyaize,
+            disableNyaize: disableNyaize,
+          ),
+        ),
+      ];
+    }
+    final spans = nodes.map(nested._buildNode).toList();
+    if (!nowrap || spans.length < 2) return spans;
+
+    final separated = <InlineSpan>[spans.first];
+    for (var i = 1; i < spans.length; i++) {
+      if (_isBlockNode(nodes[i - 1]) || _isBlockNode(nodes[i])) {
+        // Keep WidgetSpan placeholders: an internal newline cannot separate
+        // the widget from its siblings in the containing paragraph.
+        final previous = spans[i - 1].toPlainText(
+          includeSemanticsLabels: false,
+        );
+        final current = spans[i].toPlainText(includeSemanticsLabels: false);
+        if (!_trailingLineBreak.hasMatch(previous) &&
+            !_leadingLineBreak.hasMatch(current)) {
+          separated.add(const TextSpan(text: '\n'));
+        }
+      }
+      separated.add(spans[i]);
+    }
+    return separated;
   }
 
-  /// 単一ノードをInlineSpanに変換
-  InlineSpan buildNode(MfmNode node) {
+  /// 単一ノードでもリストと同じ深さ制限を適用する。
+  InlineSpan buildNode(MfmNode node) => buildNodes([node]).single;
+
+  InlineSpan _buildNode(MfmNode node) {
     return node.map(
       text: _buildText,
       bold: _buildBold,
@@ -223,9 +313,8 @@ class MfmNodeBuilder {
   InlineSpan _buildText(TextNode node) {
     // styleをnullにして親のスタイルを継承
     // ルートのTextSpanでbaseTextStyleが設定されているため、ここで再設定する必要はない
-    final normalized = plain
-        ? node.text.replaceAll(RegExp(r'\r\n|\r|\n'), '\n')
-        : node.text;
+    // 本家と同じく、plainに関係なくCRLF/CRをLFへ正規化する。
+    final normalized = node.text.replaceAll(RegExp(r'\r\n?'), '\n');
     final nyaized = shouldNyaize ? nyaize(normalized) : normalized;
     return TextSpan(text: plain ? nyaized.replaceAll('\n', ' ') : nyaized);
   }
@@ -251,18 +340,52 @@ class MfmNodeBuilder {
     );
   }
 
-  InlineSpan _buildSmall(SmallNode node) {
-    final color = effectiveStyle.color;
+  // 前景以外のTextStyleの色も減光し、WidgetSpan境界で全体Opacityを不要にする。
+  TextStyle _dimmedSecondaryColors(double factor) {
+    Color dim(Color color) => color.withValues(alpha: color.a * factor);
+    final background = effectiveStyle.background;
+    final backgroundColor = effectiveStyle.backgroundColor;
+    final decorationColor = effectiveStyle.decorationColor;
+    return TextStyle(
+      backgroundColor: backgroundColor == null ? null : dim(backgroundColor),
+      background: background == null
+          ? null
+          : (Paint.from(background)..color = dim(background.color)),
+      decorationColor: decorationColor == null ? null : dim(decorationColor),
+      shadows: effectiveStyle.shadows
+          ?.map(
+            (shadow) => Shadow(
+              color: dim(shadow.color),
+              offset: shadow.offset,
+              blurRadius: shadow.blurRadius,
+            ),
+          )
+          .toList(),
+    );
+  }
 
-    final patch = TextStyle(
-      fontSize: effectiveStyle.fontSize! * 0.8,
-      color: color?.withValues(alpha: color.a * 0.7),
+  InlineSpan _buildSmall(SmallNode node) {
+    final foreground = effectiveStyle.foreground;
+    final color = effectiveStyle.color ?? const Color(0xFF000000);
+
+    final patch = _dimmedSecondaryColors(0.7).copyWith(
+      fontSize: effectiveStyle.fontSize! * _smallFontSizeRatio,
+      color: foreground == null ? color.withValues(alpha: color.a * 0.7) : null,
+      foreground: foreground == null
+          ? null
+          : (Paint.from(foreground)
+              ..color = foreground.color.withValues(
+                alpha: foreground.color.a * 0.7,
+              )),
+    );
+    final rawPatch = TextStyle(
+      fontSize: unattenuatedStyle.fontSize! * _smallFontSizeRatio,
     );
     final smaller = _copyWith(opacity: opacity * 0.7);
     if (rainbowForeground) {
       // smallは色の指定ではなく減光なので、虹色の継承を解除しない。
       final styled = smaller
-          .withStyle(patch)
+          .withStyle(patch, unattenuatedPatch: rawPatch)
           ._copyWith(rainbowForeground: true);
       return MfmRainbowSpan(
         opacity: styled.foregroundOpacity,
@@ -270,7 +393,11 @@ class MfmNodeBuilder {
         children: styled.buildNodes(node.children),
       );
     }
-    return smaller.buildStyledSpan(patch, node.children);
+    return smaller.buildStyledSpan(
+      patch,
+      node.children,
+      unattenuatedPatch: rawPatch,
+    );
   }
 
   InlineSpan _buildQuote(QuoteNode node) {
@@ -281,7 +408,10 @@ class MfmNodeBuilder {
     // 引用は独自の色で上書きするため、累積不透明度を色のalphaに反映し直す。
     // Container全体を減光すると内側の文字や絵文字が二重に薄くなる。
     final quoteBuilder = quoted.withStyle(
-      TextStyle(color: quoted.applyOpacity(baseColor)),
+      _dimmedSecondaryColors(
+        0.7,
+      ).copyWith(color: quoted.applyOpacity(baseColor)),
+      unattenuatedPatch: TextStyle(color: baseColor),
     );
     final children = quoteBuilder.buildNodes(node.children);
 
@@ -302,7 +432,7 @@ class MfmNodeBuilder {
       );
     }
 
-    // nowrapでは1行に収めるため、引用も全幅化せずインライン幅で描画する。
+    // nowrapでは引用を全幅化せず、内容の自然幅で描画する。
     return WidgetSpan(
       child: nowrap
           ? buildQuoteContainer()
@@ -347,6 +477,8 @@ class MfmNodeBuilder {
     final backgroundColor = colorScheme.bg;
     final text = Text(
       node.code,
+      softWrap: !nowrap,
+      overflow: nowrap ? TextOverflow.clip : null,
       style: effectiveStyle.copyWith(
         fontFamily: 'Consolas',
         fontFamilyFallback: const [
@@ -412,11 +544,24 @@ class MfmNodeBuilder {
     );
   }
 
+  TapGestureRecognizer _tapRecognizer(
+    MfmTapRecognizerKind kind,
+    String target,
+    VoidCallback onTap,
+  ) {
+    return recognizerPool?.acquire(kind, target, onTap) ??
+        (TapGestureRecognizer()..onTap = onTap);
+  }
+
   InlineSpan _buildUrl(UrlNode node) {
     final onLinkTap = config.onLinkTap;
     final recognizer = onLinkTap == null
         ? null
-        : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url));
+        : _tapRecognizer(
+            MfmTapRecognizerKind.url,
+            node.url,
+            () => onLinkTap(node.url),
+          );
     final baseColor = applyOpacity(colorScheme.link);
     final parts = parseUrlDisplay(node.url, localHost: config.localHost);
     if (parts == null) {
@@ -478,32 +623,7 @@ class MfmNodeBuilder {
       children.add(part(parts.fragment, fontStyle: FontStyle.italic));
     }
     if (!parts.isSelf) {
-      final icon = Padding(
-        padding: const EdgeInsets.only(left: 2),
-        child: Icon(
-          const IconData(
-            0xe45c,
-            fontFamily: 'MaterialIcons',
-            matchTextDirection: true,
-          ),
-          size: effectiveStyle.fontSize! * 0.9,
-          color: baseColor,
-          semanticLabel: 'External link',
-        ),
-      );
-      children.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.baseline,
-          baseline: TextBaseline.alphabetic,
-          child: recognizer == null
-              ? icon
-              : Listener(
-                  behavior: HitTestBehavior.opaque,
-                  onPointerDown: recognizer.addPointer,
-                  child: icon,
-                ),
-        ),
-      );
+      children.add(_buildExternalLinkIcon(recognizer));
     }
 
     return TextSpan(
@@ -512,29 +632,119 @@ class MfmNodeBuilder {
     );
   }
 
+  WidgetSpan _buildExternalLinkIcon(TapGestureRecognizer? recognizer) {
+    final icon = Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Icon(
+        const IconData(
+          0xe45c,
+          fontFamily: 'MaterialIcons',
+          matchTextDirection: true,
+        ),
+        size: effectiveStyle.fontSize! * 0.9,
+        color: applyOpacity(colorScheme.link),
+        semanticLabel: 'External link',
+      ),
+    );
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: recognizer == null
+          ? icon
+          : Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: recognizer.addPointer,
+              child: icon,
+            ),
+    );
+  }
+
   InlineSpan _buildLink(LinkNode node) {
     final onLinkTap = config.onLinkTap;
-    return _withDisableNyaize().buildStyledSpan(
+    final recognizer = onLinkTap == null
+        ? null
+        : _tapRecognizer(
+            MfmTapRecognizerKind.link,
+            node.url,
+            () => onLinkTap(node.url),
+          );
+    final label = _withDisableNyaize().buildStyledSpan(
       TextStyle(
         color: applyOpacity(colorScheme.link),
         decoration: TextDecoration.none,
       ),
       node.children,
-      recognizer: onLinkTap == null
-          ? null
-          : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url)),
+      unattenuatedPatch: TextStyle(
+        color: colorScheme.link,
+        decoration: TextDecoration.none,
+      ),
+    );
+    final parts = parseUrlDisplay(node.url, localHost: config.localHost);
+    return TextSpan(
+      children: [
+        recognizer == null ? label : adaptMfmLinkSpan(label, recognizer),
+        if (parts != null && !parts.isSelf) _buildExternalLinkIcon(recognizer),
+      ],
     );
   }
 
   InlineSpan _buildMention(MentionNode node) {
     final onMentionTap = config.onMentionTap;
     final resolvedAcct = _resolveMentionAcct(node);
-    return TextSpan(
-      text: node.acct,
-      style: TextStyle(color: applyOpacity(colorScheme.mention)),
-      recognizer: onMentionTap == null
+    final display = resolveMentionDisplay(
+      username: node.username,
+      nodeHost: node.host,
+      config: config,
+    );
+    final color = display.isSelf ? colorScheme.mentionMe : colorScheme.mention;
+    final onTap = onMentionTap == null
+        ? null
+        : () => onMentionTap(resolvedAcct);
+    final options = config.mentionOptions;
+    if (options?.presentation == MfmMentionPresentation.text) {
+      final recognizer = onTap == null
           ? null
-          : (TapGestureRecognizer()..onTap = () => onMentionTap(resolvedAcct)),
+          : _tapRecognizer(MfmTapRecognizerKind.mention, resolvedAcct, onTap);
+      return MfmMentionTextSpan(
+        recognizer: recognizer,
+        children: [
+          TextSpan(
+            text: display.name,
+            style: mentionRoleStyle(effectiveStyle, applyOpacity(color)),
+            recognizer: recognizer,
+          ),
+          if (display.host.isNotEmpty)
+            TextSpan(
+              text: display.host,
+              style: mentionRoleStyle(
+                effectiveStyle,
+                applyOpacity(color.withValues(alpha: color.a * .5)),
+              ),
+              recognizer: recognizer,
+            ),
+        ],
+      );
+    }
+    final provider = options?.avatarProvider;
+    final origin = options?.localOrigin;
+    final avatar = provider != null
+        ? provider(resolvedAcct)
+        : origin == null
+        ? null
+        : NetworkImage(mentionAvatarUri(origin, display.avatarAcct).toString());
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: wrapOpacity(
+        MfmMention(
+          name: display.name,
+          host: display.host,
+          style: unattenuatedStyle,
+          color: color,
+          avatar: avatar,
+          onTap: onTap,
+        ),
+      ),
     );
   }
 
@@ -568,8 +778,10 @@ class MfmNodeBuilder {
       ),
       recognizer: onHashtagTapDetails == null && onHashtagTap == null
           ? null
-          : (TapGestureRecognizer()
-              ..onTap = () {
+          : _tapRecognizer(
+              MfmTapRecognizerKind.hashtag,
+              node.hashtag,
+              () {
                 if (onHashtagTapDetails != null) {
                   final pathPrefix = isNote ? '/tags/' : '/user-tags/';
                   onHashtagTapDetails(
@@ -582,63 +794,25 @@ class MfmNodeBuilder {
                 } else {
                   onHashtagTap!(node.hashtag);
                 }
-              }),
+              },
+            ),
     );
   }
 
   InlineSpan _buildSearch(SearchNode node) {
-    final baseStyle = config.baseTextStyle ?? const TextStyle(fontSize: 14);
-    final borderSide = BorderSide(color: colorScheme.divider);
-
     return WidgetSpan(
       child: wrapOpacity(
         Container(
           margin: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.fromBorderSide(borderSide),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      bottomLeft: Radius.circular(4),
-                    ),
-                  ),
-                  child: Text(node.query, style: baseStyle),
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  config.onSearchTap?.call(node.query);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: borderSide,
-                      right: borderSide,
-                      bottom: borderSide,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(4),
-                      bottomRight: Radius.circular(4),
-                    ),
-                  ),
-                  child: Text(
-                    config.searchButtonLabel ?? 'Search',
-                    style: baseStyle,
-                  ),
-                ),
-              ),
-            ],
+          child: MfmSearch(
+            query: node.query,
+            label: config.searchButtonLabel ?? 'Search',
+            style: config.baseTextStyle ?? const TextStyle(fontSize: 14),
+            foreground: colorScheme.fg,
+            divider: colorScheme.divider,
+            accent: colorScheme.accent,
+            brightness: config.brightness ?? Brightness.light,
+            onSearch: config.onSearchTap,
           ),
         ),
       ),
@@ -668,6 +842,7 @@ class MfmNodeBuilder {
           node.name,
           MfmEmojiContext(
             fontSize: effectiveStyle.fontSize!,
+            textStyle: unattenuatedStyle,
             scale: scale,
             normal: plain,
             host: host,
@@ -689,6 +864,7 @@ class MfmNodeBuilder {
             node.emoji,
             MfmEmojiContext(
               fontSize: effectiveStyle.fontSize!,
+              textStyle: unattenuatedStyle,
               scale: scale,
             ),
           ),

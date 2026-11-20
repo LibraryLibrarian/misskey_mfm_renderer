@@ -7,6 +7,13 @@ import 'builder/mfm_node_builder.dart';
 import 'config/mfm_color_scheme.dart';
 import 'config/mfm_inherited_config.dart';
 import 'config/mfm_render_config.dart';
+import 'utils/mention_display.dart';
+import 'utils/nowrap_paragraph.dart';
+import 'utils/paragraph_semantics.dart';
+import 'utils/parse_text.dart';
+import 'utils/tap_recognizer_pool.dart';
+
+final _forcedLineBreak = RegExp(r'[\n\u2028\u2029]');
 
 /// MFMテキストをレンダリングするウィジェット
 class MfmText extends StatelessWidget {
@@ -44,7 +51,10 @@ class MfmText extends StatelessWidget {
   /// 本家MkMfmのplain表示を使うか。
   final bool plain;
 
-  /// 1行に収め、はみ出した内容を省略記号で表示するか。
+  /// 自動で折り返さず、明示的な改行を保持するか。
+  /// 改行を含まない本文が1行に収まらない場合は省略記号を表示し、
+  /// 改行を含む場合ははみ出した部分を切り取る。
+  /// 省略で行頭のinline widgetまで消える場合は、1行の境界で切り取る。
   final bool nowrap;
 
   /// ルートでの累積スケール。
@@ -54,13 +64,40 @@ class MfmText extends StatelessWidget {
   final bool isNote;
 
   @override
+  Widget build(BuildContext context) => _MfmTextBody(data: this);
+}
+
+class _MfmTextBody extends StatefulWidget {
+  const _MfmTextBody({required this.data});
+
+  final MfmText data;
+
+  @override
+  State<_MfmTextBody> createState() => _MfmTextBodyState();
+}
+
+class _MfmTextBodyState extends State<_MfmTextBody> {
+  final _recognizerPool = MfmTapRecognizerPool();
+  (String?, bool)? _parseKey;
+  late List<MfmNode> _parsedTextNodes;
+
+  @override
+  void dispose() {
+    _recognizerPool.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final mfm = widget.data;
+
     // ノードを取得（パース済みがあればそれを使用、なければパース）
-    final nodes = parsedNodes ?? _parseText();
+    final nodes = mfm.parsedNodes ?? _parseText();
 
     // InheritedWidgetから設定を取得（なければnull）
     final inheritedConfig = MfmConfig.maybeOf(context);
-    final mergedConfig = _mergeConfigs(inheritedConfig, config);
+    final mergedConfig = _mergeConfigs(inheritedConfig, mfm.config);
+    validateMentionConfig(mergedConfig);
 
     final brightness = _resolveBrightness(context, mergedConfig.brightness);
     final colorScheme = brightness == Brightness.dark
@@ -70,10 +107,22 @@ class MfmText extends StatelessWidget {
     // 明示スタイルは環境とマージせず、未指定のフォントサイズのみ補完する
     final rawStyle =
         mergedConfig.baseTextStyle ?? DefaultTextStyle.of(context).style;
-    final rootStyle = rawStyle.copyWith(fontSize: rawStyle.fontSize ?? 14.0);
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final rootStyle = rawStyle.copyWith(
+      fontSize: scaler.scale(rawStyle.fontSize ?? 14.0),
+    );
+
+    // OSの「動きを減らす」設定は、追従が有効でアニメーションが有効な場合だけ参照する。
+    // 参照時はMediaQueryのdisableAnimationsだけに依存し、その変更で再buildされる。
+    final reduceMotion =
+        (mergedConfig.followPlatformReducedMotion ?? true) &&
+        mergedConfig.useAnimation &&
+        (MediaQuery.maybeDisableAnimationsOf(context) ?? false);
 
     // baseTextStyleと解決済みbrightnessを設定
     final effectiveConfig = mergedConfig.copyWith(
+      enableAnimation: reduceMotion ? false : null,
       baseTextStyle: rootStyle,
       brightness: brightness,
       searchButtonLabel:
@@ -86,44 +135,76 @@ class MfmText extends StatelessWidget {
       config: effectiveConfig,
       colorScheme: colorScheme,
       effectiveStyle: rootStyle,
-      scale: rootScale,
-      plain: plain,
-      nowrap: nowrap,
-      isNote: isNote,
+      scale: mfm.rootScale,
+      plain: mfm.plain,
+      nowrap: mfm.nowrap,
+      isNote: mfm.isNote,
+      recognizerPool: _recognizerPool,
     );
 
     // ノードをスパンに変換
-    final spans = builder.buildNodes(nodes);
+    _recognizerPool.beginBuild();
+    final List<InlineSpan> spans;
+    try {
+      spans = builder.buildNodes(nodes);
+    } finally {
+      _recognizerPool.endBuild();
+    }
 
     // RichTextでレンダリング
-    return RichText(
-      maxLines: nowrap ? 1 : null,
-      softWrap: !nowrap,
-      overflow: nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
-      text: TextSpan(
-        style: rootStyle,
-        children: spans,
+    final textSpan = TextSpan(style: rootStyle, children: spans);
+    final overflow =
+        mfm.nowrap &&
+            !_forcedLineBreak.hasMatch(
+              textSpan.toPlainText(
+                includeSemanticsLabels: false,
+                includePlaceholders: false,
+              ),
+            )
+        ? TextOverflow.ellipsis
+        : TextOverflow.clip;
+    final paragraph = RichText(
+      key: paragraphSemanticsKey(textSpan),
+      softWrap: !mfm.nowrap,
+      overflow: overflow,
+      text: textSpan,
+    );
+    return _MfmTextNoScaling(
+      child: MfmNowrapParagraph(
+        enabled: overflow == TextOverflow.ellipsis,
+        child: paragraph,
       ),
     );
   }
 
   /// テキストをパースしてノードリストを取得
   List<MfmNode> _parseText() {
-    final source = text;
-    if (source == null || source.isEmpty) {
-      return [];
-    }
+    final mfm = widget.data;
+    final simple = mfm.simple || mfm.plain;
+    final key = (mfm.text, simple);
+    if (_parseKey == key) return _parsedTextNodes;
 
-    final parser = (simple || plain)
-        ? MfmParser().buildSimple()
-        : MfmParser().build();
-    final result = parser.parse(source);
-    try {
-      return result.value;
-    } on FormatException {
-      // パース失敗時はプレーンテキストとして返す
-      return [TextNode(source)];
-    }
+    final nodes = parseMfmText(mfm.text, simple: simple);
+    _parseKey = key;
+    _parsedTextNodes = nodes;
+    return nodes;
+  }
+}
+
+/// Keeps the full MediaQuery dependency outside the span-building State.
+class _MfmTextNoScaling extends StatelessWidget {
+  const _MfmTextNoScaling({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery == null) return child;
+    return MediaQuery(
+      data: mediaQuery.copyWith(textScaler: TextScaler.noScaling),
+      child: child,
+    );
   }
 }
 
@@ -147,6 +228,9 @@ MfmRenderConfig _mergeConfigs(
     enableAnimation: explicit.enableAnimation != defaults.enableAnimation
         ? explicit.enableAnimation
         : inherited.enableAnimation,
+    followPlatformReducedMotion:
+        explicit.followPlatformReducedMotion ??
+        inherited.followPlatformReducedMotion,
     enableNyaize: explicit.enableNyaize != defaults.enableNyaize
         ? explicit.enableNyaize
         : inherited.enableNyaize,
@@ -163,6 +247,8 @@ MfmRenderConfig _mergeConfigs(
     author: explicit.author ?? inherited.author,
     emojiUrls: explicit.emojiUrls ?? inherited.emojiUrls,
     localHost: explicit.localHost ?? inherited.localHost,
+    mentionOptions: explicit.mentionOptions ?? inherited.mentionOptions,
+    unixtimeOptions: explicit.unixtimeOptions ?? inherited.unixtimeOptions,
     searchButtonLabel: explicit.useLocaleSearchButtonLabel
         ? null
         : explicit.searchButtonLabel ?? inherited.searchButtonLabel,
@@ -184,6 +270,7 @@ MfmRenderConfig _mergeConfigs(
     codeCopyTooltip: explicit.codeCopyTooltip ?? inherited.codeCopyTooltip,
     codeCopiedMessage:
         explicit.codeCopiedMessage ?? inherited.codeCopiedMessage,
+    maxBorderWidth: explicit.maxBorderWidth ?? inherited.maxBorderWidth,
   );
 }
 
@@ -192,6 +279,8 @@ bool _isDefaultConfig(MfmRenderConfig config) {
   return config.baseTextStyle == defaults.baseTextStyle &&
       config.enableAdvancedMfm == defaults.enableAdvancedMfm &&
       config.enableAnimation == defaults.enableAnimation &&
+      config.followPlatformReducedMotion ==
+          defaults.followPlatformReducedMotion &&
       config.enableNyaize == defaults.enableNyaize &&
       config.nyaizeMode == defaults.nyaizeMode &&
       config.emojiBuilder == defaults.emojiBuilder &&
@@ -204,6 +293,8 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.author == defaults.author &&
       config.emojiUrls == defaults.emojiUrls &&
       config.localHost == defaults.localHost &&
+      config.mentionOptions == defaults.mentionOptions &&
+      config.unixtimeOptions == defaults.unixtimeOptions &&
       config.searchButtonLabel == defaults.searchButtonLabel &&
       config.useLocaleSearchButtonLabel ==
           defaults.useLocaleSearchButtonLabel &&
@@ -217,7 +308,8 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.showCodeBlockCopyButton == defaults.showCodeBlockCopyButton &&
       config.onCodeCopied == defaults.onCodeCopied &&
       config.codeCopyTooltip == defaults.codeCopyTooltip &&
-      config.codeCopiedMessage == defaults.codeCopiedMessage;
+      config.codeCopiedMessage == defaults.codeCopiedMessage &&
+      config.maxBorderWidth == defaults.maxBorderWidth;
 }
 
 Brightness _resolveBrightness(

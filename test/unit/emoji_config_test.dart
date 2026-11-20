@@ -215,6 +215,14 @@ void main() {
     expect(config.onCodeCopied, isNull);
     expect(config.codeCopyTooltip, isNull);
     expect(config.codeCopiedMessage, isNull);
+
+    final bordered = config.copyWith(maxBorderWidth: 4096);
+    for (final value in [bordered, bordered.copyWith(enableAnimation: false)]) {
+      expect(value, isA<MfmEmojiConfigHandle>());
+      expect(value.maxBorderWidth, 4096);
+    }
+    expect(bordered.copyWith(maxBorderWidth: 2048).maxBorderWidth, 2048);
+    expect(config.maxBorderWidth, isNull);
   });
 
   test(
@@ -263,6 +271,8 @@ void main() {
     const darkScheme = MfmColorScheme.dark();
     final copied = config.copyWith(
       enableAnimation: false,
+      mentionOptions: const MfmMentionOptions(viewerAcct: '@a@local.example'),
+      unixtimeOptions: const MfmUnixtimeOptions(locale: Locale('ja')),
       author: author,
       localHost: 'local.example',
       searchButtonLabel: 'Find',
@@ -271,6 +281,40 @@ void main() {
     );
 
     expect(copied, isA<MfmEmojiConfigHandle>());
+    expect(copied.unixtimeOptions!.locale, const Locale('ja'));
+    expect(copied.copyWith().unixtimeOptions, same(copied.unixtimeOptions));
+    expect(copied.copyWith(clearUnixtimeOptions: true).unixtimeOptions, isNull);
+    expect(
+      copied
+          .copyWith(unixtimeOptions: const MfmUnixtimeOptions())
+          .unixtimeOptions!
+          .locale,
+      isNull,
+    );
+    expect(
+      () => copied.copyWith(
+        unixtimeOptions: const MfmUnixtimeOptions(),
+        clearUnixtimeOptions: true,
+      ),
+      throwsArgumentError,
+    );
+    expect(copied.mentionOptions!.viewerAcct, '@a@local.example');
+    expect(copied.copyWith().mentionOptions, same(copied.mentionOptions));
+    expect(copied.copyWith(clearMentionOptions: true).mentionOptions, isNull);
+    expect(
+      () => copied.copyWith(
+        mentionOptions: const MfmMentionOptions(),
+        clearMentionOptions: true,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      copied
+          .copyWith(mentionOptions: const MfmMentionOptions())
+          .mentionOptions!
+          .viewerAcct,
+      isNull,
+    );
     expect(copied.enableAnimation, isFalse);
     expect(copied.emojiBuilder, same(config.emojiBuilder));
     expect(identical(copied.author, author), isTrue);

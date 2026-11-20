@@ -167,7 +167,10 @@ MfmRenderConfig buildRenderConfig(
               'scale=${context.scale} '
               'normal=${context.normal} '
               'host=${context.host ?? '-'} '
-              'url=${context.url ?? '-'}',
+              'url=${context.url ?? '-'} '
+              'textStyle.fontSize=${context.textStyle?.fontSize ?? '-'} '
+              'textStyle.fontWeight=${context.textStyle?.fontWeight ?? '-'} '
+              'textStyle.color=${context.textStyle?.color ?? '-'}',
           child: baseBuilder(name, context),
         )
       : null;

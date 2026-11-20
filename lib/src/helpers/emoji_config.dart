@@ -7,7 +7,9 @@ import 'package:misskey_emoji/misskey_emoji.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../config/mfm_color_scheme.dart';
+import '../config/mfm_mention_options.dart';
 import '../config/mfm_render_config.dart';
+import '../config/mfm_unixtime_options.dart';
 import '../widgets/mfm_custom_emoji.dart';
 
 /// カスタム絵文字の永続ストアを生成するファクトリー
@@ -33,6 +35,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          baseTextStyle: config.baseTextStyle,
          enableAdvancedMfm: config.enableAdvancedMfm,
          enableAnimation: config.enableAnimation,
+         followPlatformReducedMotion: config.followPlatformReducedMotion,
          enableNyaize: config.enableNyaize,
          nyaizeMode: config.nyaizeMode,
          emojiBuilder: config.emojiBuilder,
@@ -45,6 +48,8 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          author: config.author,
          emojiUrls: config.emojiUrls,
          localHost: config.localHost,
+         mentionOptions: config.mentionOptions,
+         unixtimeOptions: config.unixtimeOptions,
          searchButtonLabel: config.searchButtonLabel,
          useLocaleSearchButtonLabel: config.useLocaleSearchButtonLabel,
          onClickableEvent: config.onClickableEvent,
@@ -58,6 +63,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          onCodeCopied: config.onCodeCopied,
          codeCopyTooltip: config.codeCopyTooltip,
          codeCopiedMessage: config.codeCopiedMessage,
+         maxBorderWidth: config.maxBorderWidth,
        );
 
   final _MfmEmojiConfigLifecycle _lifecycle;
@@ -81,6 +87,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     TextStyle? baseTextStyle,
     bool? enableAdvancedMfm,
     bool? enableAnimation,
+    bool? followPlatformReducedMotion,
     bool? enableNyaize,
     MfmNyaizeMode? nyaizeMode,
     Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
@@ -93,6 +100,10 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     MfmAuthorContext? author,
     Map<String, String>? emojiUrls,
     String? localHost,
+    MfmMentionOptions? mentionOptions,
+    bool clearMentionOptions = false,
+    MfmUnixtimeOptions? unixtimeOptions,
+    bool clearUnixtimeOptions = false,
     bool clearAuthor = false,
     bool clearEmojiUrls = false,
     bool clearLocalHost = false,
@@ -109,11 +120,13 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     void Function(String code)? onCodeCopied,
     String? codeCopyTooltip,
     String? codeCopiedMessage,
+    double? maxBorderWidth,
   }) {
     final config = super.copyWith(
       baseTextStyle: baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm,
       enableAnimation: enableAnimation,
+      followPlatformReducedMotion: followPlatformReducedMotion,
       enableNyaize: enableNyaize,
       nyaizeMode: nyaizeMode,
       emojiBuilder: emojiBuilder,
@@ -126,6 +139,10 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       author: author,
       emojiUrls: emojiUrls,
       localHost: localHost,
+      mentionOptions: mentionOptions,
+      clearMentionOptions: clearMentionOptions,
+      unixtimeOptions: unixtimeOptions,
+      clearUnixtimeOptions: clearUnixtimeOptions,
       clearAuthor: clearAuthor,
       clearEmojiUrls: clearEmojiUrls,
       clearLocalHost: clearLocalHost,
@@ -142,6 +159,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       onCodeCopied: onCodeCopied,
       codeCopyTooltip: codeCopyTooltip,
       codeCopiedMessage: codeCopiedMessage,
+      maxBorderWidth: maxBorderWidth,
     );
     return MfmEmojiConfigHandle._(config: config, lifecycle: _lifecycle);
   }
@@ -318,8 +336,10 @@ class MfmEmojiConfig {
       final url = isRemote
           ? context.url ?? serverBaseUrl?.resolve('/emoji/$name@$host.webp')
           : null;
+      final fallbackStyle =
+          context.textStyle ?? TextStyle(fontSize: context.fontSize);
       if (isRemote && url == null) {
-        return Text(':$name:', style: TextStyle(fontSize: context.fontSize));
+        return Text(':$name:', style: fallbackStyle);
       }
       final size = emojiSize ?? context.fontSize * (context.normal ? 1.25 : 2);
       return MfmCustomEmoji(
@@ -339,6 +359,7 @@ class MfmEmojiConfig {
         maxWidth: emojiMaxWidth,
         refreshListenable: emojiRefreshListenable,
         fallbackBuilder: fallbackBuilder,
+        fallbackTextStyle: fallbackStyle,
       );
     };
   }

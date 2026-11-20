@@ -1,9 +1,217 @@
+import 'package:example/core/settings/example_settings.dart';
+import 'package:example/core/widgets/mfm_preview_card.dart';
+import 'package:example/features/catalog/data/catalog_navigation.dart';
 import 'package:example/features/catalog/data/mfm_examples.dart';
+import 'package:example/features/catalog/presentation/widgets/catalog_lists.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_shake_widget.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_twitch_widget.dart';
+import 'package:misskey_mfm_renderer/src/fn/mfm_border_options.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_border.dart';
 
 void main() {
+  testWidgets('Unicode Emoji retains native text without opt-in', (
+    tester,
+  ) async {
+    await _pumpExample(tester, 'Unicode Emoji');
+    expect(find.byType(Image), findsNothing);
+    expect(_richTextPlainText(tester), contains('🎉 こんにちは！ 😊'));
+  });
+
+  testWidgets('Twemoji offline sample decodes all eight bundled PNGs', (
+    tester,
+  ) async {
+    await _pumpExample(tester, 'Twemoji (offline)');
+    final images = tester.widgetList<Image>(find.byType(Image)).toList();
+    expect(images, hasLength(8));
+    expect(images.every((image) => image.image is AssetImage), isTrue);
+    final context = tester.element(find.byType(MfmText));
+    await tester.runAsync(() async {
+      for (final image in images) {
+        await precacheImage(image.image, context);
+      }
+    });
+    await tester.pumpAndSettle();
+    final decoded = tester.widgetList<RawImage>(find.byType(RawImage)).toList();
+    expect(decoded, hasLength(8));
+    for (final image in decoded) {
+      expect(image.image, isNotNull);
+      expect(image.image!.width, 72);
+      expect(image.image!.height, 72);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Twemoji missing asset is Unicode text with inherited size', (
+    tester,
+  ) async {
+    await _pumpExample(tester, 'Twemoji (fallback and size)');
+    final images = tester.widgetList<Image>(find.byType(Image)).toList();
+    expect(images, hasLength(3));
+    final context = tester.element(find.byType(MfmText));
+    await tester.runAsync(() async {
+      for (final image in images) {
+        await precacheImage(image.image, context);
+      }
+    });
+    await tester.pumpAndSettle();
+    final fallbacks = tester.widgetList<Text>(find.text('🚀')).toList();
+    expect(fallbacks, hasLength(2));
+    expect(fallbacks.map((text) => text.style!.fontSize), [
+      closeTo(14, 1e-9),
+      closeTo(14 / 1.2, 1e-9),
+    ]);
+    expect(images.map((image) => image.height), [
+      closeTo(17.5, 1e-9),
+      closeTo(17.5 / 1.2, 1e-9),
+      closeTo(35, 1e-9),
+    ]);
+    expect(_richTextPlainText(tester), isNot(contains(':🚀:')));
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final sample in [
+    (name: 'Link (ラベル付き)', label: 'ユーザープロフィール', external: true),
+    (name: 'Link (自ホスト)', label: 'ローカルプロフィール', external: false),
+    (name: 'Link (装飾ラベル)', label: '太字 取消 小文字 赤', external: true),
+    (name: 'Silent Link', label: 'サイレントリンク', external: true),
+  ]) {
+    testWidgets('${sample.name} はラベルと外部判定を保持する', (tester) async {
+      await _pumpExample(tester, sample.name);
+      expect(_richTextPlainText(tester), contains(sample.label));
+      final icons = find.byWidgetPredicate(
+        (w) => w is Icon && w.icon?.codePoint == 0xe45c,
+      );
+      expect(icons, sample.external ? findsOneWidget : findsNothing);
+    });
+  }
+
+  for (final isShake in [false, true]) {
+    final name = isShake ? 'Shake' : 'Twitch';
+    testWidgets('$name (開始遅延) は2秒間無変形で待機して開始する', (tester) async {
+      await _pumpExample(tester, '$name (開始遅延)');
+      final transforms = find.descendant(
+        of: find.byType(isShake ? MfmShakeWidget : MfmTwitchWidget),
+        matching: find.byType(Transform),
+      );
+      expect(transforms, findsOneWidget);
+      expect(_richTextPlainText(tester), contains('2秒待ってから動く'));
+      expect(
+        tester.widget<Transform>(transforms).transform.isIdentity(),
+        isTrue,
+      );
+      await tester.pump(const Duration(milliseconds: 1999));
+      expect(
+        tester.widget<Transform>(transforms).transform.isIdentity(),
+        isTrue,
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+      final matrix = tester.widget<Transform>(transforms).transform;
+      expect(matrix.storage[12], isShake ? -3 : 7);
+      expect(matrix.storage[13], isShake ? -1 : -2);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
+  testWidgets('border catalogue renders every style, inner clip and RGBA', (
+    tester,
+  ) async {
+    await _pumpExample(tester, 'Border (全線種)');
+    final borders = tester
+        .widgetList<MfmBorder>(find.byType(MfmBorder))
+        .toList();
+    expect(borders.map((b) => b.options.style), MfmBorderStyle.values);
+    expect(borders.first.options.width, 0);
+    await _pumpExample(tester, 'Border (角丸clip)');
+    expect(
+      tester
+          .widgetList<MfmBorder>(find.byType(MfmBorder))
+          .map((b) => b.options.noclip),
+      [false, true],
+    );
+    await _pumpExample(tester, 'Border (RGBA)');
+    expect(
+      tester.widget<MfmBorder>(find.byType(MfmBorder)).color,
+      const Color(0x88FF0000),
+    );
+    await _pumpExample(tester, 'Border (破線指定)');
+    expect(
+      tester.widget<MfmBorder>(find.byType(MfmBorder)).options.style,
+      MfmBorderStyle.dashed,
+    );
+  });
+
+  testWidgets(
+    'catalog forwards config/plain/nowrap while retaining app config',
+    (tester) async {
+      final settings = ExampleSettings();
+      addTearDown(settings.dispose);
+      final example = MfmExamples.categories
+          .expand((c) => c.examples)
+          .singleWhere((e) => e.name == 'Display Name');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ExampleSettingsScope(
+            settings: settings,
+            child: MfmConfig(
+              config: const MfmRenderConfig(
+                baseTextStyle: TextStyle(fontSize: 23),
+              ),
+              child: Scaffold(
+                body: CatalogDetailList(
+                  page: CatalogExamplePage(
+                    id: 'fixture-page',
+                    title: 'fixture',
+                    description: '',
+                    groups: [
+                      MfmFeatureGroup(
+                        id: 'fixture',
+                        title: 'fixture',
+                        examples: [example],
+                      ),
+                    ],
+                  ),
+                  onTryExample: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final card = tester.widget<MfmPreviewCard>(find.byType(MfmPreviewCard));
+      expect(card.config, same(example.config));
+      expect(card.plain, isTrue);
+      expect(card.nowrap, isTrue);
+      final text = tester.widget<MfmText>(find.byType(MfmText));
+      expect(text.plain, isTrue);
+      expect(text.nowrap, isTrue);
+      final rich = tester.widget<RichText>(
+        find
+            .descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(RichText),
+            )
+            .first,
+      );
+      expect(rich.text.style!.fontSize, 23);
+    },
+  );
+
+  testWidgets('display name is plain, nowrap and offline', (tester) async {
+    await _pumpExample(tester, 'Display Name');
+    final widget = tester.widget<MfmText>(find.byType(MfmText));
+    expect(widget.plain, isTrue);
+    expect(widget.nowrap, isTrue);
+    expect(widget.config.author!.host, 'remote.test');
+    expect(widget.config.emojiUrls, contains('offline'));
+    expect(_richTextPlainText(tester), contains('@alice'));
+    expect(find.byType(Image), findsNothing);
+  });
+
   final examples = MfmExamples.categories
       .expand((category) => category.examples)
       .toList(growable: false);
@@ -20,7 +228,7 @@ void main() {
 
   testWidgets('全サンプルを構文どおりに描画できる', (tester) async {
     for (final example in examples) {
-      await _pumpMfm(tester, example.mfm);
+      await _pumpMfm(tester, example.mfm, example: example);
 
       final plainText = _richTextPlainText(tester);
       if (example.name == 'Plain') {
@@ -102,10 +310,31 @@ void main() {
     expect(_richTextPlainText(tester), contains('日本語.jp'));
   });
 
+  for (final sample in [
+    (name: 'Unixtime (過去・detail)', fragment: '2023,'),
+    (name: 'Unixtime (整数prefix)', fragment: '2023,'),
+    (name: 'Unixtime (invalid)', fragment: 'None'),
+    (name: 'Unixtime (日本語)', fragment: '2033/'),
+    (name: 'Unixtime (English・absolute)', fragment: '2033,'),
+  ]) {
+    testWidgets('${sample.name} は設定された日時書式で描画する', (tester) async {
+      await _pumpExample(tester, sample.name);
+      expect(_richTextPlainText(tester), contains(sample.fragment));
+      expect(find.byType(Icon), findsOneWidget);
+      if (sample.name.endsWith('absolute)')) {
+        expect(_richTextPlainText(tester), isNot(contains('(')));
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
   testWidgets('Search は検索ボタンを描画する', (tester) async {
     await _pumpExample(tester, 'Search');
 
     expect(find.text('Search'), findsWidgets);
+    expect(find.byType(EditableText), findsNWidgets(3));
+    expect(_richTextPlainText(tester), contains('Misskey'));
   });
 }
 
@@ -113,16 +342,25 @@ Future<void> _pumpExample(WidgetTester tester, String name) {
   final example = MfmExamples.categories
       .expand((category) => category.examples)
       .singleWhere((example) => example.name == name);
-  return _pumpMfm(tester, example.mfm);
+  return _pumpMfm(tester, example.mfm, example: example);
 }
 
-Future<void> _pumpMfm(WidgetTester tester, String mfm) async {
+Future<void> _pumpMfm(
+  WidgetTester tester,
+  String mfm, {
+  MfmExample? example,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: SizedBox(
           width: 400,
-          child: MfmText(text: mfm),
+          child: MfmText(
+            text: mfm,
+            config: example?.config ?? const MfmRenderConfig(),
+            plain: example?.plain ?? false,
+            nowrap: example?.nowrap ?? false,
+          ),
         ),
       ),
     ),
@@ -131,10 +369,14 @@ Future<void> _pumpMfm(WidgetTester tester, String mfm) async {
 }
 
 String _richTextPlainText(WidgetTester tester) {
-  return tester
-      .widgetList<RichText>(find.byType(RichText))
-      .map((richText) => richText.text.toPlainText())
-      .join();
+  return [
+    ...tester
+        .widgetList<RichText>(find.byType(RichText))
+        .map((richText) => richText.text.toPlainText()),
+    ...tester
+        .widgetList<EditableText>(find.byType(EditableText))
+        .map((editable) => editable.controller.text),
+  ].join();
 }
 
 List<TextSpan> _textSpans(WidgetTester tester) {

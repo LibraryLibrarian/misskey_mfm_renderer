@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 import 'mfm_color_scheme.dart';
+import 'mfm_mention_options.dart';
+import 'mfm_unixtime_options.dart';
 
 /// MFMを含むコンテンツの投稿者情報。
 ///
@@ -54,6 +56,7 @@ class MfmEmojiContext {
     required this.fontSize,
     required this.scale,
     this.normal = false,
+    this.textStyle,
     this.host,
     this.url,
   });
@@ -66,7 +69,18 @@ class MfmEmojiContext {
   /// scale fnは描画時の変形なので、[fontSize]には反映されない。
   /// advanced MFMが無効でもx2/x3/x4の公称倍率は伝播するが、
   /// scale fnの倍率は伝播しない。
+  ///
+  /// 本家と同じくscale fnの`x`と`y`の大きい方を符号付きのまま掛けるため、
+  /// 0・負の値・±Infinityになりうる（NaNになる場合は0）。
+  /// 絵文字の寸法は[fontSize]を基準にし、この値を使う場合は有限性と符号を確認する。
   final double scale;
+
+  /// 現在の文字スタイル。small / quoteの累積opacityを掛ける前の値。
+  ///
+  /// rootのalphaやPaint、背景、影はそのまま保持する。ビルダーが返す
+  /// Widgetには外側で累積opacityが適用されるため、再度減光しない。
+  /// 直接構築する場合は省略でき、その場合はfontSizeを基準に描画する。
+  final TextStyle? textStyle;
 
   /// plain表示用の通常サイズを使うか。
   final bool normal;
@@ -90,16 +104,18 @@ class MfmEmojiContext {
       other.fontSize == fontSize &&
       other.scale == scale &&
       other.normal == normal &&
+      other.textStyle == textStyle &&
       other.host == host &&
       other.url == url;
 
   @override
-  int get hashCode => Object.hash(fontSize, scale, normal, host, url);
+  int get hashCode =>
+      Object.hash(fontSize, scale, normal, host, url, textStyle);
 
   @override
   String toString() =>
       'MfmEmojiContext(fontSize: $fontSize, scale: $scale, normal: $normal, '
-      'host: $host, url: $url)';
+      'host: $host, url: $url, textStyle: $textStyle)';
 }
 
 /// MFMレンダリングの設定クラス
@@ -108,6 +124,7 @@ class MfmRenderConfig {
     this.baseTextStyle,
     this.enableAdvancedMfm = true,
     this.enableAnimation = true,
+    this.followPlatformReducedMotion,
     this.enableNyaize = false,
     this.nyaizeMode,
     this.emojiBuilder,
@@ -120,6 +137,8 @@ class MfmRenderConfig {
     this.author,
     this.emojiUrls,
     this.localHost,
+    this.mentionOptions,
+    this.unixtimeOptions,
     String? searchButtonLabel,
     this.useLocaleSearchButtonLabel = false,
     this.onClickableEvent,
@@ -133,6 +152,7 @@ class MfmRenderConfig {
     this.onCodeCopied,
     this.codeCopyTooltip,
     this.codeCopiedMessage,
+    this.maxBorderWidth,
   }) : searchButtonLabel = useLocaleSearchButtonLabel
            ? null
            : searchButtonLabel;
@@ -148,7 +168,22 @@ class MfmRenderConfig {
   /// [enableAdvancedMfm]が有効な場合のMFMアニメーションを有効化。
   final bool enableAnimation;
 
+  /// OSの「動きを減らす」設定（[MediaQueryData.disableAnimations]）に追従するか。
+  ///
+  /// `null`（未指定）と`true`は追従する。追従中にOS設定が有効になると、
+  /// `MfmText`は`enableAnimation: false`と同じ静止表示に切り替え、
+  /// 設定の変更にも追従する。`false`はOS設定を無視する。
+  ///
+  /// OS設定はアニメーションを止める方向にのみ働き、
+  /// [enableAnimation]が`false`の場合は常にそちらが優先される。
+  /// 親子の設定では子の明示的な`true`/`false`が親を上書きし、
+  /// `null`は親の値を継承する。
+  final bool? followPlatformReducedMotion;
+
   /// MFMアニメーションの実効的な有効判定。
+  ///
+  /// この設定値だけから求めるため、[followPlatformReducedMotion]による
+  /// OS設定の反映は含まない。OS設定を含めた判定は`MfmText`の描画時に行う。
   bool get useAnimation => enableAdvancedMfm && enableAnimation;
 
   /// nyaize変換を有効化。
@@ -177,6 +212,9 @@ class MfmRenderConfig {
   /// （本家の既定は高さ1.25emで`vertical-align: -0.25em`。下降量は
   /// `context.fontSize * 0.25`が相当する）。
   /// ビルダーの結果はalphabeticベースラインに揃える。
+  /// PNG表示にはMfmTwemojiBuilder.buildを指定できる（画像供給元は明示）。
+  /// copyWithのnullは解除ではなく既存設定を維持し、明示nullも祖先設定を継承する。
+  /// 無効化するには祖先設定も組み替えるか、元UnicodeのTextを返す。
   final Widget Function(String emoji, MfmEmojiContext context)?
   unicodeEmojiBuilder;
 
@@ -199,7 +237,11 @@ class MfmRenderConfig {
   /// 指定時は[onHashtagTap]より優先して呼ばれる。
   final void Function(MfmHashtagTapDetails details)? onHashtagTapDetails;
 
-  /// 検索タップ時のコールバック
+  /// 検索ボタン（tap／keyboard）または入力欄のSearch／Enter送信時のコールバック。
+  ///
+  /// 1行入力として受け付けた現在の編集値を、trim・encode・nyaizeせず渡す。
+  /// 空文字も送信する。nullでも入力欄は編集可能だが送信は無効となり、
+  /// URL起動等へのfallbackは行わない。
   final void Function(String query)? onSearchTap;
 
   /// MFMを含むコンテンツの投稿者情報。
@@ -222,6 +264,12 @@ class MfmRenderConfig {
   /// URLのeffective portも比較する。
   final String? localHost;
 
+  /// メンション表示設定。nullは継承し、未設定の既定表示はcapsule。
+  final MfmMentionOptions? mentionOptions;
+
+  /// 日時の表示設定。nullは祖先から継承し、空のoptionsは既定値へ置換する。
+  final MfmUnixtimeOptions? unixtimeOptions;
+
   /// 検索ボタンのラベル
   ///
   /// nullの場合は現在のロケールから解決し、解決できない場合は"Search"を使用
@@ -241,6 +289,10 @@ class MfmRenderConfig {
   ///
   /// MFMの`$[font.xxx]`構文で使用されるフォントタイプ（'serif', 'monospace'等）を
   /// 実際のフォントファミリー名に変換
+  ///
+  /// 'emoji'と'math'には既定の指定がない。FlutterではCSSの総称ファミリー
+  /// `emoji` / `math` と同じ割り当てを保証できないため、nullを返すと継承した
+  /// フォントのまま表示する。使う場合はアプリでフォントを登録し、ここで返す。
   ///
   /// 例: Google Fontsを使用する場合
   /// ```dart
@@ -305,17 +357,32 @@ class MfmRenderConfig {
   /// それ以外は"Copied to clipboard"を使用。[onCodeCopied]指定時は使用しない。
   final String? codeCopiedMessage;
 
+  /// border fnの線の太さの上限（logical px）。
+  ///
+  /// nullは未指定で、`MfmConfig`の親設定を継承する（継承後も未指定なら1024）。
+  /// 本家は`width`の値をそのままpxとして使うが、
+  /// 巨大な値では段落の高さが表現できる範囲を超えて例外になるため、
+  /// このライブラリは既定で1024に収める。より太い線を本家に近づけて描く場合に
+  /// 大きな値を指定する。指定値は33,554,432（本家を表示するChromiumが
+  /// 線の太さを飽和させる値）以下に収める。明示した0以下と非有限の値は、
+  /// 親設定より優先したうえで既定の1024として扱う。
+  final double? maxBorderWidth;
+
   /// 設定をコピーして新しいインスタンスを作成。
   ///
   /// {@template mfm_render_config_copy_with_mention_context}
   /// [author]、[emojiUrls]、[localHost]は、`null`または省略時に現在の値を維持する。
   /// 値を削除する場合は、対応する[clearAuthor]、[clearEmojiUrls]、[clearLocalHost]を
   /// `true`にする。値の指定と削除を同時に要求すると[ArgumentError]を投げる。
+  /// [mentionOptions]も同様に維持し、[clearMentionOptions]で自身の値だけを削除する。
+  /// [unixtimeOptions]も同様で、[clearUnixtimeOptions]で削除する。
+  /// 削除は祖先からの継承を禁止しない。
   /// {@endtemplate}
   MfmRenderConfig copyWith({
     TextStyle? baseTextStyle,
     bool? enableAdvancedMfm,
     bool? enableAnimation,
+    bool? followPlatformReducedMotion,
     bool? enableNyaize,
     MfmNyaizeMode? nyaizeMode,
     Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
@@ -328,6 +395,10 @@ class MfmRenderConfig {
     MfmAuthorContext? author,
     Map<String, String>? emojiUrls,
     String? localHost,
+    MfmMentionOptions? mentionOptions,
+    bool clearMentionOptions = false,
+    MfmUnixtimeOptions? unixtimeOptions,
+    bool clearUnixtimeOptions = false,
     bool clearAuthor = false,
     bool clearEmojiUrls = false,
     bool clearLocalHost = false,
@@ -344,7 +415,22 @@ class MfmRenderConfig {
     void Function(String code)? onCodeCopied,
     String? codeCopyTooltip,
     String? codeCopiedMessage,
+    double? maxBorderWidth,
   }) {
+    if (clearUnixtimeOptions && unixtimeOptions != null) {
+      throw ArgumentError.value(
+        unixtimeOptions,
+        'unixtimeOptions',
+        'clearUnixtimeOptionsがtrueの場合は指定できません',
+      );
+    }
+    if (clearMentionOptions && mentionOptions != null) {
+      throw ArgumentError.value(
+        mentionOptions,
+        'mentionOptions',
+        'clearMentionOptionsがtrueの場合は指定できません',
+      );
+    }
     if (clearAuthor && author != null) {
       throw ArgumentError.value(
         author,
@@ -374,6 +460,8 @@ class MfmRenderConfig {
       baseTextStyle: baseTextStyle ?? this.baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm ?? this.enableAdvancedMfm,
       enableAnimation: enableAnimation ?? this.enableAnimation,
+      followPlatformReducedMotion:
+          followPlatformReducedMotion ?? this.followPlatformReducedMotion,
       enableNyaize: enableNyaize ?? this.enableNyaize,
       nyaizeMode: nyaizeMode ?? this.nyaizeMode,
       emojiBuilder: emojiBuilder ?? this.emojiBuilder,
@@ -386,6 +474,12 @@ class MfmRenderConfig {
       author: clearAuthor ? null : author ?? this.author,
       emojiUrls: clearEmojiUrls ? null : emojiUrls ?? this.emojiUrls,
       localHost: clearLocalHost ? null : localHost ?? this.localHost,
+      unixtimeOptions: clearUnixtimeOptions
+          ? null
+          : unixtimeOptions ?? this.unixtimeOptions,
+      mentionOptions: clearMentionOptions
+          ? null
+          : mentionOptions ?? this.mentionOptions,
       searchButtonLabel: effectiveUseLocaleSearchButtonLabel
           ? null
           : searchButtonLabel ?? this.searchButtonLabel,
@@ -402,6 +496,7 @@ class MfmRenderConfig {
       onCodeCopied: onCodeCopied ?? this.onCodeCopied,
       codeCopyTooltip: codeCopyTooltip ?? this.codeCopyTooltip,
       codeCopiedMessage: codeCopiedMessage ?? this.codeCopiedMessage,
+      maxBorderWidth: maxBorderWidth ?? this.maxBorderWidth,
     );
   }
 }

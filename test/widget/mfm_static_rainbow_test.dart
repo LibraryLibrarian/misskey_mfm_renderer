@@ -116,12 +116,12 @@ Future<ui.Image> _emojiImage(WidgetTester tester) async {
   }))!;
 }
 
-Widget _directHost(Widget child) => Directionality(
+Widget _directHost(Widget child, {double width = 80}) => Directionality(
   textDirection: TextDirection.ltr,
   child: Center(
     child: RepaintBoundary(
       key: _boundaryKey,
-      child: SizedBox(width: 80, child: child),
+      child: SizedBox(width: width, child: child),
     ),
   ),
 );
@@ -159,7 +159,8 @@ void main() {
         ),
       );
       final paragraph = _paragraph(tester, 'AAA');
-      expect(paragraph.textScaler, const TextScaler.linear(2));
+      expect(paragraph.textScaler, TextScaler.noScaling);
+      expect(paragraph.text.style!.fontSize, _style.fontSize! * 2);
       expected ??= paragraph.size;
       expect(paragraph.size, expected);
       expect(tester.takeException(), isNull);
@@ -314,6 +315,27 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('borderは静的rainbowでRGBAを保持し動的filterの切替に追従する', (tester) async {
+    const text = r'$[rainbow $[border.color=00f8,width=6,radius=8 B]]';
+    await tester.pumpWidget(_host(text));
+    Offset sample() {
+      final paragraph = _paragraph(tester, 'B');
+      return paragraph.localToGlobal(Offset(paragraph.size.width / 2, -3));
+    }
+
+    final original = await _pixel(tester, sample());
+    expect(original[2], greaterThan(250));
+    expect(original[3], closeTo(136, 1));
+    await tester.pumpWidget(_host(text, animation: true));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.byType(MfmRainbowWidget), findsOneWidget);
+    expect(await _pixel(tester, sample()), isNot(original));
+    await tester.pumpWidget(_host(text));
+    expect(await _pixel(tester, sample()), original);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('fgの色はbgや太字を挟んでも維持し外側のfgはrainbowが上書きする', (tester) async {
     await tester.pumpWidget(
       _host(
@@ -332,18 +354,27 @@ void main() {
   });
 
   testWidgets('Markdownリンクの明示色とsemanticsを保持する', (tester) async {
+    final taps = <String>[];
     await tester.pumpWidget(
       _host(
         r'$[rainbow A [LINK](https://example.com) B]',
-        onLinkTap: (_) {},
+        onLinkTap: taps.add,
       ),
     );
-    final paragraph = _paragraph(tester, 'A LINK B');
+    final paragraph = _paragraph(tester, 'A LINK\uFFFC B');
     _expectColor(
       await _pixel(tester, _letterCenter(paragraph, 3)),
       const MfmColorScheme.light().link,
     );
+    await tester.tapAt(_letterCenter(paragraph, 3));
+    expect(taps, ['https://example.com']);
     expect(find.semantics.byLabel(RegExp('LINK')), findsOne);
+    final node = find.semantics.byLabel('LINK').evaluate().single;
+    paragraph.owner!.semanticsOwner!.performAction(
+      node.id,
+      SemanticsAction.tap,
+    );
+    expect(taps, ['https://example.com', 'https://example.com']);
     expect(tester.takeException(), isNull);
   });
 
@@ -511,7 +542,7 @@ void main() {
         ),
       );
       final ruby = find.byWidgetPredicate(
-        (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+        (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
       );
       final rect = tester.getRect(ruby);
       final base = await _pixel(tester, rect.topLeft + const Offset(10, 20));
@@ -529,6 +560,128 @@ void main() {
       expect(annotation[3], 255);
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('rubyとunixtimeの文字背景はsmallで一度だけ減光する', (tester) async {
+    for (final text in [r'$[ruby AB CD]', r'$[unixtime 1700000000]']) {
+      await tester.pumpWidget(
+        _host(
+          '<small>$text</small>',
+          style: _style.copyWith(
+            color: const Color(0x00000000),
+            backgroundColor: const Color(0x80FF0000),
+          ),
+        ),
+      );
+      // WidgetSpanの外側にも同じ背景が描かれるので、内側の描画だけを測る。
+      final root =
+          tester.widget<RichText>(find.byType(RichText).first).text as TextSpan;
+      final small = root.children!.single as TextSpan;
+      final span = small.children!.single as WidgetSpan;
+      await tester.pumpWidget(_directHost(span.child, width: 400));
+      final Offset point;
+      if (text.contains('ruby')) {
+        final ruby = find.byWidgetPredicate(
+          (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
+        );
+        point = _letterCenter(
+          tester.renderObject<RenderParagraph>(
+            find.descendant(of: ruby, matching: find.byType(RichText)).first,
+          ),
+          0,
+        );
+      } else {
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find
+              .descendant(
+                of: find.byType(Row),
+                matching: find.byWidgetPredicate(
+                  (widget) => widget is RichText,
+                ),
+              )
+              .last,
+        );
+        point = _letterCenter(paragraph, 0);
+      }
+      _expectColor(
+        await _pixel(tester, point),
+        _red.withValues(alpha: 128 / 255 * 0.7),
+      );
+      expect(tester.takeException(), isNull);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('rubyのx2・smallは本文と読みのサイズと半透明alphaを維持する', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        r'$[rainbow $[x2 <small>$[ruby BB CC]</small>]]',
+        style: _style.copyWith(color: const Color(0x80222222)),
+      ),
+    );
+    final ruby = find.byWidgetPredicate(
+      (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
+    );
+    final styles = _rubyStyles(tester, ruby);
+    final baseStyle = styles.base;
+    final rubyStyle = styles.ruby;
+    expect(baseStyle.fontSize, closeTo(40 / 1.2, 1e-6));
+    expect(rubyStyle.fontSize, closeTo(20 / 1.2, 1e-6));
+    final rect = tester.getRect(ruby);
+    // Sample the first base/reading glyph centers as fractional sizes change.
+    for (final offset in [
+      Offset(rect.width / 4, rect.height * 2 / 3),
+      Offset(rect.width * 3 / 8, rect.height / 6),
+    ]) {
+      final pixel = await _pixel(tester, rect.topLeft + offset);
+      expect(pixel[3], closeTo(128 * 0.7, 2));
+      expect(pixel.take(3).toSet().length, greaterThan(1));
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('unixtimeの静的rainbowは文字と時計を着色しsmallとfgを保持する', (tester) async {
+    for (final explicit in [false, true]) {
+      final time = explicit
+          ? r'$[fg.color=ff0000 $[unixtime 1700000000]]'
+          : r'$[unixtime 1700000000]';
+      await tester.pumpWidget(
+        _host(
+          '\$[rainbow <small>$time</small>]',
+          style: _style.copyWith(color: const Color(0x80222222)),
+        ),
+      );
+      final row = find.byType(Row);
+      final textFinder = find
+          .descendant(
+            of: row,
+            matching: find.byWidgetPredicate((widget) => widget is RichText),
+          )
+          .last;
+      final paragraph = tester.renderObject<RenderParagraph>(textFinder);
+      final pixel = await _pixel(tester, _letterCenter(paragraph, 0));
+      if (explicit) {
+        _expectColor(pixel, _red.withValues(alpha: 0.7));
+        final icon = tester.widget<Icon>(find.byType(Icon));
+        expect(icon.color, _red.withValues(alpha: 0.7));
+      } else {
+        expect(pixel[3], closeTo(128 * 0.7, 2));
+        expect(pixel.take(3).toSet().length, greaterThan(1));
+        final iconText = tester.widget<MfmRainbowRichText>(
+          find
+              .descendant(of: row, matching: find.byType(MfmRainbowRichText))
+              .first,
+        );
+        expect(iconText.text, isA<MfmRainbowSpan>());
+        expect(
+          (iconText.text as MfmRainbowSpan).opacity,
+          closeTo(128 / 255 * 0.7, 1e-6),
+        );
+        expect(iconText.text.style!.fontSize, closeTo(20 / 1.2 * 0.9, 1e-6));
+      }
+      expect(tester.takeException(), isNull);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('RTLでもグラデーションは物理的に左から右へ描く', (tester) async {
@@ -582,4 +735,19 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+}
+
+({TextStyle base, TextStyle ruby}) _rubyStyles(
+  WidgetTester tester,
+  Finder finder,
+) {
+  final texts = tester
+      .widgetList<RichText>(
+        find.descendant(
+          of: finder,
+          matching: find.byWidgetPredicate((widget) => widget is RichText),
+        ),
+      )
+      .toList();
+  return (base: texts.first.text.style!, ruby: texts.last.text.style!);
 }

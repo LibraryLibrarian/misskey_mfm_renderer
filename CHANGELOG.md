@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-beta.5] - 2026-11-21
+
+### Added
+- Added `MfmRenderConfig.followPlatformReducedMotion` to choose whether `MfmText` follows the OS reduced-motion setting (`null`/`true` follow it, `false` ignores it); explicit child values override inherited ones, and the OS setting never re-enables animation disabled by `enableAnimation: false`
+- Added opt-in `MfmTwemojiBuilder` with explicit PNG image providers or a validated network directory, stable image baselines and original Unicode fallback; native rendering remains the default
+- Editable search fields with a search icon, button activation and keyboard Search/Enter submission through `onSearchTap`
+- Show the existing external-link icon after HTTP(S) external labelled links, including silent links
+- Render all nine border styles, including bounded dotted/dashed patterns, double bands and deterministic 3D shading
+- Added immutable unixtime options, synchronous Japanese/English formatting, custom clocks/formatters and lifecycle-aware shared 10-second updates
+- Added `MfmMentionOptions` with capsule/text presentation, independent viewer identity, opt-in avatar providers and a validated local avatar origin; options inherit as a whole
+- Added optional `MfmEmojiContext.textStyle` and `MfmCustomEmoji.fallbackTextStyle` for shortcode fallbacks with inherited typography and original colors before cumulative small/quote opacity
+- Added `MfmCustomEmoji.semanticLabel` to override the default `:name:` accessibility label of the emoji image, standard loading placeholder and standard shortcode fallback
+- Added `MfmRenderConfig.maxBorderWidth` to raise or lower the default 1024 logical px cap on `border` widths, up to 33,554,432 (where Chromium saturates border widths). Null inherits from `MfmConfig` and falls back to 1024; explicit zero, negative and non-finite values use 1024. It is inherited through `MfmConfig` and preserved by `copyWith`, including `MfmEmojiConfigHandle`
+
+### Changed
+- **Breaking:** `MfmText` now follows the OS reduced-motion setting by default: while `MediaQuery.disableAnimations` is on, MFM renders exactly as with `enableAnimation: false` (enlarged static `tada`, static rainbow gradient, sparkle without particles) and follows changes to the setting. Migration: set `followPlatformReducedMotion: false` to keep animating regardless of the OS setting
+- Small text now uses 1/1.2 of the parent font size (matching the browser `smaller` keyword used by the original `<small>`) instead of 0.8
+- **Breaking:** `nowrap` no longer limits content to one line: like upstream `white-space: pre`, it preserves explicit line breaks and disables only automatic wrapping, including WidgetSpan content and inline code. Center, quote, code block, and search elements occupy separate lines, including within nested content. Content with line breaks clips overflow, while single-line text keeps the existing ellipsis. Migration: remove line breaks and block elements from the input when a single line is required
+- **Breaking:** `MfmText` now resolves the device text scaler (`MediaQuery.textScaler`) once at the root font size, consistently scaling body text, WidgetSpan content, and emoji. Relative sizes such as `x2` and `small` retain upstream ratios even with nonlinear scalers, while pixel margins and borders stay unchanged; descendant Text widgets do not reapply the MediaQuery scaler. Migration: wrap `MfmText` in `MediaQuery.withNoTextScaling` for the previous appearance; Text inside emoji and similar builders should use the already scaled `MfmEmojiContext.fontSize` / `textStyle`. To scale a fixed-size Text in a builder, capture `MediaQuery.textScalerOf(context)` outside `MfmText` and pass it explicitly to `Text(textScaler:)`
+- **Breaking:** Search queries now render as editable controls instead of fixed Text, changing width, height, semantics and callback values. Migration: handle the edited query (including empty strings), update snapshots/finders for EditableText, and bundle MaterialIcons (normally `uses-material-design: true`)
+- **Breaking:** External labelled links now occupy extra inline width, can wrap differently, and add a WidgetSpan plain-text placeholder. Migration: bundle MaterialIcons (normally `uses-material-design: true`), allow the extra width/update snapshots, and obtain logical label text from the source/AST rather than display spans
+- **Breaking:** Border styles, numeric prefixes, RGBA/invalid colors, zero widths and inner-edge clipping now affect rendering. Migrate to `style=solid`, explicit finite nonnegative dimensions and 3/6-digit RGB for legacy solid borders; omit invalid colors for accent, use positive widths instead of zero hairlines, and use `noclip` to disable clipping (not to reproduce the old outer clip). Direct AST callers should use `noclip: true` to disable clipping, or false/null/omission to clip
+- **Breaking:** Unixtime now defaults to local absolute + relative detail, resolves locale from options/Flutter, parses only the first child as an integer prefix, and keeps invalid values in a pill. Migration for valid-input legacy relative labels without periodic updates: `unixtimeOptions: MfmUnixtimeOptions(mode: MfmUnixtimeMode.relative, formatter: mfmLegacyUnixtimeFormatter, autoUpdate: false)`; parsing and invalid behavior are not restored
+- **Breaking:** Mentions now default to avatar capsules (including when options are null), changing line layout and WidgetSpan plain-text extraction. Use `mentionOptions: MfmMentionOptions(presentation: MfmMentionPresentation.text)` to retain inline text layout
+- **Breaking:** Standalone `MfmCustomEmoji` standard shortcode fallbacks now use ambient 1em text and its natural alphabetic baseline instead of `size * 0.6` and the image baseline. To retain the old appearance, supply `fallbackBuilder` with an explicit `TextStyle(fontSize: size * 0.6)`; the widget still supplies the image baseline for custom builders, so do not add it again
+- `MfmCustomEmoji` now wraps an explicit `url` with `Future.syncValue` instead of `Future.value`, as recommended by the Flutter 3.50 analyzer; no change in behavior or public API
+- **Breaking:** `scale` no longer clamps negative values to -5 and propagates the signed larger of `x` and `y` (not the larger absolute value) like upstream, so `MfmEmojiContext.scale` can be zero, negative or infinite. `useOriginalSize` still compares the cumulative signed scale with 2.5, so it is false when that result is not positive (for example `$[scale.x=-3,y=-4 $[x3 :e:]]`). Positive infinity is capped at 5, an axis of negative infinity leaves the content untransformed, and the paint transform alone is bounded below at -1024. Migration: size custom/Unicode emoji from `fontSize`; if a builder uses `scale`, check that it is finite and positive (for example with `scale.isFinite && scale > 0`)
+- Documented that `font.emoji` and `font.math` have no built-in font family and keep the inherited font unless `fontFamilyResolver` returns one
+
+### Fixed
+- Keep a single-line `nowrap` text's first inline widget (such as an fn effect or ruby) visible by clipping the line without an ellipsis when the ellipsis would otherwise hide the whole widget; any preceding character, including whitespace, keeps the existing ellipsis
+- Drive sparkle particle creation, expiry and painting from one ticker clock, pausing updates while muted and avoiding catch-up bursts when frames resume
+- Clamp extreme animation times to a safe signed microsecond range and split long delays into bounded timers so playback still starts after the requested delay
+- Treat CSS-invalid animation speeds such as `1.s` and `1.2.3s` as static content while keeping invalid delays at zero, matching Misskey
+- Released superseded animation curves when `speed`, `delay` or other animation arguments change, so long-lived animated MFM no longer accumulates controller status listeners
+- Corrected the `spin.x` / `spin.y` perspective direction to match Misskey's `perspective(128px)`, so the near side of the rotating content is enlarged and the far side reduced
+- Prevent crashes from excessively nested `parsedNodes` by flattening content beyond 100 levels, and reuse parsed text across rebuilds when the source and parser mode are unchanged
+- Reuse tap recognizers for unchanged URL, labelled-link, text mention, and hashtag targets with the latest callbacks and hashtag context for pointer and accessibility taps, dispose them when removed or unmounted, and prevent in-flight taps from activating replacement links
+- Normalize CRLF and CR to LF in text outside `plain` as well, matching the original renderer
+- Route actual labelled-link glyph and passive inline-widget taps to the raw URL callback, preserving child gestures and existing accessible content/actions while isolating widget-label actions from surrounding prose and other links
+- Prevent doubled alpha at 3D border band/diagonal joins on web by assigning shade colors within one composited ring instead of blending independently rasterized partitions
+- Resolve border numeric prefixes and CSS RGBA locally, suppress hidden/invalid/zero borders without hairlines or insets, normalize radii before inner clipping, and bound extreme widths/pattern work while preserving child state, natural baselines and cumulative opacity
+- Coalesce simultaneous unixtime widget/locale refreshes so application clocks and custom formatters run only once per rebuild
+- Distinguish past/future unixtime thresholds with millisecond precision, safely reject out-of-range timestamps, and wrap/ellipsize date labels without losing their full accessibility text or inherited styling
+- Keep `twitch` and `shake` untransformed during positive delays, preserving child state and nested animation timing when playback starts
+- Expose text-presentation mentions as one complete accessibility label and tap action while keeping separate name/host colors and glyph taps
+- Convert Unicode local avatar origins to IDNA hosts when constructing the built-in image provider, retaining explicit ports and safely encoded account paths
+- Keep accessibility semantics valid when switching between tappable links and mention capsules, including nested and rainbow paragraphs, without recreating paragraphs for ordinary style or callback updates
+- Resolve mention display hosts from node, author, then local context; hide normalized local authorities, display remote IDNs in Unicode, and preserve raw callback/provider accounts and explicit port distinctions
+- Kept custom emoji baselines stable across image/loading cross-fades with differently sized placeholders, while allowing standard image-error text to retain its natural height as well as its baseline
+- Rendered standard missing/resolver-error/image-error emoji fallbacks at the surrounding 1em size and natural text baseline, preserving inherited styles and applying cumulative small/quote opacity only once, regardless of plain mode or fixed image size
+- Preserved inherited font size, color, font family, and text decorations in `ruby` and `unixtime`, including nested `small` opacity and static rainbow text. Text and icons now use the attenuated inherited color without a second opacity layer, while borders retain their attenuation
+- Calculated `position` offsets from the current inherited font size instead of the root font size
+- Read `rotate.deg`, `position.x`/`y` and `scale.x`/`y` with JavaScript `parseFloat` semantics like upstream, so values with trailing units such as `45deg`, `1em` or `2foo` use their numeric prefix instead of the default. Infinite values now leave `rotate`/`position` untransformed instead of throwing or producing NaN coordinates
+- Preserved `small` opacity for foreground paints and text without an explicit color, and `small`/quote opacity for text backgrounds, explicit decoration colors, and shadows, without mutating shared paints
+- Released the decoded image handle received while measuring a custom emoji aspect ratio, including when the emoji caches were cleared before the image arrived
+- Announced custom emoji as `:name:` while their image is shown or loading, not only after a failure; widgets returned by `loadingBuilder`, `fallbackBuilder` and `errorBuilder` keep their own semantics and actions
+- Placed the `search` field and button rounded corners and button border on the correct sides in right-to-left layouts
+- Rendered ruby annotations over bases containing inline widgets, including animated or rotated MFM and custom emoji images, exposed both base and reading in the accessibility tree, enabled taps on links within the base, and followed the ambient text direction
+
 ## [0.6.0-beta.4] - 2026-09-23
 
 ### Changed

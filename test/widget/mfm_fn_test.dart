@@ -9,6 +9,7 @@ import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_jump_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_shake_widget.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_spin_widget.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_border.dart';
 
 void main() {
   group('MfmText fnのWidgetSpanのベースライン', () {
@@ -62,6 +63,62 @@ void main() {
       });
     }
 
+    testWidgets('リンク内のfnと末尾iconも自然なalphabeticベースラインを保持する', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MfmText(
+              text: r'A [$[bg.color=ff0000 LABEL]](https://outside.test)',
+              config: MfmRenderConfig(
+                onLinkTap: (_) {},
+                baseTextStyle: const TextStyle(fontSize: 20, height: 1.5),
+              ),
+            ),
+          ),
+        ),
+      );
+      final rootFinder = find
+          .descendant(of: find.byType(MfmText), matching: find.byType(RichText))
+          .first;
+      final root = tester.renderObject<RenderParagraph>(rootFinder);
+      final spans = _collectWidgetSpans(
+        tester.widget<RichText>(rootFinder).text,
+      );
+      expect(spans, hasLength(2));
+      for (final span in spans) {
+        expect(span.alignment, PlaceholderAlignment.baseline);
+        expect(span.baseline, TextBaseline.alphabetic);
+      }
+      final inner = tester.renderObject<RenderParagraph>(
+        find
+            .descendant(
+              of: find.byType(MfmText),
+              matching: find.byType(RichText),
+            )
+            .at(1),
+      );
+      // Compare equal-font glyph bottoms after real layout. Icon's Center does
+      // not implement a dry baseline in Flutter 3.38.
+      final outerGlyph = root
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: 1),
+          )
+          .single
+          .toRect();
+      final innerGlyph = inner
+          .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: 1),
+          )
+          .single
+          .toRect();
+      expect(
+        inner.localToGlobal(innerGlyph.bottomLeft, ancestor: root).dy,
+        closeTo(outerGlyph.bottom, .001),
+      );
+    });
+
     testWidgets('unixtimeのWidgetSpanをalphabeticベースラインに揃える', (tester) async {
       // 本家はdisplay: inline-blockでvertical-align未指定のため、
       // ピル内テキストのベースラインで周囲と揃う。
@@ -83,6 +140,7 @@ void main() {
       expect(spans, hasLength(1));
       expect(spans.single.alignment, PlaceholderAlignment.baseline);
       expect(spans.single.baseline, TextBaseline.alphabetic);
+      await tester.pumpWidget(const SizedBox.shrink());
     });
 
     testWidgets('通常テキストとspinの描画ベースラインが混在行で一致する', (tester) async {
@@ -204,7 +262,7 @@ void main() {
         name: 'smallの継承サイズとalpha',
         text: r'<small>$[spin abc]</small>',
         patch: TextStyle(
-          fontSize: 14 * 0.8,
+          fontSize: 14 / 1.2,
           color: Colors.blue.withValues(alpha: 0.7),
         ),
       ),
@@ -1135,22 +1193,18 @@ void main() {
         ),
       );
 
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final borderContainer = containers.firstWhere(
-        (c) {
-          final decoration = c.decoration;
-          if (decoration is BoxDecoration) {
-            return decoration.border != null;
-          }
-          return false;
-        },
-        orElse: Container.new,
+      final border = tester.widget<MfmBorder>(find.byType(MfmBorder));
+      expect(border.color, const MfmColorScheme.light().accent);
+      expect(border.options.width, 1);
+      final padding = tester.widget<Padding>(
+        find
+            .descendant(
+              of: find.byType(MfmBorder),
+              matching: find.byType(Padding),
+            )
+            .first,
       );
-      expect(borderContainer.decoration, isNotNull);
-      final decoration = borderContainer.decoration! as BoxDecoration;
-      final border = decoration.border! as Border;
-      expect(border.top.color, const MfmColorScheme.light().accent);
-      expect(border.top.width, 1);
+      expect(padding.padding, const EdgeInsets.all(1));
     });
 
     testWidgets('borderの色省略時はカスタムschemeのaccentを使う', (tester) async {
@@ -1168,15 +1222,7 @@ void main() {
         ),
       );
 
-      final container = tester
-          .widgetList<Container>(find.byType(Container))
-          .firstWhere(
-            (container) =>
-                container.decoration is BoxDecoration &&
-                (container.decoration! as BoxDecoration).border != null,
-          );
-      final border = (container.decoration! as BoxDecoration).border! as Border;
-      expect(border.top.color, accent);
+      expect(tester.widget<MfmBorder>(find.byType(MfmBorder)).color, accent);
     });
 
     testWidgets('border.widthとcolorでカスタム幅と色を適用できる', (tester) async {
@@ -1188,23 +1234,9 @@ void main() {
         ),
       );
 
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final borderContainer = containers.firstWhere(
-        (c) {
-          final decoration = c.decoration;
-          if (decoration is BoxDecoration) {
-            return decoration.border != null;
-          }
-          return false;
-        },
-        orElse: Container.new,
-      );
-
-      final decoration = borderContainer.decoration as BoxDecoration?;
-      expect(decoration?.border, isNotNull);
-      final border = decoration!.border! as Border;
-      expect(border.top.color, const Color(0xFFFF0000));
-      expect(border.top.width, 2);
+      final border = tester.widget<MfmBorder>(find.byType(MfmBorder));
+      expect(border.color, const Color(0xFFFF0000));
+      expect(border.options.width, 2);
     });
 
     testWidgets('border.radiusで角丸を適用できる', (tester) async {
@@ -1216,20 +1248,26 @@ void main() {
         ),
       );
 
-      final containers = tester.widgetList<Container>(find.byType(Container));
-      final borderContainer = containers.firstWhere(
-        (c) {
-          final decoration = c.decoration;
-          if (decoration is BoxDecoration) {
-            return decoration.borderRadius != null;
-          }
-          return false;
-        },
-        orElse: Container.new,
+      final border = tester.widget<MfmBorder>(find.byType(MfmBorder));
+      expect(border.options.radius, 8);
+      final clip = tester.widget<ClipPath>(
+        find
+            .descendant(
+              of: find.byType(MfmBorder),
+              matching: find.byType(ClipPath),
+            )
+            .first,
       );
-
-      final decoration = borderContainer.decoration as BoxDecoration?;
-      expect(decoration?.borderRadius, isNotNull);
+      expect(
+        clip.clipper!.getClip(const Size(40, 30)).contains(const Offset(1, 1)),
+        isFalse,
+      );
+      expect(
+        clip.clipper!
+            .getClip(const Size(40, 30))
+            .contains(const Offset(20, 15)),
+        isTrue,
+      );
     });
   });
 
@@ -1502,7 +1540,7 @@ void main() {
 
   group('MfmText fn ruby関数', () {
     final rubyFinder = find.byWidgetPredicate(
-      (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+      (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
     );
 
     for (final example in [
@@ -1517,10 +1555,10 @@ void main() {
         );
 
         expect(rubyFinder, findsOneWidget);
-        final renderObject = tester.renderObject(rubyFinder);
-        final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+        final spans = _rubySpans(tester, rubyFinder);
+        final baseSpan = spans.base;
         expect(baseSpan.toPlainText(), example.base);
-        expect((renderObject as dynamic).rubyText, example.ruby);
+        expect(spans.ruby.toPlainText(), example.ruby);
       });
     }
 
@@ -1532,15 +1570,15 @@ void main() {
       );
 
       expect(rubyFinder, findsOneWidget);
-      final renderObject = tester.renderObject(rubyFinder);
-      final baseSpan = (renderObject as dynamic).baseSpan as TextSpan;
+      final spans = _rubySpans(tester, rubyFinder);
+      final baseSpan = spans.base;
       expect(baseSpan.toPlainText(), 'kanji');
       final boldSpan = _findSpanWithStyle(
         baseSpan,
         (style) => style?.fontWeight == FontWeight.bold,
       );
       expect(boldSpan?.toPlainText(), 'kanji');
-      expect((renderObject as dynamic).rubyText, 'よみ');
+      expect(spans.ruby.toPlainText(), 'よみ');
       expect(tester.takeException(), isNull);
     });
 
@@ -1554,10 +1592,10 @@ void main() {
       );
 
       expect(rubyFinder, findsOneWidget);
-      final renderObject = tester.renderObject(rubyFinder);
-      final baseSpan = (renderObject as dynamic).baseSpan as TextSpan;
+      final spans = _rubySpans(tester, rubyFinder);
+      final baseSpan = spans.base;
       expect(baseSpan.toPlainText(), '前kanji');
-      expect((renderObject as dynamic).rubyText, '後 よみ ふりがな');
+      expect(spans.ruby.toPlainText(), '後 よみ ふりがな');
       expect(
         _findSpanWithStyle(
           baseSpan,
@@ -1580,10 +1618,10 @@ void main() {
       );
 
       expect(rubyFinder, findsOneWidget);
-      final renderObject = tester.renderObject(rubyFinder);
-      final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+      final spans = _rubySpans(tester, rubyFinder);
+      final baseSpan = spans.base;
       expect(baseSpan.toPlainText(), '漢字');
-      expect((renderObject as dynamic).rubyText, 'にゃにか');
+      expect(spans.ruby.toPlainText(), 'にゃにか');
     });
 
     testWidgets('テキストのみのルビは分割前にnyaizeしてベースとルビの両方を変換する', (tester) async {
@@ -1599,10 +1637,10 @@ void main() {
       );
 
       expect(rubyFinder, findsOneWidget);
-      final renderObject = tester.renderObject(rubyFinder);
-      final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+      final spans = _rubySpans(tester, rubyFinder);
+      final baseSpan = spans.base;
       expect(baseSpan.toPlainText(), 'にゃにか');
-      expect((renderObject as dynamic).rubyText, 'よみにゃ');
+      expect(spans.ruby.toPlainText(), 'よみにゃ');
     });
 
     // ko-KRの「다/야」パターンは半角スペースまたは行末が直後にある場合のみ
@@ -1627,8 +1665,8 @@ void main() {
         );
 
         expect(rubyFinder, findsOneWidget);
-        final renderObject = tester.renderObject(rubyFinder);
-        expect((renderObject as dynamic).rubyText, example.ruby.trim());
+        final spans = _rubySpans(tester, rubyFinder);
+        expect(spans.ruby.toPlainText(), example.ruby.trim());
       });
     }
 
@@ -1652,11 +1690,11 @@ void main() {
           );
 
           expect(rubyFinder, findsOneWidget);
-          final renderObject = tester.renderObject(rubyFinder);
-          final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+          final spans = _rubySpans(tester, rubyFinder);
+          final baseSpan = spans.base;
           final expected = enabled ? 'にゃにか' : 'なにか';
           expect(baseSpan.toPlainText(), expected);
-          expect((renderObject as dynamic).rubyText, expected);
+          expect(spans.ruby.toPlainText(), expected);
         });
       }
 
@@ -1673,10 +1711,10 @@ void main() {
         );
 
         expect(rubyFinder, findsOneWidget);
-        final renderObject = tester.renderObject(rubyFinder);
-        final baseSpan = (renderObject as dynamic).baseSpan as InlineSpan;
+        final spans = _rubySpans(tester, rubyFinder);
+        final baseSpan = spans.base;
         expect(baseSpan.toPlainText(), 'なにか');
-        expect((renderObject as dynamic).rubyText, 'なにか');
+        expect(spans.ruby.toPlainText(), 'なにか');
       });
     }
 
@@ -1684,7 +1722,7 @@ void main() {
       r'$[ruby $[spin abc] よみ]',
       r'$[ruby **$[spin abc]** よみ]',
     ]) {
-      testWidgets('ベースにWidgetSpanが含まれる場合は子要素をそのまま表示する：$text', (
+      testWidgets('ベースにWidgetSpanが含まれる場合にもルビを付ける：$text', (
         tester,
       ) async {
         await tester.pumpWidget(
@@ -1693,14 +1731,14 @@ void main() {
           ),
         );
 
-        expect(rubyFinder, findsNothing);
+        expect(rubyFinder, findsOneWidget);
         final richTexts = tester.widgetList<RichText>(find.byType(RichText));
         expect(
           richTexts.any((widget) => widget.text.toPlainText().contains('abc')),
           isTrue,
         );
         expect(
-          richTexts.any((widget) => widget.text.toPlainText().contains(' よみ')),
+          richTexts.any((widget) => widget.text.toPlainText().contains('よみ')),
           isTrue,
         );
         expect(tester.takeException(), isNull);
@@ -1745,9 +1783,9 @@ void main() {
       final originalRenderObject = tester.renderObject(rubyFinder);
       await pumpRuby(r'$[ruby **kanji** よみ]');
 
-      final renderObject = tester.renderObject(rubyFinder);
-      expect(renderObject, same(originalRenderObject));
-      final baseSpan = (renderObject as dynamic).baseSpan as TextSpan;
+      final spans = _rubySpans(tester, rubyFinder);
+      expect(tester.renderObject(rubyFinder), same(originalRenderObject));
+      final baseSpan = spans.base;
       expect(baseSpan.toPlainText(), 'kanji');
       expect(
         _findSpanWithStyle(
@@ -1756,7 +1794,7 @@ void main() {
         )?.toPlainText(),
         'kanji',
       );
-      expect((renderObject as dynamic).rubyText, 'よみ');
+      expect(spans.ruby.toPlainText(), 'よみ');
       expect(tester.takeException(), isNull);
     });
 
@@ -1780,10 +1818,10 @@ void main() {
 
       expect(rubyFinder, findsOneWidget);
 
-      final rubyRenderObject = tester.renderObject(rubyFinder);
-      final baseSpan = (rubyRenderObject as dynamic).baseSpan as InlineSpan;
+      final spans = _rubySpans(tester, rubyFinder);
+      final baseSpan = spans.base;
       expect(baseSpan.toPlainText(), '振り仮名');
-      expect((rubyRenderObject as dynamic).rubyText, 'ふりがな');
+      expect(spans.ruby.toPlainText(), 'ふりがな');
     });
   });
 
@@ -1815,6 +1853,7 @@ void main() {
             ? const MfmColorScheme.dark().divider
             : const MfmColorScheme.light().divider;
         expect(border.top.color, expected);
+        await tester.pumpWidget(const SizedBox.shrink());
       });
     }
 
@@ -1838,6 +1877,7 @@ void main() {
           .findAncestorWidgetOfExactType<Container>()!;
       final border = (container.decoration! as BoxDecoration).border! as Border;
       expect(border.top.color, divider);
+      await tester.pumpWidget(const SizedBox.shrink());
     });
   });
 
@@ -2014,4 +2054,23 @@ TextSpan? _findSpanWithStyle(
   }
 
   return null;
+}
+
+({TextSpan base, TextSpan ruby}) _rubySpans(
+  WidgetTester tester,
+  Finder finder,
+) {
+  final texts = tester
+      .widgetList<RichText>(
+        find.descendant(
+          of: finder,
+          matching: find.byWidgetPredicate((widget) => widget is RichText),
+        ),
+      )
+      .toList();
+  final base = texts.first.text as TextSpan;
+  return (
+    base: base.children!.single as TextSpan,
+    ruby: texts.last.text as TextSpan,
+  );
 }

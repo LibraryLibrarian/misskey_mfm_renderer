@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+/// Web でもマイクロ秒の整数を正確に表現できる MFM 時間の上限。
+const kMaxMfmTimeMicroseconds = 9007199254740991;
+
 typedef MfmAnimatedBuilder =
     Widget Function(
       BuildContext context,
@@ -111,23 +114,46 @@ class MfmAnimatedWrapper extends StatefulWidget {
   final Curve curve;
   final Curve? reverseCurve;
 
+  static final _validTime = RegExp(r'^(-?[0-9.]+)s$');
+  static final _cssTime = RegExp(r'^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)s$');
+
+  /// 本家 Misskey の validTime に一致しない値は [fallback] を返す。
+  /// 一致しても CSS の time として無効な値は Duration.zero を返し、
+  /// アニメーションを静止表示にする。有効な値は [parseTime] で変換する。
+  static Duration parseSpeed(Object? value, {required Duration fallback}) {
+    if (value is! String || !_validTime.hasMatch(value)) return fallback;
+    if (!_cssTime.hasMatch(value)) return Duration.zero;
+
+    return parseTime(value) ?? fallback;
+  }
+
   /// 本家 Misskey の validTime と同じく、`^-?[0-9.]+s$` に一致する
   /// 文字列のみを受け付ける。前後の空白は除去しない。
   ///
-  /// 未指定・不正値・数値に変換できない値は null を返す。
-  /// 有限の秒数は符号を保ち、マイクロ秒単位で Duration に変換する。
+  /// 未指定・CSS の time として不正な値・数値に変換できない値は null を返す。
+  /// 秒数は符号を保ち、マイクロ秒単位で Duration に変換する。
+  /// 巨大な値は非有限への変換も含めて ±[kMaxMfmTimeMicroseconds] に収める。
   static Duration? parseTime(Object? value) {
     if (value is! String) return null;
 
-    final match = RegExp(r'^(-?[0-9.]+)s$').firstMatch(value);
-    if (match == null) return null;
+    final match = _validTime.firstMatch(value);
+    if (match == null || !_cssTime.hasMatch(value)) return null;
 
     final seconds = double.tryParse(match.group(1)!);
-    if (seconds == null || !seconds.isFinite) {
-      return null;
+    if (seconds == null) return null;
+
+    const maxSeconds = kMaxMfmTimeMicroseconds / Duration.microsecondsPerSecond;
+    if (seconds >= maxSeconds) {
+      return const Duration(microseconds: kMaxMfmTimeMicroseconds);
+    }
+    if (seconds <= -maxSeconds) {
+      return const Duration(microseconds: -kMaxMfmTimeMicroseconds);
     }
 
-    return Duration(microseconds: (seconds * 1000000).round());
+    final microseconds = (seconds * Duration.microsecondsPerSecond)
+        .clamp(-kMaxMfmTimeMicroseconds, kMaxMfmTimeMicroseconds)
+        .round();
+    return Duration(microseconds: microseconds);
   }
 
   @override
@@ -138,7 +164,15 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late Animation<double> _progress;
+  // CurvedAnimation は生成時に親 controller へ status listener を登録するため、
+  // 差し替え時と State の破棄時に dispose する。
+  CurvedAnimation? _curvedProgress;
   Timer? _delayTimer;
+  Stopwatch? _delayClock;
+  Duration? _delayDeadline;
+
+  // Web の Timer に渡すミリ秒が符号付き32bitの範囲を超えないようにする。
+  static const _maxTimerMilliseconds = 0x7fffffff;
 
   Duration get _controllerDuration => widget.duration > Duration.zero
       ? widget.duration
@@ -196,13 +230,37 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
       return;
     }
 
-    _delayTimer?.cancel();
-    _delayTimer = Timer(widget.delay, () {
-      if (!mounted || !widget.enabled) {
-        return;
-      }
+    _cancelDelay();
+    // 単調増加する時計を使い、Timer の発火が遅れた場合も残り時間に反映する。
+    // samplingClock は Widget テストの仮想時計にも追従する。
+    _delayClock = WidgetsBinding.instance.samplingClock.stopwatch()..start();
+    _delayDeadline = widget.delay;
+    _scheduleDelay();
+  }
+
+  void _scheduleDelay() {
+    final remaining = _delayDeadline! - _delayClock!.elapsed;
+    if (remaining.inMilliseconds > _maxTimerMilliseconds) {
+      _delayTimer = Timer(
+        const Duration(milliseconds: _maxTimerMilliseconds),
+        _scheduleDelay,
+      );
+      return;
+    }
+
+    _delayTimer = Timer(remaining, () {
+      _cancelDelay();
+      if (!mounted || !widget.enabled) return;
       _startController();
     });
+  }
+
+  void _cancelDelay() {
+    _delayTimer?.cancel();
+    _delayTimer = null;
+    _delayClock?.stop();
+    _delayClock = null;
+    _delayDeadline = null;
   }
 
   void _startController() {
@@ -213,6 +271,7 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
     if (widget.repeat) {
       // 負の delay は、CSS と同様にその時間だけ進行済みの位相から
       // 始める。位相計算は _MfmRepeatingProgressAnimation が担う。
+      // 巨大な負の delay は Web の整数精度により近似の位相になる。
       _controller.repeat(reverse: widget.reverse && !widget.delay.isNegative);
       return;
     }
@@ -226,13 +285,14 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
   }
 
   void _stopAnimation() {
-    _delayTimer?.cancel();
+    _cancelDelay();
     _controller
       ..stop()
       ..reset();
   }
 
   void _updateProgress() {
+    final previousCurvedProgress = _curvedProgress;
     if (widget.repeat && widget.delay.isNegative) {
       _progress = _MfmRepeatingProgressAnimation(
         parent: _controller,
@@ -242,18 +302,21 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
         curve: widget.curve,
         reverseCurve: widget.reverseCurve ?? widget.curve,
       );
+      _curvedProgress = null;
     } else {
-      _progress = CurvedAnimation(
+      _progress = _curvedProgress = CurvedAnimation(
         parent: _controller,
         curve: widget.curve,
         reverseCurve: widget.reverseCurve ?? widget.curve,
       );
     }
+    previousCurvedProgress?.dispose();
   }
 
   @override
   void dispose() {
-    _delayTimer?.cancel();
+    _cancelDelay();
+    _curvedProgress?.dispose();
     _controller.dispose();
     super.dispose();
   }

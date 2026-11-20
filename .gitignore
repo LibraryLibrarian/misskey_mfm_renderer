@@ -32,3 +32,8 @@ migrate_working_dir/
 
 # FVM Version Cache
 .fvm/
+
+# Docusaurus
+/docs/node_modules/
+/docs/.docusaurus/
+/docs/build/

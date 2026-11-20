@@ -15,7 +15,8 @@ class MfmInputField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      maxLines: null,
+      key: const Key('playgroundInput'),
+      maxLines: 8,
       minLines: 5,
       keyboardType: TextInputType.multiline,
       textInputAction: TextInputAction.newline,

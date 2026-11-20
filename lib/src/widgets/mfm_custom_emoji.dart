@@ -3,9 +3,11 @@ import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:misskey_emoji/misskey_emoji.dart';
+
+import 'mfm_emoji_baseline.dart';
 
 class MfmCustomEmoji extends StatefulWidget {
   const MfmCustomEmoji({
@@ -20,8 +22,10 @@ class MfmCustomEmoji extends StatefulWidget {
     this.cacheScope,
     this.refreshListenable,
     this.fallbackBuilder,
+    this.fallbackTextStyle,
     this.errorBuilder,
     this.loadingBuilder,
+    this.semanticLabel,
   }) : assert(resolver != null || url != null),
        assert(size > 0),
        assert(
@@ -60,6 +64,7 @@ class MfmCustomEmoji extends StatefulWidget {
   /// which happens with a small fixed [size] and a large font size. When
   /// omitted, the child's natural baseline is used. MfmEmojiConfig supplies the
   /// custom emoji value automatically, even with a fixed emojiSize.
+  /// Standard shortcode fallback text always uses its natural baseline.
   final double? baselineOffset;
 
   /// The optional maximum displayed width of the emoji in logical pixels.
@@ -94,10 +99,32 @@ class MfmCustomEmoji extends StatefulWidget {
   /// otherwise invalidated. Successful results are retained across ordinary
   /// parent rebuilds until this signal is notified.
   final Listenable? refreshListenable;
+
+  /// Style for the standard `:name:` fallback, independent of image [size].
+  ///
+  /// Defaults to DefaultTextStyle at its natural 1em size and alphabetic
+  /// baseline. [baselineOffset] applies only to images and custom builders.
+  final TextStyle? fallbackTextStyle;
+
   final Widget Function(BuildContext context, String name)? fallbackBuilder;
   final Widget Function(BuildContext context, String name, Object error)?
   errorBuilder;
   final Widget Function(BuildContext context)? loadingBuilder;
+
+  /// The accessibility label for content drawn by this widget.
+  ///
+  /// Defaults to `:name:`, matching the image alt text and error text of
+  /// Misskey's custom emoji. It labels the image, the standard loading
+  /// placeholder, and the standard shortcode fallback, each announced once.
+  /// Widgets returned by [loadingBuilder], [fallbackBuilder], and
+  /// [errorBuilder] keep their own semantics and do not receive this label.
+  ///
+  /// While a newly loaded image cross-fades in, the outgoing placeholder's
+  /// semantics and this label can both be exposed until the placeholder has
+  /// faded out and been removed. Synchronous cache hits do not cross-fade.
+  /// A standard placeholder with an unknown aspect ratio has zero width and is
+  /// therefore not exposed on its own.
+  final String? semanticLabel;
 
   /// Clears the process-wide custom emoji layout caches.
   @visibleForTesting
@@ -117,6 +144,11 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 
   late Future<Uri?> _emojiFuture;
   bool _retryOnUpdate = false;
+
+  // Image callbacks rebuild below this State. Notify the render wrapper
+  // directly when the error branch changes its baseline policy, without
+  // rebuilding or re-resolving the image during a descendant build.
+  final ValueNotifier<bool> _imageUsesNaturalBaseline = ValueNotifier(false);
 
   static void _debugClearCaches() {
     _cacheGeneration++;
@@ -151,6 +183,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   @override
   void dispose() {
     widget.refreshListenable?.removeListener(_refresh);
+    _imageUsesNaturalBaseline.dispose();
     super.dispose();
   }
 
@@ -164,7 +197,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   void _resolveEmoji() {
     final url = widget.url;
     final future = url != null
-        ? Future<Uri?>.value(url)
+        ? Future<Uri?>.syncValue(url)
         : widget.resolver!(widget.name).then((emoji) => emoji?.url);
     _emojiFuture = future;
     _retryOnUpdate = false;
@@ -186,7 +219,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
 
   @override
   Widget build(BuildContext context) {
-    final child = FutureBuilder<Uri?>(
+    return FutureBuilder<Uri?>(
       future: _emojiFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done) {
@@ -207,36 +240,80 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
           }
           _observeAspectRatio(context, url);
 
-          final image = CachedNetworkImage(
-            imageUrl: url,
-            height: widget.size,
-            fit: BoxFit.contain,
-            memCacheHeight: _memCacheHeight(context),
-            placeholder: (BuildContext context, String _) =>
-                _loadingWidget(context, _aspectRatios[url]),
-            errorWidget: (BuildContext context, String url, Object error) =>
-                _errorWidget(context, error),
-            fadeInDuration: const Duration(milliseconds: 150),
-            fadeOutDuration: const Duration(milliseconds: 100),
-          );
-
-          final maxWidth = widget.maxWidth;
-          if (maxWidth == null) {
-            return image;
-          }
-          return ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: image,
+          return _withBaseline(
+            CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.contain,
+              imageBuilder: (context, provider) {
+                _imageUsesNaturalBaseline.value = false;
+                return _constrainImage(
+                  _labeled(
+                    Image(
+                      image: ResizeImage.resizeIfNeeded(
+                        null,
+                        _memCacheHeight(context),
+                        provider,
+                      ),
+                      height: widget.size,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                );
+              },
+              memCacheHeight: _memCacheHeight(context),
+              placeholder: (BuildContext context, String _) {
+                _imageUsesNaturalBaseline.value = false;
+                return _constrainImage(
+                  _loadingWidget(
+                    context,
+                    _aspectRatios[url],
+                    imageLoading: true,
+                  ),
+                );
+              },
+              errorWidget: (BuildContext context, String url, Object error) {
+                _imageUsesNaturalBaseline.value =
+                    widget.errorBuilder == null &&
+                    widget.fallbackBuilder == null;
+                return _errorWidget(context, error, imageError: true);
+              },
+              fadeInDuration: const Duration(milliseconds: 150),
+              fadeOutDuration: const Duration(milliseconds: 100),
+            ),
+            useNaturalBaseline: _imageUsesNaturalBaseline,
           );
         }
 
         return _loadingWidget(context, _knownAspectRatio);
       },
     );
-    final baselineOffset = widget.baselineOffset;
-    return baselineOffset == null
+  }
+
+  // Keep image constraints inside each branch. The baseline instead wraps the
+  // whole cross-fade, whose height can differ from either child's height.
+  // Standard error text opts out of that image baseline.
+  Widget _constrainImage(Widget child) {
+    final maxWidth = widget.maxWidth;
+    return maxWidth == null
         ? child
-        : _EmojiBaseline(offset: baselineOffset, child: child);
+        : ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: child,
+          );
+  }
+
+  Widget _withBaseline(
+    Widget child, {
+    ValueListenable<bool>? useNaturalBaseline,
+  }) {
+    final offset = widget.baselineOffset;
+    return offset == null
+        ? child
+        : MfmEmojiBaseline(
+            offset: offset,
+            useNaturalBaseline: useNaturalBaseline,
+            child: child,
+          );
   }
 
   _EmojiCacheKey get _cacheKey => _EmojiCacheKey(
@@ -274,16 +351,21 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     late final ImageStreamListener listener;
     listener = ImageStreamListener(
       (imageInfo, _) {
-        stream.removeListener(listener);
-        if (cacheGeneration != _MfmCustomEmojiState._cacheGeneration) {
-          return;
-        }
-        _MfmCustomEmojiState._observingUrls.remove(url);
+        // Each listener receives its own clone and must release it.
+        try {
+          stream.removeListener(listener);
+          if (cacheGeneration != _MfmCustomEmojiState._cacheGeneration) {
+            return;
+          }
+          _MfmCustomEmojiState._observingUrls.remove(url);
 
-        final width = imageInfo.image.width;
-        final height = imageInfo.image.height;
-        if (width > 0 && height > 0) {
-          _MfmCustomEmojiState._aspectRatios[url] = width / height;
+          final width = imageInfo.image.width;
+          final height = imageInfo.image.height;
+          if (width > 0 && height > 0) {
+            _MfmCustomEmojiState._aspectRatios[url] = width / height;
+          }
+        } finally {
+          imageInfo.dispose();
         }
       },
       onError: (Object _, StackTrace? _) {
@@ -297,15 +379,28 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     stream.addListener(listener);
   }
 
+  // Only content drawn by this widget is labeled. Builder results keep their
+  // own semantics, including actions such as a retry button.
+  Widget _labeled(Widget child) => Semantics(
+    label: widget.semanticLabel ?? ':${widget.name}:',
+    child: ExcludeSemantics(child: child),
+  );
+
   int _memCacheHeight(BuildContext context) {
     final devicePixelRatio =
         MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1.0;
     return (widget.size * devicePixelRatio).ceil();
   }
 
-  Widget _loadingWidget(BuildContext context, double? aspectRatio) {
-    return widget.loadingBuilder?.call(context) ??
-        _defaultLoadingWidget(aspectRatio);
+  Widget _loadingWidget(
+    BuildContext context,
+    double? aspectRatio, {
+    bool imageLoading = false,
+  }) {
+    final child =
+        widget.loadingBuilder?.call(context) ??
+        _labeled(_defaultLoadingWidget(aspectRatio));
+    return imageLoading ? child : _withBaseline(child);
   }
 
   Widget _defaultLoadingWidget(double? aspectRatio) {
@@ -332,72 +427,30 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     );
   }
 
-  Widget _fallbackWidget(BuildContext context) {
-    return widget.fallbackBuilder?.call(context, widget.name) ??
-        Text(
-          ':${widget.name}:',
-          style: DefaultTextStyle.of(
-            context,
-          ).style.copyWith(fontSize: widget.size * 0.6),
-        );
+  Widget _fallbackWidget(BuildContext context, {bool imageError = false}) {
+    final custom = widget.fallbackBuilder?.call(context, widget.name);
+    if (custom != null) {
+      return imageError ? _constrainImage(custom) : _withBaseline(custom);
+    }
+    return _labeled(
+      Text(
+        ':${widget.name}:',
+        style: widget.fallbackTextStyle ?? DefaultTextStyle.of(context).style,
+      ),
+    );
   }
 
-  Widget _errorWidget(BuildContext context, Object error) {
-    return widget.errorBuilder?.call(context, widget.name, error) ??
-        _fallbackWidget(context);
-  }
-}
-
-// Baseline shifts its child to an existing baseline; it does not assign an
-// image a baseline above its bottom. Report a baseline without moving or
-// resizing the box, so the paragraph reserves the descent as well as ascent.
-class _EmojiBaseline extends SingleChildRenderObjectWidget {
-  const _EmojiBaseline({required this.offset, required super.child});
-
-  final double offset;
-
-  @override
-  _RenderEmojiBaseline createRenderObject(BuildContext context) =>
-      _RenderEmojiBaseline(offset);
-
-  @override
-  void updateRenderObject(
+  Widget _errorWidget(
     BuildContext context,
-    _RenderEmojiBaseline renderObject,
-  ) {
-    renderObject.offset = offset;
+    Object error, {
+    bool imageError = false,
+  }) {
+    final custom = widget.errorBuilder?.call(context, widget.name, error);
+    if (custom != null) {
+      return imageError ? _constrainImage(custom) : _withBaseline(custom);
+    }
+    return _fallbackWidget(context, imageError: imageError);
   }
-}
-
-class _RenderEmojiBaseline extends RenderProxyBox {
-  _RenderEmojiBaseline(this._offset);
-
-  double _offset;
-
-  double get offset => _offset;
-
-  set offset(double value) {
-    if (_offset == value) return;
-    _offset = value;
-    markNeedsLayout();
-  }
-
-  late double _baseline;
-
-  @override
-  void performLayout() {
-    super.performLayout();
-    _baseline = size.height - _offset;
-  }
-
-  @override
-  double computeDistanceToActualBaseline(TextBaseline baseline) => _baseline;
-
-  @override
-  double computeDryBaseline(
-    BoxConstraints constraints,
-    TextBaseline baseline,
-  ) => getDryLayout(constraints).height - _offset;
 }
 
 class _EmojiCacheKey {

@@ -372,6 +372,407 @@ void main() {
     }
   });
 
+  group('twitch / shake の正delay待機', () {
+    for (final isShake in [false, true]) {
+      final name = isShake ? 'shake' : 'twitch';
+      const delay = Duration(milliseconds: 500);
+
+      testWidgets('$nameは0・499msで無変形、500msからeaseで開始する', (tester) async {
+        await _pumpTwitchOrShake(tester, isShake: isShake, delay: delay);
+        _expectWaiting(tester, isShake: isShake);
+        expect(find.text('test'), findsOneWidget);
+        await tester.pump(const Duration(milliseconds: 499));
+        _expectWaiting(tester, isShake: isShake);
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump();
+        _expectFirstKeyframe(tester, isShake: isShake);
+        await tester.pump(const Duration(microseconds: 12500));
+        _expectFirstMidpoint(tester, isShake: isShake);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+
+      for (final changeDuration in [false, true]) {
+        testWidgets(
+          '$nameは待機中の${changeDuration ? 'duration' : 'delay'}変更で旧Timerを破棄する',
+          (tester) async {
+            await _pumpTwitchOrShake(tester, isShake: isShake, delay: delay);
+            await tester.pump(const Duration(milliseconds: 200));
+            final newDelay = changeDuration
+                ? delay
+                : const Duration(milliseconds: 600);
+            await _pumpTwitchOrShake(
+              tester,
+              isShake: isShake,
+              delay: newDelay,
+              duration: Duration(milliseconds: changeDuration ? 1000 : 500),
+            );
+            await tester.pump(const Duration(milliseconds: 300));
+            _expectWaiting(tester, isShake: isShake); // 旧期限500ms
+            await tester.pump(newDelay - const Duration(milliseconds: 301));
+            _expectWaiting(tester, isShake: isShake);
+            await tester.pump(const Duration(milliseconds: 1));
+            await tester.pump();
+            _expectFirstKeyframe(tester, isShake: isShake);
+            await tester.pump(
+              Duration(microseconds: changeDuration ? 25000 : 12500),
+            );
+            _expectFirstMidpoint(tester, isShake: isShake);
+            await tester.pumpWidget(const SizedBox.shrink());
+          },
+        );
+      }
+
+      for (final newDelay in [
+        Duration.zero,
+        const Duration(microseconds: -12500),
+      ]) {
+        testWidgets('$nameは待機からdelay=${newDelay.inMicroseconds}へ変更して即開始する', (
+          tester,
+        ) async {
+          await _pumpTwitchOrShake(tester, isShake: isShake, delay: delay);
+          await tester.pump(const Duration(milliseconds: 100));
+          await _pumpTwitchOrShake(tester, isShake: isShake, delay: newDelay);
+          if (newDelay == Duration.zero) {
+            _expectFirstKeyframe(tester, isShake: isShake);
+          } else {
+            _expectFirstMidpoint(tester, isShake: isShake);
+          }
+          // 旧期限を越えても再開始せず、1周期後の位相を保持する。
+          await tester.pump(delay);
+          if (newDelay == Duration.zero) {
+            _expectFirstKeyframe(tester, isShake: isShake);
+          } else {
+            _expectFirstMidpoint(tester, isShake: isShake);
+          }
+          await tester.pump(const Duration(microseconds: 12500));
+          if (newDelay == Duration.zero) {
+            _expectFirstMidpoint(tester, isShake: isShake);
+          } else {
+            _expectTwitchOrShakeTransform(
+              tester,
+              isShake: isShake,
+              x: isShake ? 0 : -3,
+              y: isShake ? -1 : 1,
+              rotateDeg: -10,
+            );
+          }
+          await tester.pumpWidget(const SizedBox.shrink());
+        });
+      }
+
+      testWidgets('$nameは無効化で待機を取り消し再有効化で待ち直す', (tester) async {
+        await _pumpTwitchOrShake(tester, isShake: isShake, delay: delay);
+        await tester.pump(const Duration(milliseconds: 200));
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: delay,
+          enabled: false,
+        );
+        expect(_effectTransforms(isShake: isShake), findsNothing);
+        expect(find.text('test'), findsOneWidget);
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(_effectTransforms(isShake: isShake), findsNothing);
+        await _pumpTwitchOrShake(tester, isShake: isShake, delay: delay);
+        await tester.pump(const Duration(milliseconds: 499));
+        _expectWaiting(tester, isShake: isShake);
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump();
+        _expectFirstKeyframe(tester, isShake: isShake);
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: delay,
+          enabled: false,
+        );
+        expect(_effectTransforms(isShake: isShake), findsNothing);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+
+      testWidgets('$nameはchild・style更新で待機期限と再生位相を保持する', (tester) async {
+        await _pumpTwitchOrShake(tester, isShake: isShake, delay: delay);
+        await tester.pump(const Duration(milliseconds: 200));
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: delay,
+          child: const Text('updated', style: TextStyle(fontSize: 24)),
+        );
+        await tester.pump(const Duration(milliseconds: 299));
+        _expectWaiting(tester, isShake: isShake);
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump();
+        _expectFirstKeyframe(tester, isShake: isShake);
+        await tester.pump(const Duration(microseconds: 12500));
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: delay,
+          child: const Text('again', style: TextStyle(fontSize: 30)),
+        );
+        _expectFirstMidpoint(tester, isShake: isShake);
+        expect(find.text('again'), findsOneWidget);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+
+      testWidgets('$nameは待機と再生を跨いでlocal keyのState・Elementを保持する', (
+        tester,
+      ) async {
+        var initialized = 0;
+        var disposed = 0;
+        final child = _AnimationLifecycleProbe(
+          key: const ValueKey('child'),
+          onInit: () => initialized++,
+          onDispose: () => disposed++,
+        );
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: delay,
+          child: child,
+        );
+        final element = tester.element(find.byKey(const ValueKey('child')));
+        final state = tester.state(find.byKey(const ValueKey('child')));
+        await tester.pump(delay);
+        await tester.pump();
+        _expectFirstKeyframe(tester, isShake: isShake);
+        expect(
+          tester.element(find.byKey(const ValueKey('child'))),
+          same(element),
+        );
+        expect(tester.state(find.byKey(const ValueKey('child'))), same(state));
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: const Duration(seconds: 1),
+          child: child,
+        );
+        _expectWaiting(tester, isShake: isShake);
+        expect(
+          tester.element(find.byKey(const ValueKey('child'))),
+          same(element),
+        );
+        expect(tester.state(find.byKey(const ValueKey('child'))), same(state));
+        await tester.pump(const Duration(milliseconds: 999));
+        _expectWaiting(tester, isShake: isShake);
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump();
+        _expectFirstKeyframe(tester, isShake: isShake);
+        expect(
+          tester.element(find.byKey(const ValueKey('child'))),
+          same(element),
+        );
+        expect(tester.state(find.byKey(const ValueKey('child'))), same(state));
+        expect(initialized, 1);
+        expect(disposed, 0);
+        await tester.pumpWidget(const SizedBox.shrink());
+        expect(disposed, 1);
+        await tester.pump(const Duration(seconds: 2));
+        expect(tester.takeException(), isNull);
+      });
+
+      for (final innerWaiting in [true, false]) {
+        testWidgets(
+          '$nameは外側開始時に内側の${innerWaiting ? '2秒delay' : '再生位相'}を保持する',
+          (tester) async {
+            const outerKey = ValueKey('outer');
+            const innerKey = ValueKey('inner');
+            final inner = _twitchOrShake(
+              isShake: !isShake,
+              key: innerKey,
+              delay: innerWaiting ? const Duration(seconds: 2) : Duration.zero,
+              duration: const Duration(seconds: 4),
+              child: const Text('nested'),
+            );
+            await _pumpTwitchOrShake(
+              tester,
+              isShake: isShake,
+              key: outerKey,
+              delay: const Duration(seconds: 1),
+              child: inner,
+            );
+            final innerElement = tester.element(find.byKey(innerKey));
+            await tester.pump(const Duration(seconds: 1));
+            await tester.pump();
+            _expectFirstKeyframe(
+              tester,
+              isShake: isShake,
+              effect: find.byKey(outerKey),
+            );
+            expect(tester.element(find.byKey(innerKey)), same(innerElement));
+            if (innerWaiting) {
+              _expectWaiting(
+                tester,
+                isShake: !isShake,
+                effect: find.byKey(innerKey),
+              );
+              await tester.pump(const Duration(milliseconds: 999));
+              _expectWaiting(
+                tester,
+                isShake: !isShake,
+                effect: find.byKey(innerKey),
+              );
+              await tester.pump(const Duration(milliseconds: 1));
+              await tester.pump();
+              _expectFirstKeyframe(
+                tester,
+                isShake: !isShake,
+                effect: find.byKey(innerKey),
+              );
+            } else {
+              // 内側は4秒周期の25%。外側の開始で0%に戻らない。
+              _expectTwitchOrShakeTransform(
+                tester,
+                isShake: !isShake,
+                effect: find.byKey(innerKey),
+                x: isShake ? -4 : -1,
+                y: isShake ? -3 : -2,
+                rotateDeg: -2,
+              );
+              await _pumpTwitchOrShake(
+                tester,
+                isShake: isShake,
+                key: outerKey,
+                delay: const Duration(seconds: 2),
+                child: inner,
+              );
+              _expectWaiting(
+                tester,
+                isShake: isShake,
+                effect: find.byKey(outerKey),
+              );
+              _expectTwitchOrShakeTransform(
+                tester,
+                isShake: !isShake,
+                effect: find.byKey(innerKey),
+                x: isShake ? -4 : -1,
+                y: isShake ? -3 : -2,
+                rotateDeg: -2,
+              );
+            }
+            await tester.pumpWidget(const SizedBox.shrink());
+          },
+        );
+      }
+
+      testWidgets('$nameはTickerMode停止をdelay待機と混同しない', (tester) async {
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: delay,
+          tickerEnabled: false,
+        );
+        await tester.pump(delay);
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: delay,
+          tickerEnabled: false,
+          child: const Text('muted'),
+        );
+        _expectFirstKeyframe(tester, isShake: isShake);
+        await _pumpTwitchOrShake(tester, isShake: isShake, delay: delay);
+        await tester.pump(const Duration(microseconds: 12500));
+        _expectFirstMidpoint(tester, isShake: isShake);
+        await _pumpTwitchOrShake(
+          tester,
+          isShake: isShake,
+          delay: delay,
+          tickerEnabled: false,
+        );
+        _expectFirstMidpoint(tester, isShake: isShake);
+        await tester.pump(const Duration(milliseconds: 25));
+        _expectFirstMidpoint(tester, isShake: isShake);
+        await _pumpTwitchOrShake(tester, isShake: isShake, delay: delay);
+        expect(
+          tester
+              .widget<Transform>(_effectTransforms(isShake: isShake).first)
+              .transform
+              .isIdentity(),
+          isFalse,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+
+      testWidgets('$nameは待機中disposeでTimerを破棄する', (tester) async {
+        await _pumpTwitchOrShake(tester, isShake: isShake, delay: delay);
+        _expectWaiting(tester, isShake: isShake);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(seconds: 1));
+        expect(tester.takeException(), isNull);
+        expect(tester.binding.transientCallbackCount, 0);
+      });
+
+      testWidgets('MfmText $name.delay=0.5sは待機姿勢と開始を伝搬する', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(text: '\$[$name.delay=0.5s test]'),
+            ),
+          ),
+        );
+        _expectWaiting(tester, isShake: isShake);
+        await tester.pump(const Duration(milliseconds: 499));
+        _expectWaiting(tester, isShake: isShake);
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump();
+        _expectFirstKeyframe(tester, isShake: isShake);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+
+      for (final config in const [
+        MfmRenderConfig(enableAnimation: false),
+        MfmRenderConfig(enableAdvancedMfm: false),
+      ]) {
+        testWidgets(
+          'MfmText $nameは正delayでもflags=${config.enableAnimation}/${config.enableAdvancedMfm}で静止する',
+          (tester) async {
+            await tester.pumpWidget(
+              MaterialApp(
+                home: Scaffold(
+                  body: MfmText(
+                    text: '\$[$name.delay=0.5s test]',
+                    config: config,
+                  ),
+                ),
+              ),
+            );
+            expect(find.byType(MfmAnimatedWrapper), findsNothing);
+            expect(
+              tester
+                  .widgetList<RichText>(find.byType(RichText))
+                  .any((w) => _spanContainsText(w.text, 'test')),
+              isTrue,
+            );
+            await tester.pump(const Duration(seconds: 1));
+            expect(tester.takeException(), isNull);
+            await tester.pumpWidget(const SizedBox.shrink());
+          },
+        );
+      }
+
+      testWidgets('MfmText $nameは正delayでもspeed=0sで静止する', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MfmText(text: '\$[$name.delay=0.5s,speed=0s test]'),
+            ),
+          ),
+        );
+        expect(find.byType(MfmAnimatedWrapper), findsNothing);
+        expect(
+          tester
+              .widgetList<RichText>(find.byType(RichText))
+              .any((w) => _spanContainsText(w.text, 'test')),
+          isTrue,
+        );
+        await tester.pump(const Duration(seconds: 1));
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
+  });
+
   group('MfmText shake アニメーション', () {
     testWidgets('アニメーション有効時にMfmShakeWidgetが生成される', (tester) async {
       await tester.pumpWidget(
@@ -470,21 +871,6 @@ void main() {
           home: Scaffold(
             body: MfmText(
               text: r'$[twitch.speed=0.3s けいれん]',
-            ),
-          ),
-        ),
-      );
-
-      await tester.pump();
-      expect(find.byType(Transform), findsWidgets);
-    });
-
-    testWidgets('twitch.delay=0.5sで開始遅延を設定できる', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: MfmText(
-              text: r'$[twitch.delay=0.5s けいれん]',
             ),
           ),
         ),
@@ -1519,32 +1905,104 @@ bool _spanContainsText(InlineSpan span, String text) {
   return false;
 }
 
+Widget _twitchOrShake({
+  required bool isShake,
+  Key? key,
+  Duration duration = const Duration(milliseconds: 500),
+  Duration delay = Duration.zero,
+  bool enabled = true,
+  required Widget child,
+}) => isShake
+    ? MfmShakeWidget(
+        key: key,
+        duration: duration,
+        delay: delay,
+        enabled: enabled,
+        child: child,
+      )
+    : MfmTwitchWidget(
+        key: key,
+        duration: duration,
+        delay: delay,
+        enabled: enabled,
+        child: child,
+      );
+
 Future<void> _pumpTwitchOrShake(
   WidgetTester tester, {
   required bool isShake,
+  Key? key,
   Duration duration = const Duration(milliseconds: 500),
   Duration delay = Duration.zero,
+  bool enabled = true,
+  bool tickerEnabled = true,
+  Widget child = const Text('test'),
 }) async {
-  const child = Text('test');
   await tester.pumpWidget(
     Directionality(
       textDirection: TextDirection.ltr,
-      child: Center(
-        child: isShake
-            ? MfmShakeWidget(
-                duration: duration,
-                delay: delay,
-                child: child,
-              )
-            : MfmTwitchWidget(
-                duration: duration,
-                delay: delay,
-                child: child,
-              ),
+      child: TickerMode(
+        enabled: tickerEnabled,
+        child: Center(
+          child: _twitchOrShake(
+            isShake: isShake,
+            key: key,
+            duration: duration,
+            delay: delay,
+            enabled: enabled,
+            child: child,
+          ),
+        ),
       ),
     ),
   );
   await tester.pump();
+}
+
+Finder _effectTransforms({required bool isShake, Finder? effect}) =>
+    find.descendant(
+      of: effect ?? find.byType(isShake ? MfmShakeWidget : MfmTwitchWidget),
+      matching: find.byType(Transform),
+    );
+
+void _expectWaiting(
+  WidgetTester tester, {
+  required bool isShake,
+  Finder? effect,
+}) {
+  final transforms = _effectTransforms(isShake: isShake, effect: effect);
+  expect(transforms, findsWidgets);
+  // 先頭はeffect自身。入れ子やchild自身のTransformを検査しない。
+  expect(
+    tester.widget<Transform>(transforms.first).transform.storage,
+    orderedEquals(Matrix4.identity().storage),
+  );
+}
+
+void _expectFirstKeyframe(
+  WidgetTester tester, {
+  required bool isShake,
+  Finder? effect,
+}) {
+  _expectTwitchOrShakeTransform(
+    tester,
+    isShake: isShake,
+    effect: effect,
+    x: isShake ? -3 : 7,
+    y: isShake ? -1 : -2,
+    rotateDeg: -8,
+  );
+}
+
+void _expectFirstMidpoint(WidgetTester tester, {required bool isShake}) {
+  final q = const Cubic(.25, .1, .25, 1).transform(.5);
+  _expectTwitchOrShakeTransform(
+    tester,
+    isShake: isShake,
+    x: isShake ? -3 + 3 * q : 7 - 10 * q,
+    y: isShake ? -1 : -2 + 3 * q,
+    rotateDeg: -8 - 2 * q,
+  );
 }
 
 void _expectTwitchOrShakeTransform(
@@ -1553,8 +2011,13 @@ void _expectTwitchOrShakeTransform(
   required double x,
   required double y,
   double? rotateDeg,
+  Finder? effect,
 }) {
-  final matrix = tester.widget<Transform>(find.byType(Transform)).transform;
+  final matrix = tester
+      .widget<Transform>(
+        _effectTransforms(isShake: isShake, effect: effect).first,
+      )
+      .transform;
   expect(matrix.storage[12], closeTo(x, 1e-9));
   expect(matrix.storage[13], closeTo(y, 1e-9));
 
@@ -1565,4 +2028,39 @@ void _expectTwitchOrShakeTransform(
     expect(matrix.storage[4], closeTo(-math.sin(radians), 1e-9));
     expect(matrix.storage[5], closeTo(math.cos(radians), 1e-9));
   }
+}
+
+class _AnimationLifecycleProbe extends StatefulWidget {
+  const _AnimationLifecycleProbe({
+    super.key,
+    required this.onInit,
+    required this.onDispose,
+  });
+
+  final VoidCallback onInit;
+  final VoidCallback onDispose;
+
+  @override
+  State<_AnimationLifecycleProbe> createState() =>
+      _AnimationLifecycleProbeState();
+}
+
+class _AnimationLifecycleProbeState extends State<_AnimationLifecycleProbe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onInit();
+  }
+
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Transform.translate(
+    offset: const Offset(20, 30),
+    child: const Text('stateful child'),
+  );
 }

@@ -84,14 +84,18 @@ class MfmShakeWidget extends StatelessWidget {
       enabled: enabled,
       child: child,
       builder: (context, child, controller, progress) {
+        // 待機中もTransformの階層を保ち、子のStateや入れ子の再生を維持する。
+        final isWaiting = delay > Duration.zero && !controller.isAnimating;
         final kf = _resolveKeyframe(progress.value);
         final radians = kf.rotateDeg * math.pi / 180;
 
         return Transform(
           alignment: Alignment.center,
-          transform: Matrix4.identity()
-            ..translateByDouble(kf.x, kf.y, 0, 1)
-            ..rotateZ(radians),
+          transform: isWaiting
+              ? Matrix4.identity()
+              : (Matrix4.identity()
+                  ..translateByDouble(kf.x, kf.y, 0, 1)
+                  ..rotateZ(radians)),
           child: child,
         );
       },

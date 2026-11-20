@@ -80,7 +80,9 @@ class MfmTwitchWidget extends StatelessWidget {
       enabled: enabled,
       child: child,
       builder: (context, child, controller, progress) {
-        final offset = _resolveOffset(progress.value);
+        // 待機中もTransformの階層を保ち、子のStateや入れ子の再生を維持する。
+        final isWaiting = delay > Duration.zero && !controller.isAnimating;
+        final offset = isWaiting ? Offset.zero : _resolveOffset(progress.value);
         return Transform.translate(
           offset: offset,
           child: child,
