@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MfmCustomEmoji` now wraps an explicit `url` with `Future.syncValue` instead of `Future.value`, as recommended by the Flutter 3.50 analyzer; no change in behavior or public API
 
 ### Fixed
-- Keep leading inline widgets, including fn effects and ruby, visible by clipping them at the boundary when single-line `nowrap` ellipsis would otherwise hide the entire widget
+- Keep a single-line `nowrap` text's first inline widget (such as an fn effect or ruby) visible by clipping the line without an ellipsis when the ellipsis would otherwise hide the whole widget; any preceding character, including whitespace, keeps the existing ellipsis
 - Drive sparkle particle creation, expiry and painting from one ticker clock, pausing updates while muted and avoiding catch-up bursts when frames resume
 - Clamp extreme animation times to a safe signed microsecond range and split long delays into bounded timers so playback still starts after the requested delay
 - Treat CSS-invalid animation speeds such as `1.s` and `1.2.3s` as static content while keeping invalid delays at zero, matching Misskey

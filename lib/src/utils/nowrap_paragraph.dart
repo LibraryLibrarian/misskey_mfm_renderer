@@ -2,15 +2,45 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 /// RichTextの型を保ち、1行の省略で消えた行頭WidgetSpanを救済する。
+///
+/// [enabled]がtrueのとき、子はnowrapの1行省略（softWrap: false、
+/// TextOverflow.ellipsis）のRichTextであること。子の省略設定はここで上書きする。
+/// falseのときは子をそのままlayoutする。設定によらず常に挟むことで、
+/// 省略の有無が変わってもinline widgetのStateを保つ。
+///
+/// 制限: dry layout・intrinsic・dry baselineは、直前の実layoutで選んだ
+/// 設定（省略か切り取り）のまま子に委ねる。行頭のwidgetの後に大きな文字が
+/// 続き、直前に切り取りへ切り替えていた場合は、実際の高さと異なりうる。
 class MfmNowrapParagraph extends SingleChildRenderObjectWidget {
-  const MfmNowrapParagraph({super.key, required RichText child})
-    : super(child: child);
+  const MfmNowrapParagraph({
+    super.key,
+    required this.enabled,
+    required RichText child,
+  }) : super(child: child);
+
+  final bool enabled;
 
   @override
-  RenderObject createRenderObject(BuildContext context) => _RenderNowrapProxy();
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderNowrapProxy(enabled: enabled);
+
+  @override
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
+    (renderObject as _RenderNowrapProxy).enabled = enabled;
+  }
 }
 
 class _RenderNowrapProxy extends RenderProxyBox {
+  _RenderNowrapProxy({required bool enabled}) : _enabled = enabled;
+
+  bool _enabled;
+  bool get enabled => _enabled;
+  set enabled(bool value) {
+    if (value == _enabled) return;
+    _enabled = value;
+    markNeedsLayout();
+  }
+
   double? _alphabeticBaseline;
 
   bool _startsWithWidget(InlineSpan text) {
@@ -53,6 +83,13 @@ class _RenderNowrapProxy extends RenderProxyBox {
   @override
   void performLayout() {
     final paragraph = child! as RenderParagraph;
+    if (!_enabled) {
+      // RichTextの設定のままlayoutする。
+      paragraph.layout(constraints, parentUsesSize: true);
+      size = paragraph.size;
+      _alphabeticBaseline = null;
+      return;
+    }
     _setLayoutMode(paragraph, clip: false);
     paragraph.layout(constraints, parentUsesSize: true);
     final inline = paragraph.firstChild;
@@ -75,7 +112,7 @@ class _RenderNowrapProxy extends RenderProxyBox {
 
   @override
   double? computeDistanceToActualBaseline(TextBaseline baseline) =>
-      baseline == TextBaseline.alphabetic
+      _enabled && baseline == TextBaseline.alphabetic
       ? _alphabeticBaseline
       : super.computeDistanceToActualBaseline(baseline);
 }

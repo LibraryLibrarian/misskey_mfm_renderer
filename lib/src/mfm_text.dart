@@ -170,9 +170,10 @@ class _MfmTextBodyState extends State<_MfmTextBody> {
       text: textSpan,
     );
     return _MfmTextNoScaling(
-      child: overflow == TextOverflow.ellipsis
-          ? MfmNowrapParagraph(child: paragraph)
-          : paragraph,
+      child: MfmNowrapParagraph(
+        enabled: overflow == TextOverflow.ellipsis,
+        child: paragraph,
+      ),
     );
   }
 

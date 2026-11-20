@@ -20,6 +20,7 @@ String _source(String effect, String content) =>
     effect == 'ruby' ? '\$[ruby $content reading]' : '\$[$effect $content]';
 
 void main() {
+  _stateRetentionTests();
   group('[7] nowrap ellipsis inline widget regression', () {
     for (final effect in ['rotate.deg=0', 'blur', 'border', 'ruby']) {
       testWidgets('$effect followed by tail keeps its painted contents', (
@@ -316,38 +317,41 @@ void main() {
       },
     );
 
-    testWidgets('dry size, intrinsic dimensions and baselines agree', (
-      tester,
-    ) async {
-      for (final direction in TextDirection.values) {
-        for (final loose in [false, true]) {
-          final child = _MeasureBeforeLayout(
-            child: _nowrapRichText(text: _measuredSpan),
-          );
-          for (final width in [200.0, 500.0, 200.0]) {
-            await tester.pumpWidget(
-              _host(
-                loose
-                    ? Align(alignment: Alignment.topLeft, child: child)
-                    : child,
-                width: width,
-                direction: direction,
-              ),
+    testWidgets(
+      'dry size, intrinsics and baselines agree when the tail height matches',
+      (
+        tester,
+      ) async {
+        for (final direction in TextDirection.values) {
+          for (final loose in [false, true]) {
+            final child = _MeasureBeforeLayout(
+              child: _nowrapRichText(text: _measuredSpan),
             );
-            final measured = tester.renderObject<_MeasureBeforeLayoutBox>(
-              find.byType(_MeasureBeforeLayout),
-            );
-            expect(measured.drySize, measured.size);
-            expect(measured.intrinsicHeight, measured.size.height);
-            expect(
-              measured.dryBaseline,
-              closeTo(measured.actualBaseline!, .01),
-            );
-            expect(tester.takeException(), isNull);
+            for (final width in [200.0, 500.0, 200.0]) {
+              await tester.pumpWidget(
+                _host(
+                  loose
+                      ? Align(alignment: Alignment.topLeft, child: child)
+                      : child,
+                  width: width,
+                  direction: direction,
+                ),
+              );
+              final measured = tester.renderObject<_MeasureBeforeLayoutBox>(
+                find.byType(_MeasureBeforeLayout),
+              );
+              expect(measured.drySize, measured.size);
+              expect(measured.intrinsicHeight, measured.size.height);
+              expect(
+                measured.dryBaseline,
+                closeTo(measured.actualBaseline!, .01),
+              );
+              expect(tester.takeException(), isNull);
+            }
           }
         }
-      }
-    });
+      },
+    );
 
     testWidgets('two paragraph passes reuse the inline child layout', (
       tester,
@@ -565,6 +569,7 @@ Widget _nowrapRichText({
   SelectionRegistrar? selectionRegistrar,
   Color? selectionColor,
 }) => MfmNowrapParagraph(
+  enabled: true,
   child: RichText(
     text: text,
     softWrap: false,
@@ -745,4 +750,54 @@ class _ResizableInlineState extends State<_ResizableInline> {
 
   @override
   Widget build(BuildContext context) => SizedBox(width: _width, height: 14);
+}
+
+void _stateRetentionTests() {
+  testWidgets(
+    '[7] inline widget state survives line break and nowrap toggles',
+    (tester) async {
+      _CountingEmoji.created = 0;
+      Future<void> pump(String text, {required bool nowrap}) =>
+          tester.pumpWidget(
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: MfmText(
+                text: text,
+                nowrap: nowrap,
+                config: MfmRenderConfig(
+                  baseTextStyle: const TextStyle(fontSize: 14),
+                  emojiBuilder: (_, _) => const _CountingEmoji(),
+                ),
+              ),
+            ),
+          );
+      // 省略あり（1行）→ 改行あり（切り取り）→ nowrapなし → 省略ありへ戻す。
+      await pump(':e: ab', nowrap: true);
+      await pump(':e: a\nb', nowrap: true);
+      await pump(':e: a\nb', nowrap: false);
+      await pump(':e: ab', nowrap: true);
+      expect(_CountingEmoji.created, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+}
+
+class _CountingEmoji extends StatefulWidget {
+  const _CountingEmoji();
+
+  static int created = 0;
+
+  @override
+  State<_CountingEmoji> createState() => _CountingEmojiState();
+}
+
+class _CountingEmojiState extends State<_CountingEmoji> {
+  @override
+  void initState() {
+    super.initState();
+    _CountingEmoji.created++;
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(width: 10, height: 10);
 }
