@@ -12,6 +12,7 @@ import '../fn/mfm_fn_handler.dart';
 import '../utils/mention_display.dart';
 import '../utils/nyaize.dart';
 import '../utils/paragraph_semantics.dart';
+import '../utils/tap_recognizer_pool.dart';
 import '../utils/url_display.dart';
 import '../widgets/mfm_code_block.dart';
 import '../widgets/mfm_link_span.dart';
@@ -35,6 +36,7 @@ class MfmNodeBuilder {
     this.isNote = true,
     this.rainbowScope,
     this.rainbowForeground = false,
+    this.recognizerPool,
   }) : unattenuatedStyle = unattenuatedStyle ?? effectiveStyle;
 
   /// レンダリング設定
@@ -75,6 +77,9 @@ class MfmNodeBuilder {
   final MfmRainbowScope? rainbowScope;
   final bool rainbowForeground;
 
+  /// MfmTextが所有するrecognizer。直接使う場合は従来どおり呼び出し側で管理する。
+  final MfmTapRecognizerPool? recognizerPool;
+
   /// 実効文字色にはsmall等の減光を反映済み。shaderでもそのalphaを維持する。
   double get foregroundOpacity =>
       effectiveStyle.foreground?.color.a ?? effectiveStyle.color?.a ?? opacity;
@@ -94,6 +99,7 @@ class MfmNodeBuilder {
   }) {
     return MfmNodeBuilder(
       config: config,
+      recognizerPool: recognizerPool,
       colorScheme: colorScheme,
       effectiveStyle: effectiveStyle ?? this.effectiveStyle,
       unattenuatedStyle: unattenuatedStyle ?? this.unattenuatedStyle,
@@ -474,11 +480,24 @@ class MfmNodeBuilder {
     );
   }
 
+  TapGestureRecognizer _tapRecognizer(
+    MfmTapRecognizerKind kind,
+    String target,
+    VoidCallback onTap,
+  ) {
+    return recognizerPool?.acquire(kind, target, onTap) ??
+        (TapGestureRecognizer()..onTap = onTap);
+  }
+
   InlineSpan _buildUrl(UrlNode node) {
     final onLinkTap = config.onLinkTap;
     final recognizer = onLinkTap == null
         ? null
-        : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url));
+        : _tapRecognizer(
+            MfmTapRecognizerKind.url,
+            node.url,
+            () => onLinkTap(node.url),
+          );
     final baseColor = applyOpacity(colorScheme.link);
     final parts = parseUrlDisplay(node.url, localHost: config.localHost);
     if (parts == null) {
@@ -578,10 +597,13 @@ class MfmNodeBuilder {
 
   InlineSpan _buildLink(LinkNode node) {
     final onLinkTap = config.onLinkTap;
-    // Ownership remains the existing one-recognizer-per-link builder policy.
     final recognizer = onLinkTap == null
         ? null
-        : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url));
+        : _tapRecognizer(
+            MfmTapRecognizerKind.link,
+            node.url,
+            () => onLinkTap(node.url),
+          );
     final label = _withDisableNyaize().buildStyledSpan(
       TextStyle(
         color: applyOpacity(colorScheme.link),
@@ -618,7 +640,7 @@ class MfmNodeBuilder {
     if (options?.presentation == MfmMentionPresentation.text) {
       final recognizer = onTap == null
           ? null
-          : (TapGestureRecognizer()..onTap = onTap);
+          : _tapRecognizer(MfmTapRecognizerKind.mention, resolvedAcct, onTap);
       return MfmMentionTextSpan(
         recognizer: recognizer,
         children: [
@@ -692,8 +714,10 @@ class MfmNodeBuilder {
       ),
       recognizer: onHashtagTapDetails == null && onHashtagTap == null
           ? null
-          : (TapGestureRecognizer()
-              ..onTap = () {
+          : _tapRecognizer(
+              MfmTapRecognizerKind.hashtag,
+              node.hashtag,
+              () {
                 if (onHashtagTapDetails != null) {
                   final pathPrefix = isNote ? '/tags/' : '/user-tags/';
                   onHashtagTapDetails(
@@ -706,7 +730,8 @@ class MfmNodeBuilder {
                 } else {
                   onHashtagTap!(node.hashtag);
                 }
-              }),
+              },
+            ),
     );
   }
 

@@ -9,6 +9,7 @@ import 'config/mfm_inherited_config.dart';
 import 'config/mfm_render_config.dart';
 import 'utils/mention_display.dart';
 import 'utils/paragraph_semantics.dart';
+import 'utils/tap_recognizer_pool.dart';
 
 /// MFMテキストをレンダリングするウィジェット
 class MfmText extends StatelessWidget {
@@ -56,13 +57,37 @@ class MfmText extends StatelessWidget {
   final bool isNote;
 
   @override
+  Widget build(BuildContext context) => _MfmTextBody(data: this);
+}
+
+class _MfmTextBody extends StatefulWidget {
+  const _MfmTextBody({required this.data});
+
+  final MfmText data;
+
+  @override
+  State<_MfmTextBody> createState() => _MfmTextBodyState();
+}
+
+class _MfmTextBodyState extends State<_MfmTextBody> {
+  final _recognizerPool = MfmTapRecognizerPool();
+
+  @override
+  void dispose() {
+    _recognizerPool.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final mfm = widget.data;
+
     // ノードを取得（パース済みがあればそれを使用、なければパース）
-    final nodes = parsedNodes ?? _parseText();
+    final nodes = mfm.parsedNodes ?? _parseText();
 
     // InheritedWidgetから設定を取得（なければnull）
     final inheritedConfig = MfmConfig.maybeOf(context);
-    final mergedConfig = _mergeConfigs(inheritedConfig, config);
+    final mergedConfig = _mergeConfigs(inheritedConfig, mfm.config);
     validateMentionConfig(mergedConfig);
 
     final brightness = _resolveBrightness(context, mergedConfig.brightness);
@@ -97,34 +122,41 @@ class MfmText extends StatelessWidget {
       config: effectiveConfig,
       colorScheme: colorScheme,
       effectiveStyle: rootStyle,
-      scale: rootScale,
-      plain: plain,
-      nowrap: nowrap,
-      isNote: isNote,
+      scale: mfm.rootScale,
+      plain: mfm.plain,
+      nowrap: mfm.nowrap,
+      isNote: mfm.isNote,
+      recognizerPool: _recognizerPool,
     );
 
     // ノードをスパンに変換
-    final spans = builder.buildNodes(nodes);
+    _recognizerPool.beginBuild();
+    final List<InlineSpan> spans;
+    try {
+      spans = builder.buildNodes(nodes);
+    } finally {
+      _recognizerPool.endBuild();
+    }
 
     // RichTextでレンダリング
     final textSpan = TextSpan(style: rootStyle, children: spans);
     return RichText(
       key: paragraphSemanticsKey(textSpan),
-      maxLines: nowrap ? 1 : null,
-      softWrap: !nowrap,
-      overflow: nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
+      maxLines: mfm.nowrap ? 1 : null,
+      softWrap: !mfm.nowrap,
+      overflow: mfm.nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
       text: textSpan,
     );
   }
 
   /// テキストをパースしてノードリストを取得
   List<MfmNode> _parseText() {
-    final source = text;
+    final source = widget.data.text;
     if (source == null || source.isEmpty) {
       return [];
     }
 
-    final parser = (simple || plain)
+    final parser = (widget.data.simple || widget.data.plain)
         ? MfmParser().buildSimple()
         : MfmParser().build();
     final result = parser.parse(source);
