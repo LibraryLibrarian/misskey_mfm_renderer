@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_client/misskey_client.dart';
@@ -372,7 +373,8 @@ void main() {
         expect(value, isA<MfmEmojiConfigHandle>());
         expect(value.followPlatformReducedMotion, isFalse);
       }
-    });
+      // 永続ストアの作成にファイルシステムを使うため、Webでは実行しない。
+    }, skip: kIsWeb);
   });
 
   group('sparkleのTicker時計', () {
