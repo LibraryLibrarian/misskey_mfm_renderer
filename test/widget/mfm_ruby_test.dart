@@ -514,5 +514,30 @@ void main() {
       expect(nowrap.blue.bottom, lessThanOrEqualTo(nowrap.red.top));
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      'keeps a full-width ruby at the line start visible under nowrap',
+      (
+        tester,
+      ) async {
+        // 行頭のrubyが幅いっぱいで後ろに文が続くと、1行の省略でrubyごと消えうる。
+        await tester.pumpWidget(
+          _host(
+            const SizedBox(
+              width: 60,
+              child: MfmText(
+                text: r'$[ruby $[fg.color=ff0000 abcdefghij] yomi] tail',
+                nowrap: true,
+              ),
+            ),
+          ),
+        );
+        final ink = await _ink(tester);
+        expect(ink.red.height, 20);
+        expect(ink.blue.height, 10);
+        expect(ink.blue.bottom, lessThanOrEqualTo(ink.red.top));
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }
