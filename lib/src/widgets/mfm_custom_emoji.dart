@@ -25,6 +25,7 @@ class MfmCustomEmoji extends StatefulWidget {
     this.fallbackTextStyle,
     this.errorBuilder,
     this.loadingBuilder,
+    this.semanticLabel,
   }) : assert(resolver != null || url != null),
        assert(size > 0),
        assert(
@@ -109,6 +110,21 @@ class MfmCustomEmoji extends StatefulWidget {
   final Widget Function(BuildContext context, String name, Object error)?
   errorBuilder;
   final Widget Function(BuildContext context)? loadingBuilder;
+
+  /// The accessibility label for content drawn by this widget.
+  ///
+  /// Defaults to `:name:`, matching the image alt text and error text of
+  /// Misskey's custom emoji. It labels the image, the standard loading
+  /// placeholder, and the standard shortcode fallback, each announced once.
+  /// Widgets returned by [loadingBuilder], [fallbackBuilder], and
+  /// [errorBuilder] keep their own semantics and do not receive this label.
+  ///
+  /// While a newly loaded image cross-fades in, the outgoing placeholder's
+  /// semantics and this label can both be exposed until the placeholder has
+  /// faded out and been removed. Synchronous cache hits do not cross-fade.
+  /// A standard placeholder with an unknown aspect ratio has zero width and is
+  /// therefore not exposed on its own.
+  final String? semanticLabel;
 
   /// Clears the process-wide custom emoji layout caches.
   @visibleForTesting
@@ -231,14 +247,16 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
               imageBuilder: (context, provider) {
                 _imageUsesNaturalBaseline.value = false;
                 return _constrainImage(
-                  Image(
-                    image: ResizeImage.resizeIfNeeded(
-                      null,
-                      _memCacheHeight(context),
-                      provider,
+                  _labeled(
+                    Image(
+                      image: ResizeImage.resizeIfNeeded(
+                        null,
+                        _memCacheHeight(context),
+                        provider,
+                      ),
+                      height: widget.size,
+                      fit: BoxFit.contain,
                     ),
-                    height: widget.size,
-                    fit: BoxFit.contain,
                   ),
                 );
               },
@@ -361,6 +379,13 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     stream.addListener(listener);
   }
 
+  // Only content drawn by this widget is labeled. Builder results keep their
+  // own semantics, including actions such as a retry button.
+  Widget _labeled(Widget child) => Semantics(
+    label: widget.semanticLabel ?? ':${widget.name}:',
+    child: ExcludeSemantics(child: child),
+  );
+
   int _memCacheHeight(BuildContext context) {
     final devicePixelRatio =
         MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1.0;
@@ -374,7 +399,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   }) {
     final child =
         widget.loadingBuilder?.call(context) ??
-        _defaultLoadingWidget(aspectRatio);
+        _labeled(_defaultLoadingWidget(aspectRatio));
     return imageLoading ? child : _withBaseline(child);
   }
 
@@ -407,9 +432,11 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     if (custom != null) {
       return imageError ? _constrainImage(custom) : _withBaseline(custom);
     }
-    return Text(
-      ':${widget.name}:',
-      style: widget.fallbackTextStyle ?? DefaultTextStyle.of(context).style,
+    return _labeled(
+      Text(
+        ':${widget.name}:',
+        style: widget.fallbackTextStyle ?? DefaultTextStyle.of(context).style,
+      ),
     );
   }
 

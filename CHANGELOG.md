@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added immutable unixtime options, synchronous Japanese/English formatting, custom clocks/formatters and lifecycle-aware shared 10-second updates
 - Added `MfmMentionOptions` with capsule/text presentation, independent viewer identity, opt-in avatar providers and a validated local avatar origin; options inherit as a whole
 - Added optional `MfmEmojiContext.textStyle` and `MfmCustomEmoji.fallbackTextStyle` for shortcode fallbacks with inherited typography and original colors before cumulative small/quote opacity
+- Added `MfmCustomEmoji.semanticLabel` to override the default `:name:` accessibility label of the emoji image, standard loading placeholder and standard shortcode fallback
 
 ### Changed
 - **Breaking:** Search queries now render as editable controls instead of fixed Text, changing width, height, semantics and callback values. Migration: handle the edited query (including empty strings), update snapshots/finders for EditableText, and bundle MaterialIcons (normally `uses-material-design: true`)
@@ -42,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Calculated `position` offsets from the current inherited font size instead of the root font size
 - Preserved `small` opacity for foreground paints and text without an explicit color, and `small`/quote opacity for text backgrounds, explicit decoration colors, and shadows, without mutating shared paints
 - Released the decoded image handle received while measuring a custom emoji aspect ratio, including when the emoji caches were cleared before the image arrived
+- Announced custom emoji as `:name:` while their image is shown or loading, not only after a failure; widgets returned by `loadingBuilder`, `fallbackBuilder` and `errorBuilder` keep their own semantics and actions
 - Placed the `search` field and button rounded corners and button border on the correct sides in right-to-left layouts
 
 ## [0.6.0-beta.4] - 2026-09-23

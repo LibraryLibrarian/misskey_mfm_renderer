@@ -204,7 +204,14 @@ void main() {
                     emojiSize: _size,
                   ),
                 )
-              : MfmCustomEmoji(name: _name, resolver: resolver);
+              // A standalone placeholder with an unknown ratio has zero width,
+              // and Flutter does not expose empty semantics rects. Inside
+              // MfmText the paragraph still carries the label.
+              : MfmCustomEmoji(
+                  name: _name,
+                  resolver: resolver,
+                  aspectRatio: 2,
+                );
           await tester.pumpWidget(_host(child));
           await tester.pump();
           expect(find.byType(MfmCustomEmoji), findsOneWidget);
@@ -242,5 +249,94 @@ void main() {
         }
       });
     }
+  }
+
+  for (final phase in ['placeholder', 'decoded image', 'default fallback']) {
+    testWidgets('semanticLabel replaces the shortcode during $phase', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final pendingResolver = Completer<EmojiImage?>();
+      const url = 'https://fixture.test/a11y-custom-label.png';
+      final pendingImage = phase == 'decoded image'
+          ? await _cachedImage(url)
+          : null;
+      try {
+        await tester.pumpWidget(
+          _host(
+            MfmCustomEmoji(
+              name: _name,
+              aspectRatio: 2,
+              semanticLabel: 'Party parrot',
+              resolver: (_) async => switch (phase) {
+                'placeholder' => pendingResolver.future,
+                'default fallback' => null,
+                _ => EmojiImage(
+                  url: Uri.parse(url),
+                  animated: false,
+                  isSensitive: false,
+                ),
+              },
+            ),
+          ),
+        );
+        await tester.pump();
+        if (pendingImage != null) {
+          pendingImage.complete(ImageInfo(image: await _decodeImage(tester)));
+          await tester.pumpAndSettle();
+          expect(find.byType(RawImage), findsOneWidget);
+        }
+        expect(find.bySemanticsLabel('Party parrot'), findsOneWidget);
+        expect(find.bySemanticsLabel(RegExp(_shortcode)), findsNothing);
+      } finally {
+        semantics.dispose();
+        if (!pendingResolver.isCompleted) pendingResolver.complete();
+        await _unmountAndClearImages(tester);
+      }
+    });
+  }
+
+  for (final builder in ['loading', 'fallback', 'error']) {
+    testWidgets('$builder builder keeps its own semantics and actions', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final pendingResolver = Completer<EmojiImage?>();
+      var taps = 0;
+      Widget button(BuildContext _, [Object? _, Object? _]) => Semantics(
+        button: true,
+        label: 'Retry',
+        onTap: () => taps++,
+        child: const SizedBox(width: 24, height: 24),
+      );
+      try {
+        await tester.pumpWidget(
+          _host(
+            MfmCustomEmoji(
+              name: _name,
+              resolver: (_) => switch (builder) {
+                'loading' => pendingResolver.future,
+                'fallback' => Future.value(),
+                _ => Future.error(StateError('resolver failed')),
+              },
+              loadingBuilder: builder == 'loading' ? button : null,
+              fallbackBuilder: builder == 'fallback' ? button : null,
+              errorBuilder: builder == 'error' ? button : null,
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        final retry = find.bySemanticsLabel('Retry');
+        expect(retry, findsOneWidget);
+        expect(find.bySemanticsLabel(RegExp(_shortcode)), findsNothing);
+        tester.semantics.tap(find.semantics.byLabel('Retry'));
+        expect(taps, 1);
+      } finally {
+        semantics.dispose();
+        if (!pendingResolver.isCompleted) pendingResolver.complete();
+        await _unmountAndClearImages(tester);
+      }
+    });
   }
 }
