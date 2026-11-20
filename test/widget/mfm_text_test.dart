@@ -1647,35 +1647,35 @@ void main() {
       final inputDecoration = query.decoration!;
       final buttonDecoration = buttonContainer.decoration! as BoxDecoration;
       final inputBorder = inputDecoration.border! as Border;
-      final buttonBorder = buttonDecoration.border! as Border;
+      final buttonBorder = buttonDecoration.border! as BorderDirectional;
       for (final side in [
         inputBorder.top,
         inputBorder.right,
         inputBorder.bottom,
         inputBorder.left,
         buttonBorder.top,
-        buttonBorder.right,
+        buttonBorder.end,
         buttonBorder.bottom,
       ]) {
         expect(side.color, const Color(0xFFE8E8E8));
         expect(side.width, 1);
         expect(side.style, BorderStyle.solid);
       }
-      expect(buttonBorder.left.style, BorderStyle.none);
+      expect(buttonBorder.start.style, BorderStyle.none);
       expect(inputDecoration.color, isNull);
       expect(buttonDecoration.color, isNull);
       expect(
         inputDecoration.borderRadius,
-        const BorderRadius.only(
-          topLeft: Radius.circular(4),
-          bottomLeft: Radius.circular(4),
+        const BorderRadiusDirectional.only(
+          topStart: Radius.circular(4),
+          bottomStart: Radius.circular(4),
         ),
       );
       expect(
         buttonDecoration.borderRadius,
-        const BorderRadius.only(
-          topRight: Radius.circular(4),
-          bottomRight: Radius.circular(4),
+        const BorderRadiusDirectional.only(
+          topEnd: Radius.circular(4),
+          bottomEnd: Radius.circular(4),
         ),
       );
 
@@ -1712,7 +1712,7 @@ void main() {
         input.decoration!,
         button.decoration! as BoxDecoration,
       ]) {
-        final border = decoration.border! as Border;
+        final border = decoration.border!;
         expect(border.top.color, divider);
         expect(border.top.width, 1);
       }
