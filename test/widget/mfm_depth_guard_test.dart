@@ -205,17 +205,56 @@ void main() {
   }
 
   for (final kind in ['plain', 'quote', 'link']) {
+    MfmNode wrap(List<MfmNode> children) => switch (kind) {
+      'plain' => PlainNode(children),
+      'quote' => QuoteNode(children),
+      _ => LinkNode(silent: false, url: '/link', children: children),
+    };
+
+    for (final depth in [99, 120]) {
+      testWidgets(
+        '$kind inside the flattened depth $depth only suppresses its subtree',
+        (tester) async {
+          final node = _nest(
+            depth,
+            BoldNode([
+              const TextNode('な|'),
+              wrap(const [
+                TextNode('な'),
+                BoldNode([TextNode('な')]),
+              ]),
+              const TextNode('|な'),
+            ]),
+          );
+          await tester.pumpWidget(
+            _host(
+              MfmText(
+                parsedNodes: [node],
+                config: const MfmRenderConfig(enableNyaize: true),
+              ),
+            ),
+          );
+          final root = _rootSpan(tester);
+          const expected = 'にゃ|なな|にゃ';
+          expect(root.toPlainText(), expected);
+          // The guarded subtree is one unstyled leaf, including all siblings.
+          final leaf = _textSpans(root).singleWhere(
+            (span) => span.text == expected,
+          );
+          expect(leaf.style, isNull);
+          expect(leaf.children, isNull);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
     testWidgets('$kind above the cutoff keeps nyaize disabled', (tester) async {
       final children = [_nest(150, const TextNode('な\r\nx'))];
-      final node = switch (kind) {
-        'plain' => PlainNode(children),
-        'quote' => QuoteNode(children),
-        _ => LinkNode(silent: false, url: '/link', children: children),
-      };
+      final node = wrap(children);
       await tester.pumpWidget(
         _host(
           MfmText(
-            parsedNodes: [node],
+            parsedNodes: [const TextNode('な|'), node, const TextNode('|な')],
             config: const MfmRenderConfig(enableNyaize: true),
           ),
         ),
@@ -224,8 +263,13 @@ void main() {
         tester
             .widgetList<RichText>(_paragraphs)
             .map((p) => p.text.toPlainText()),
-        contains('な\nx'),
+        contains(contains('な\nx')),
       );
+      expect(
+        _rootSpan(tester).toPlainText(),
+        kind == 'quote' ? 'にゃ|\uFFFC|にゃ' : 'にゃ|な\nx|にゃ',
+      );
+      expect(tester.takeException(), isNull);
     });
   }
 

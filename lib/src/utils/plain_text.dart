@@ -9,11 +9,12 @@ String mfmPlainText(
   List<MfmNode> nodes, {
   required bool plain,
   required bool shouldNyaize,
+  required bool disableNyaize,
 }) {
   final buffer = StringBuffer();
-  final stack = nodes.reversed.toList();
+  final stack = [for (final node in nodes.reversed) (node, disableNyaize)];
   while (stack.isNotEmpty) {
-    final node = stack.removeLast();
+    final (node, disabled) = stack.removeLast();
     final children = switch (node) {
       BoldNode(:final children) ||
       ItalicNode(:final children) ||
@@ -27,11 +28,18 @@ String mfmPlainText(
       _ => null,
     };
     if (children != null) {
-      stack.addAll(children.reversed);
+      final disableChildren =
+          disabled ||
+          node is PlainNode ||
+          node is QuoteNode ||
+          node is LinkNode;
+      for (final child in children.reversed) {
+        stack.add((child, disableChildren));
+      }
       continue;
     }
     buffer.write(switch (node) {
-      TextNode(:final text) => _text(text, plain, shouldNyaize),
+      TextNode(:final text) => _text(text, plain, shouldNyaize && !disabled),
       EmojiCodeNode(:final name) => ':$name:',
       UnicodeEmojiNode(:final emoji) => emoji,
       UrlNode(:final url) => url,

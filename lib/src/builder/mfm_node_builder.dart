@@ -251,7 +251,12 @@ class MfmNodeBuilder {
     if (nested._depth > _maxNodeDepth) {
       return [
         TextSpan(
-          text: mfmPlainText(nodes, plain: plain, shouldNyaize: shouldNyaize),
+          text: mfmPlainText(
+            nodes,
+            plain: plain,
+            shouldNyaize: shouldNyaize,
+            disableNyaize: disableNyaize,
+          ),
         ),
       ];
     }
