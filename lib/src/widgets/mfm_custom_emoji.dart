@@ -333,16 +333,21 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
     late final ImageStreamListener listener;
     listener = ImageStreamListener(
       (imageInfo, _) {
-        stream.removeListener(listener);
-        if (cacheGeneration != _MfmCustomEmojiState._cacheGeneration) {
-          return;
-        }
-        _MfmCustomEmojiState._observingUrls.remove(url);
+        // Each listener receives its own clone and must release it.
+        try {
+          stream.removeListener(listener);
+          if (cacheGeneration != _MfmCustomEmojiState._cacheGeneration) {
+            return;
+          }
+          _MfmCustomEmojiState._observingUrls.remove(url);
 
-        final width = imageInfo.image.width;
-        final height = imageInfo.image.height;
-        if (width > 0 && height > 0) {
-          _MfmCustomEmojiState._aspectRatios[url] = width / height;
+          final width = imageInfo.image.width;
+          final height = imageInfo.image.height;
+          if (width > 0 && height > 0) {
+            _MfmCustomEmojiState._aspectRatios[url] = width / height;
+          }
+        } finally {
+          imageInfo.dispose();
         }
       },
       onError: (Object _, StackTrace? _) {
