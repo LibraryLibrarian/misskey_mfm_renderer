@@ -39,6 +39,7 @@ class ConfigExample extends StatelessWidget {
 | 설정 | 기본값 / 결정 순서 |
 | --- | --- |
 | `enableAdvancedMfm`, `enableAnimation` | 모두 `true`이며 `useAnimation`은 두 값의 논리 AND입니다. |
+| `followPlatformReducedMotion` | `null`은 `true`처럼 운영체제의 동작 줄이기 설정을 따릅니다. 설정이 켜져 있으면 `MfmText`가 `enableAnimation: false`와 같이 렌더링합니다. `false`로 설정하면 무시합니다. [애니메이션과 접근성](animation-accessibility.md)을 참고하세요. |
 | `enableNyaize` | `false`. 새 코드에는 명시적 `nyaizeMode`를 권장합니다. |
 | `baseTextStyle` | 지정한 스타일, 없으면 `DefaultTextStyle`. 글꼴 크기가 없으면 14를 사용합니다. |
 | `brightness` | 명시적 값, Material 테마, Cupertino 테마, 플랫폼 밝기 순이며 마지막으로 밝은 모드를 사용합니다. |
@@ -47,7 +48,7 @@ class ConfigExample extends StatelessWidget {
 | `showCodeBlockCopyButton` | `null`이면 표시합니다. `false`로 숨깁니다. |
 | `useLocaleSearchButtonLabel` | `false`. `searchButtonLabel`이 없으면 로케일에서 레이블을 정합니다. `true`는 명시적/상속된 레이블을 지우고 현재 로케일을 사용하며 `searchButtonLabel`보다 우선합니다. |
 
-nullable 필드는 대체로 상속된 설정을 사용합니다. **기본값을 가진 bool은 무조건 덮어쓰지 않습니다**. 자식의 `enableAnimation: true`는 부모가 끈 애니메이션을 다시 켜지 않습니다. 게시물마다 되돌리려 하지 말고 공유 설정 경계에서 유효한 선택을 지정하세요. 설정 인스턴스가 바뀌면 `MfmConfig`가 의존 위젯에 알립니다. 가능하면 안정적인 인스턴스를 재사용하되 테마나 접근성 입력이 바뀌면 다시 구성하세요.
+nullable 필드는 대체로 상속된 설정을 사용합니다. 예를 들어 자식의 명시적 `followPlatformReducedMotion: false`는 부모의 `true`를 덮어씁니다. **기본값을 가진 bool은 무조건 덮어쓰지 않습니다**. 자식의 `enableAnimation: true`는 부모가 끈 애니메이션을 다시 켜지 않습니다. 게시물마다 되돌리려 하지 말고 공유 설정 경계에서 유효한 선택을 지정하세요. 설정 인스턴스가 바뀌면 `MfmConfig`가 의존 위젯에 알립니다. 가능하면 안정적인 인스턴스를 재사용하되 테마나 접근성 입력이 바뀌면 다시 구성하세요.
 
 ## 색상, 글꼴, 코드
 

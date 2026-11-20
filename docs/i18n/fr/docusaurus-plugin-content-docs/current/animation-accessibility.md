@@ -5,25 +5,40 @@ title: Animation et accessibilité
 sidebar_label: Animation et accessibilité
 ---
 
-L’animation est activée par défaut. Le renderer **ne relie pas automatiquement** ses indicateurs à la préférence de réduction des mouvements du système. Établissez cette liaison au niveau de l’application.
+L’animation est activée par défaut. Par défaut, `MfmText` suit aussi la préférence de réduction des mouvements du système (`MediaQuery.disableAnimations`) : tant qu’elle est activée, le rendu MFM est identique à celui de `enableAnimation: false` et suit les changements de ce réglage.
 
-## Respecter la réduction des mouvements
+## Réduction des mouvements
 
-Utilisez ce widget sous la `MaterialApp` de [Premiers pas](getting-started.md). Il observe `MediaQuery.disableAnimations`. Une préférence applicative « désactiver les effets » peut être combinée au même booléen.
+`followPlatformReducedMotion` contrôle ce comportement.
+
+| Valeur | Résultat |
+| --- | --- |
+| `null` (par défaut) ou `true` | Suit le réglage du système. Lorsqu’il est activé, les animations MFM s’arrêtent et le rendu statique décrit ci-dessous est utilisé. |
+| `false` | Ignore le réglage du système. Seuls `enableAnimation` / `enableAdvancedMfm` déterminent si MFM est animé. |
+
+Le réglage du système peut seulement arrêter les animations ; il ne réactive jamais celles désactivées par `enableAnimation: false`. Un `true` / `false` explicite dans la configuration enfant remplace la valeur du parent ; `null` en hérite. `MfmRenderConfig.useAnimation` est calculé uniquement à partir de la configuration et ne tient pas compte du réglage du système.
+
+Si votre application possède sa propre préférence « désactiver les effets », combinez-la avec `enableAnimation`. Pour permettre aux utilisateurs de jouer les animations MFM même lorsque le réglage du système est activé, définissez aussi `followPlatformReducedMotion: false`. Utilisez ce widget sous la `MaterialApp` de [Premiers pas](getting-started.md).
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 class MotionExample extends StatelessWidget {
-  const MotionExample({super.key});
+  const MotionExample({super.key, required this.userPrefersAnimation});
+
+  /// Préférence de l’application, initialisée par exemple depuis le réglage du système.
+  final bool userPrefersAnimation;
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return MfmText(
       text: r'$[tada Hello] $[rainbow Color]',
-      config: MfmRenderConfig(enableAnimation: !reduceMotion),
+      config: MfmRenderConfig(
+        enableAnimation: userPrefersAnimation,
+        // La préférence de l’application tient déjà compte du réglage du système.
+        followPlatformReducedMotion: false,
+      ),
     );
   }
 }
@@ -35,6 +50,7 @@ class MotionExample extends StatelessWidget {
 | --- | --- |
 | `enableAnimation: false` | Désactive les animations MFM en conservant les formats/effets statiques là où ils sont implémentés. `tada` reste agrandi, `rainbow` devient un dégradé statique et `sparkle` garde son contenu sans effet. |
 | `enableAdvancedMfm: false` | Désactive aussi les comportements avancés de taille/position ; ce n’est pas un simple réglage de réduction des mouvements. |
+| Réduction des mouvements du système avec `followPlatformReducedMotion` à `null`/`true` | Même rendu que `enableAnimation: false`. |
 | Les deux activés | Animations MFM autorisées (`useAnimation == true`). |
 
 Aucun indicateur n’arrête les **images d’émojis GIF/APNG/WebP animées**. Contrôlez-les via votre builder d’images/émojis et votre politique applicative, par exemple avec des images fixes. Une configuration parente désactivant les animations ne s’annule pas simplement en passant la valeur par défaut `true` à un enfant ; voir [Configuration](configuration.md).
@@ -53,6 +69,6 @@ Les arguments d’animation MFM `speed`/`delay` sont en secondes, par exemple `$
 
 Pour les fils denses, évitez de recréer inutilement les instances de resolver/configuration, réutilisez les nœuds analysés lorsque le contenu est inchangé et limitez les widgets animés visibles. Mesurez sur le matériel cible avant de définir une politique. La bibliothèque ne garantit pas une fréquence d’images particulière et ne suspend pas automatiquement tous les effets hors écran.
 
-Si du mouvement persiste, distinguez d’abord les images animées des effets MFM. Pour désactiver aussi des effets grands/statiques, envisagez `enableAdvancedMfm: false` et vérifiez le résultat. Si la réduction des mouvements semble ignorée, examinez l’intégration de `MediaQuery` et la configuration héritée.
+Si du mouvement persiste, distinguez d’abord les images animées des effets MFM. Pour désactiver aussi des effets grands/statiques, envisagez `enableAdvancedMfm: false` et vérifiez le résultat. Si la réduction des mouvements semble ignorée, vérifiez que `followPlatformReducedMotion` n’est pas `false` dans la configuration explicite ou héritée et que le `MediaQuery` au-dessus de `MfmText` signale `disableAnimations`.
 
 Suite : [Rendu](rendering.md) · [Émojis personnalisés](custom-emoji.md) · [Application d’exemple](example.md)

@@ -5,25 +5,40 @@ title: 애니메이션과 접근성
 sidebar_label: 애니메이션과 접근성
 ---
 
-애니메이션은 기본적으로 켜져 있습니다. 렌더러는 애니메이션 플래그를 운영체제의 동작 줄이기 설정에 자동으로 연결하지 **않습니다**. 앱 경계에서 직접 연결해야 합니다.
+애니메이션은 기본적으로 켜져 있습니다. `MfmText`도 기본적으로 운영체제의 동작 줄이기 설정(`MediaQuery.disableAnimations`)을 따릅니다. 설정이 켜진 동안에는 `enableAnimation: false`와 똑같이 MFM을 렌더링하며 설정 변경에도 반응합니다.
 
-## 동작 줄이기 반영
+## 동작 줄이기
 
-[시작하기](getting-started.md)의 `MaterialApp` 아래에서 이 위젯을 사용합니다. `MediaQuery.disableAnimations`의 변경을 관찰하며 앱 차원의 ‘효과 끄기’ 설정을 같은 bool 값과 결합할 수 있습니다.
+`followPlatformReducedMotion`으로 이 동작을 제어합니다.
+
+| 값 | 결과 |
+| --- | --- |
+| `null`(기본값) 또는 `true` | 운영체제 설정을 따릅니다. 설정이 켜져 있으면 MFM 애니메이션을 멈추고 아래에 설명한 정적 렌더링을 사용합니다. |
+| `false` | 운영체제 설정을 무시합니다. MFM 애니메이션 여부는 `enableAnimation` / `enableAdvancedMfm`만으로 결정됩니다. |
+
+운영체제 설정은 애니메이션을 멈출 수만 있으며 `enableAnimation: false`로 끈 애니메이션을 다시 켜지 않습니다. 자식 설정의 명시적 `true` / `false`는 부모 값을 덮어쓰고 `null`은 부모 값을 상속합니다. `MfmRenderConfig.useAnimation`은 설정만으로 계산되며 운영체제 설정을 포함하지 않습니다.
+
+앱에 자체 ‘효과 끄기’ 설정이 있다면 `enableAnimation`과 결합하세요. 운영체제 설정이 켜져 있어도 사용자가 MFM 애니메이션을 재생할 수 있게 하려면 `followPlatformReducedMotion: false`도 지정하세요. [시작하기](getting-started.md)의 `MaterialApp` 아래에서 이 위젯을 사용합니다.
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
 class MotionExample extends StatelessWidget {
-  const MotionExample({super.key});
+  const MotionExample({super.key, required this.userPrefersAnimation});
+
+  /// 앱 설정입니다. 예를 들어 운영체제 설정으로 초기화할 수 있습니다.
+  final bool userPrefersAnimation;
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return MfmText(
       text: r'$[tada Hello] $[rainbow Color]',
-      config: MfmRenderConfig(enableAnimation: !reduceMotion),
+      config: MfmRenderConfig(
+        enableAnimation: userPrefersAnimation,
+        // 앱 설정에 운영체제 설정이 이미 반영되어 있습니다.
+        followPlatformReducedMotion: false,
+      ),
     );
   }
 }
@@ -35,6 +50,7 @@ class MotionExample extends StatelessWidget {
 | --- | --- |
 | `enableAnimation: false` | MFM 애니메이션을 끄되 구현된 정적 서식/효과는 유지합니다. `tada`는 확대 상태, `rainbow`는 정적 그라데이션, `sparkle`은 효과 없이 내용을 유지합니다. |
 | `enableAdvancedMfm: false` | 고급 크기/위치 동작도 끕니다. 단순한 동작 줄이기 스위치가 아닙니다. |
+| `followPlatformReducedMotion`이 `null`/`true`인 운영체제의 동작 줄이기 설정 | `enableAnimation: false`와 같은 렌더링을 사용합니다. |
 | 둘 다 켬 | MFM 애니메이션을 허용합니다(`useAnimation == true`). |
 
 두 플래그 모두 움직이는 **GIF/APNG/WebP 이모지 이미지**를 멈추지 않습니다. 정지 이미지를 제공하는 등 이미지/이모지 빌더와 앱 정책으로 제어하세요. 부모 설정에서 애니메이션을 끈 경우 자식에게 기본값 `true`를 전달하는 것만으로 되돌릴 수 없습니다. [설정](configuration.md)을 참고하세요.
@@ -53,6 +69,6 @@ MFM 애니메이션 `speed`/`delay` 인수는 초 단위입니다. 예를 들어
 
 밀집된 타임라인에서는 리졸버/설정 인스턴스의 불필요한 재생성을 피하고 바뀌지 않은 내용의 파싱 노드를 재사용하며 보이는 애니메이션 위젯 수를 제한하세요. 정책을 정하기 전에 대상 하드웨어에서 성능을 측정하세요. 라이브러리는 특정 프레임률을 보장하거나 화면 밖의 모든 효과를 자동 일시 정지하지 않습니다.
 
-MFM 애니메이션을 꺼도 움직임이 남으면 이미지 애니메이션과 MFM 효과를 먼저 구분하세요. 큰/정적 효과도 꺼야 한다면 `enableAdvancedMfm: false`를 고려하고 결과를 확인하세요. 동작 줄이기가 무시되는 것 같으면 `MediaQuery` 연결과 상속 설정을 확인하세요.
+MFM 애니메이션을 꺼도 움직임이 남으면 이미지 애니메이션과 MFM 효과를 먼저 구분하세요. 큰/정적 효과도 꺼야 한다면 `enableAdvancedMfm: false`를 고려하고 결과를 확인하세요. 동작 줄이기가 무시되는 것 같으면 명시적 또는 상속된 설정에서 `followPlatformReducedMotion`이 `false`가 아닌지, `MfmText` 위의 `MediaQuery`가 `disableAnimations`를 전달하는지 확인하세요.
 
 다음: [렌더링](rendering.md) · [커스텀 이모지](custom-emoji.md) · [예제 앱](example.md)

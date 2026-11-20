@@ -39,6 +39,7 @@ class ConfigExample extends StatelessWidget {
 | Réglage | Défaut / résolution |
 | --- | --- |
 | `enableAdvancedMfm`, `enableAnimation` | Tous deux `true` ; `useAnimation` est leur ET logique. |
+| `followPlatformReducedMotion` | `null` suit, comme `true`, la préférence de réduction des mouvements du système. Lorsqu’elle est activée, `MfmText` utilise le même rendu qu’avec `enableAnimation: false`. Définissez `false` pour l’ignorer. Voir [Animation et accessibilité](animation-accessibility.md). |
 | `enableNyaize` | `false` ; préférez un `nyaizeMode` explicite pour le nouveau code. |
 | `baseTextStyle` | Style configuré, sinon `DefaultTextStyle` ; la taille de police absente vaut 14. |
 | `brightness` | Valeur explicite, puis thème Material, thème Cupertino, luminosité de la plateforme, enfin mode clair. |
@@ -47,7 +48,7 @@ class ConfigExample extends StatelessWidget {
 | `showCodeBlockCopyButton` | `null` signifie visible. `false` masque le bouton. |
 | `useLocaleSearchButtonLabel` | `false`. Sans `searchButtonLabel`, le libellé dépend de la langue. `true` supprime un libellé explicite/hérité pour utiliser la langue actuelle ; il est prioritaire sur `searchButtonLabel`. |
 
-Les champs nullables utilisent généralement les valeurs héritées comme repli. **Les booléens à leur valeur par défaut ne remplacent pas inconditionnellement l’héritage** : `enableAnimation: true` sur un enfant ne réactive pas les animations désactivées par le parent. Définissez le choix effectif au niveau de la configuration partagée, plutôt que de chercher à l’annuler publication par publication. `MfmConfig` avertit ses dépendants quand l’instance change ; réutilisez des instances stables si possible, mais reconstruisez-les lorsque le thème ou les paramètres d’accessibilité changent.
+Les champs nullables utilisent généralement les valeurs héritées comme repli. Par exemple, un `followPlatformReducedMotion: false` explicite sur un enfant remplace le `true` du parent. **Les booléens à leur valeur par défaut ne remplacent pas inconditionnellement l’héritage** : `enableAnimation: true` sur un enfant ne réactive pas les animations désactivées par le parent. Définissez le choix effectif au niveau de la configuration partagée, plutôt que de chercher à l’annuler publication par publication. `MfmConfig` avertit ses dépendants quand l’instance change ; réutilisez des instances stables si possible, mais reconstruisez-les lorsque le thème ou les paramètres d’accessibilité changent.
 
 ## Couleurs, polices et code
 
