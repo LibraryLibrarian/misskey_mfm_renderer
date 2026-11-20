@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MfmCustomEmoji` now wraps an explicit `url` with `Future.syncValue` instead of `Future.value`, as recommended by the Flutter 3.50 analyzer; no change in behavior or public API
 
 ### Fixed
+- Treat CSS-invalid animation speeds such as `1.s` and `1.2.3s` as static content while keeping invalid delays at zero, matching Misskey
 - Released superseded animation curves when `speed`, `delay` or other animation arguments change, so long-lived animated MFM no longer accumulates controller status listeners
 - Corrected the `spin.x` / `spin.y` perspective direction to match Misskey's `perspective(128px)`, so the near side of the rotating content is enlarged and the far side reduced
 - Route actual labelled-link glyph and passive inline-widget taps to the raw URL callback, preserving child gestures and existing accessible content/actions while isolating widget-label actions from surrounding prose and other links

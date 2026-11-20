@@ -259,7 +259,7 @@ void main() {
       'bounce',
       'rainbow',
     ]) {
-      for (final speed in ['1..s', '1.s', '.s']) {
+      for (final speed in ['1..s', '1.s', '.s', '1.2.3s', '-.s']) {
         testWidgets('$function.speed=$speedはアニメーションなしの表示になる', (tester) async {
           _cleanUp(tester);
           // speed=0sはuseAnim=trueのまま静止する公開経路。
@@ -283,6 +283,47 @@ void main() {
         });
       }
     }
+
+    for (final function in [
+      'tada',
+      'jelly',
+      'twitch',
+      'shake',
+      'spin',
+      'jump',
+      'bounce',
+      'rainbow',
+    ]) {
+      testWidgets('外側の$functionのspeedがCSS無効でも内側のspinは動く', (tester) async {
+        _cleanUp(tester);
+        await tester.pumpWidget(
+          _host('\$[$function.speed=1.2.3s \$[spin.speed=1s x]]'),
+        );
+        final wrapper = tester.widget<MfmAnimatedWrapper>(
+          find.byType(MfmAnimatedWrapper),
+        );
+        expect(wrapper.duration, const Duration(seconds: 1));
+        final before = _transforms(tester);
+        await tester.pump(const Duration(milliseconds: 137));
+        expect(tester.takeException(), isNull);
+        expect(_transforms(tester), isNot(equals(before)));
+      });
+    }
+
+    testWidgets('アニメーション無効のrainbowはCSS無効speedでも静的グラデーションになる', (
+      tester,
+    ) async {
+      _cleanUp(tester);
+      await tester.pumpWidget(_host(r'$[rainbow x]', enableAnimation: false));
+      final staticAppearance = _appearance(tester);
+      expect(staticAppearance['rainbowViewports'], greaterThan(0));
+
+      await tester.pumpWidget(
+        _host(r'$[rainbow.speed=1.2.3s x]', enableAnimation: false),
+      );
+      expect(tester.takeException(), isNull);
+      expect(_appearance(tester), staticAppearance);
+    });
 
     testWidgets('有効な.5sは500msのspeedで動く', (tester) async {
       _cleanUp(tester);

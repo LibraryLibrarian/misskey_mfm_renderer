@@ -224,9 +224,10 @@ class MfmFnHandler {
         ? MfmSpinDirection.alternate
         : MfmSpinDirection.normal;
 
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 1500);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 1500),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -255,9 +256,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 750);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 750),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -284,9 +286,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 750);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 750),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -322,9 +325,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 1000);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 1000),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
     final children = builder.buildNodes(node.children);
 
@@ -367,9 +371,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 500);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 500),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -396,9 +401,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 500);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 500),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -421,9 +427,10 @@ class MfmFnHandler {
 
   static InlineSpan _buildTada(FnNode node, MfmNodeBuilder builder) {
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 1000);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 1000),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     // 150%は描画時のTransformではなく実フォントサイズとしてレイアウトに反映する。
@@ -454,9 +461,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 1000);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 1000),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);

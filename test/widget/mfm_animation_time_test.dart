@@ -29,7 +29,7 @@ void main() {
     for (final entry in const <String, Duration>{
       '2s': Duration(seconds: 2),
       '.5s': Duration(milliseconds: 500),
-      '1.s': Duration(seconds: 1),
+      '1.5s': Duration(milliseconds: 1500),
     }.entries) {
       test('${entry.key}は秒数として受理する', () {
         expect(MfmAnimatedWrapper.parseTime(entry.key), entry.value);
@@ -49,7 +49,10 @@ void main() {
       '末尾の空白': '2s ',
       '不正な文字列': 'abc',
       '空文字列': '',
+      '末尾の小数点': '1.s',
+      '連続する小数点': '1..s',
       '複数の小数点': '1.2.3s',
+      '負符号と小数点のみ': '-.s',
       '数字なし': '.s',
       '正符号': '+2s',
       '指数表記': '2e1s',
@@ -60,6 +63,53 @@ void main() {
     }.entries) {
       test('${entry.key}はnullになる', () {
         expect(MfmAnimatedWrapper.parseTime(entry.value), isNull);
+      });
+    }
+  });
+
+  group('MfmAnimatedWrapper.parseSpeed', () {
+    const fallback = Duration(seconds: 3);
+    for (final value in <Object?>[
+      null,
+      true,
+      false,
+      2,
+      '2',
+      'abc',
+      '2ms',
+      '2e1s',
+      '+2s',
+      ' 2s',
+      '2s ',
+    ]) {
+      test('$valueは既定値になる', () {
+        expect(
+          MfmAnimatedWrapper.parseSpeed(value, fallback: fallback),
+          fallback,
+        );
+      });
+    }
+
+    for (final value in ['1.s', '1..s', '.s', '1.2.3s', '-.s']) {
+      test('$valueは静止表示になる', () {
+        expect(
+          MfmAnimatedWrapper.parseSpeed(value, fallback: fallback),
+          Duration.zero,
+        );
+      });
+    }
+
+    for (final entry in const <String, Duration>{
+      '.5s': Duration(milliseconds: 500),
+      '1.5s': Duration(milliseconds: 1500),
+      '0s': Duration.zero,
+      '-1s': Duration(seconds: -1),
+    }.entries) {
+      test('${entry.key}は指定秒数になる', () {
+        expect(
+          MfmAnimatedWrapper.parseSpeed(entry.key, fallback: fallback),
+          entry.value,
+        );
       });
     }
   });
@@ -81,7 +131,6 @@ void main() {
         'speed=2,delay=2',
         'speed,delay',
         'speed=abc,delay=abc',
-        'speed=1.2.3s,delay=1.2.3s',
       ]) {
         testWidgets('${entry.key}の$argsは既定値にフォールバックする', (tester) async {
           await tester.pumpWidget(
@@ -98,6 +147,56 @@ void main() {
           );
           expect(wrapper.duration, entry.value);
           expect(wrapper.delay, Duration.zero);
+        });
+      }
+
+      for (final speed in <String?>[null, '2s']) {
+        testWidgets('${entry.key}のdelayだけCSS無効でもspeed=$speedで動く', (
+          tester,
+        ) async {
+          final speedArg = speed == null ? '' : 'speed=$speed,';
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: '\$[${entry.key}.${speedArg}delay=1.2.3s test]',
+                ),
+              ),
+            ),
+          );
+
+          expect(tester.takeException(), isNull);
+          final wrapper = tester.widget<MfmAnimatedWrapper>(
+            find.byType(MfmAnimatedWrapper),
+          );
+          expect(
+            wrapper.duration,
+            speed == null ? entry.value : const Duration(seconds: 2),
+          );
+          expect(wrapper.delay, Duration.zero);
+          expect(tester.hasRunningAnimations, isTrue);
+        });
+      }
+
+      for (final delay in <String?>[null, '2s', '1.2.3s']) {
+        testWidgets('${entry.key}のCSS無効speedはdelay=$delayでも静止する', (
+          tester,
+        ) async {
+          final delayArg = delay == null ? '' : ',delay=$delay';
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: '\$[${entry.key}.speed=1.2.3s$delayArg test]',
+                ),
+              ),
+            ),
+          );
+
+          expect(tester.takeException(), isNull);
+          expect(find.byType(MfmAnimatedWrapper), findsNothing);
+          expect(_containsText(tester, 'test'), isTrue);
+          expect(tester.hasRunningAnimations, isFalse);
         });
       }
 

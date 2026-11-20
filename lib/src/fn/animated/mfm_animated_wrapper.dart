@@ -111,16 +111,29 @@ class MfmAnimatedWrapper extends StatefulWidget {
   final Curve curve;
   final Curve? reverseCurve;
 
+  static final _validTime = RegExp(r'^(-?[0-9.]+)s$');
+  static final _cssTime = RegExp(r'^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)s$');
+
+  /// 本家 Misskey の validTime に一致しない値は [fallback] を返す。
+  /// 一致しても CSS の time として無効な値は Duration.zero を返し、
+  /// アニメーションを静止表示にする。有効な値は [parseTime] で変換する。
+  static Duration parseSpeed(Object? value, {required Duration fallback}) {
+    if (value is! String || !_validTime.hasMatch(value)) return fallback;
+    if (!_cssTime.hasMatch(value)) return Duration.zero;
+
+    return parseTime(value) ?? fallback;
+  }
+
   /// 本家 Misskey の validTime と同じく、`^-?[0-9.]+s$` に一致する
   /// 文字列のみを受け付ける。前後の空白は除去しない。
   ///
-  /// 未指定・不正値・数値に変換できない値は null を返す。
+  /// 未指定・CSS の time として不正な値・数値に変換できない値は null を返す。
   /// 有限の秒数は符号を保ち、マイクロ秒単位で Duration に変換する。
   static Duration? parseTime(Object? value) {
     if (value is! String) return null;
 
-    final match = RegExp(r'^(-?[0-9.]+)s$').firstMatch(value);
-    if (match == null) return null;
+    final match = _validTime.firstMatch(value);
+    if (match == null || !_cssTime.hasMatch(value)) return null;
 
     final seconds = double.tryParse(match.group(1)!);
     if (seconds == null || !seconds.isFinite) {
