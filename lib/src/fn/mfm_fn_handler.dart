@@ -493,38 +493,48 @@ class MfmFnHandler {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    final args = node.args;
+    // 本家と同じくparseFloatで先頭の数値を読み、上限5倍だけをかける。
+    // 下限はないため、負の値は反転したうえで指定どおりに拡大する。
+    final scaleX = math.min<double>(jsParseFloat(node.args['x']) ?? 1.0, 5);
+    final scaleY = math.min<double>(jsParseFloat(node.args['y']) ?? 1.0, 5);
 
-    // x, y引数を取得（デフォルト: 1.0）
-    var scaleX = 1.0;
-    var scaleY = 1.0;
-
-    // 本家と同じくparseFloatで先頭の数値を読む（`2foo`は2）。
-    if (args.containsKey('x')) {
-      scaleX = (jsParseFloat(args['x']) ?? 1.0).clamp(-5.0, 5.0);
+    // 子へ伝える倍率は本家と同じく符号付きの大きい方を掛ける。
+    // 本家は変形がCSSとして無効になる場合も倍率を更新する。
+    var newScale = builder.scale * math.max(scaleX, scaleY);
+    if (newScale.isNaN) {
+      // 0 * -Infinityなど。本家ではNaNになるが、useOriginalSize（>= 2.5）や
+      // その後の乗算の結果は0と変わらないため、等値比較できる0に寄せる。
+      newScale = 0;
     }
-
-    if (args.containsKey('y')) {
-      scaleY = (jsParseFloat(args['y']) ?? 1.0).clamp(-5.0, 5.0);
-    }
-
-    // スケールを伝播（本家と同じくx, yの大きい方を掛ける）
-    // 本家はabsを取らないため反転指定でscaleが負になるが、それは本家側の
-    // 不備なので、ここでは絶対値の大きい方を採用する。
-    final newScale = builder.scale * math.max(scaleX.abs(), scaleY.abs());
     final scaledBuilder = builder.withScale(newScale);
-    final children = scaledBuilder.buildNodes(node.children);
+    final child = scaledBuilder.buildInlineRichText(
+      scaledBuilder.buildNodes(node.children),
+    );
+
+    // -Infinityは本家のCSSでは無効な値になり、変形しない。
+    if (!scaleX.isFinite || !scaleY.isFinite) {
+      return WidgetSpan(
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        child: child,
+      );
+    }
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: Transform.scale(
-        scaleX: scaleX,
-        scaleY: scaleY,
-        child: scaledBuilder.buildInlineRichText(children),
+        // 極端な負の値では変形行列の逆行列が非有限になり、hit testなどが
+        // 壊れるため、描画にだけライブラリ独自の下限をかける。
+        scaleX: math.max(scaleX, _minPaintScale),
+        scaleY: math.max(scaleY, _minPaintScale),
+        child: child,
       ),
     );
   }
+
+  /// scale fnの描画に使う倍率の下限。本家にはないライブラリ独自の安全制限。
+  static const _minPaintScale = -1024.0;
 
   static InlineSpan _buildPosition(FnNode node, MfmNodeBuilder builder) {
     // advancedMfmが無効な場合はリテラルで表示

@@ -69,6 +69,10 @@ class MfmEmojiContext {
   /// scale fnは描画時の変形なので、[fontSize]には反映されない。
   /// advanced MFMが無効でもx2/x3/x4の公称倍率は伝播するが、
   /// scale fnの倍率は伝播しない。
+  ///
+  /// 本家と同じくscale fnの`x`と`y`の大きい方を符号付きのまま掛けるため、
+  /// 0・負の値・±Infinityになりうる（NaNになる場合は0）。
+  /// 絵文字の寸法は[fontSize]を基準にし、この値を使う場合は有限性と符号を確認する。
   final double scale;
 
   /// 現在の文字スタイル。small / quoteの累積opacityを掛ける前の値。

@@ -167,7 +167,9 @@ Microsoft Visual C++ Runtime（`VCRUNTIME140.dll`）が必要です。
 
 ### スケールの制限
 
-`scale` 関数は最大5倍です。`enableAdvancedMfm: false` の場合は描画時の変形も
+`scale` 関数は本家と同じく上限5倍だけで、下限はありません。負の値は反転したうえで拡大し、
+`MfmEmojiContext.scale` には `x` と `y` の大きい方を符号付きのまま掛けるため、0・負の値・無限大になりえます。
+ライブラリ独自の安全制限として、描画時の変形にだけ-1024の下限をかけます。`enableAdvancedMfm: false` の場合は描画時の変形も
 `MfmEmojiContext.scale` への倍率伝播も行わず、外側のx系関数から継承した倍率を維持します。
 静的な `TextSpan` の子要素は、本家の空のinline-blockによる行レイアウトの境界までは再現しません。
 

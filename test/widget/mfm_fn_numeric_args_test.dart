@@ -120,6 +120,66 @@ void main() {
     });
   });
 
+  group('scaleの極端な倍率', () {
+    testWidgets('scale.x=Infinityは上限の5倍になる', (tester) async {
+      await _pumpMfm(tester, r'$[scale.x=Infinity x]');
+
+      final matrix = _transform(tester).transform;
+      expect(matrix.entry(0, 0), 5);
+      expect(matrix.entry(1, 1), 1);
+    });
+
+    testWidgets('巨大な負の倍率は描画だけ-1024に収め、伝播は本家どおりにする', (tester) async {
+      final contexts = await _pumpEmojiContexts(
+        tester,
+        r'$[scale.x=-1e300,y=-1e300 :e:]',
+      );
+
+      expect(tester.takeException(), isNull);
+      final matrix = _transform(tester).transform;
+      expect(matrix.entry(0, 0), -1024);
+      expect(matrix.entry(1, 1), -1024);
+      expect(contexts.single.scale, -1e300);
+    });
+
+    testWidgets('-Infinityは変形せず、もう一方の軸の倍率を伝播する', (tester) async {
+      final contexts = await _pumpEmojiContexts(
+        tester,
+        r'$[scale.x=-Infinity,y=3 :e:]',
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(_findTransform(), findsNothing);
+      // Math.max(-Infinity, 3) = 3
+      expect(contexts.single.scale, 3);
+      expect(contexts.single.useOriginalSize, isTrue);
+    });
+
+    testWidgets('両軸-Infinityは-Infinityを伝播する', (tester) async {
+      final contexts = await _pumpEmojiContexts(
+        tester,
+        r'$[scale.x=-Infinity,y=-Infinity :e:]',
+      );
+
+      expect(_findTransform(), findsNothing);
+      expect(contexts.single.scale, double.negativeInfinity);
+      expect(contexts.single.useOriginalSize, isFalse);
+    });
+
+    testWidgets('伝播する倍率がNaNになる場合は0にする', (tester) async {
+      final contexts = await _pumpEmojiContexts(
+        tester,
+        r'$[scale.x=0,y=0 $[scale.x=-Infinity,y=-Infinity :e:]]',
+      );
+
+      // 本家では 0 * -Infinity = NaN。useOriginalSizeはどちらでもfalse。
+      final context = contexts.single;
+      expect(context.scale, 0);
+      expect(context.useOriginalSize, isFalse);
+      expect(context, context);
+    });
+  });
+
   for (final family in ['emoji', 'math']) {
     testWidgets('仕様未決: font.$familyはフォント指定を追加しない現状を記録する', (tester) async {
       // 仕様未決: 本家はfont-family: emoji / mathを指定する。
@@ -184,3 +244,23 @@ Finder _findTransform() =>
 
 Transform _transform(WidgetTester tester) =>
     tester.widget<Transform>(_findTransform());
+
+Future<List<MfmEmojiContext>> _pumpEmojiContexts(
+  WidgetTester tester,
+  String text,
+) async {
+  final contexts = <MfmEmojiContext>[];
+  await _pumpMfm(
+    tester,
+    text,
+    config: MfmRenderConfig(
+      baseTextStyle: const TextStyle(fontSize: 20),
+      emojiBuilder: (name, context) {
+        contexts.add(context);
+        return const SizedBox(width: 20, height: 20);
+      },
+    ),
+  );
+  expect(contexts, hasLength(1));
+  return contexts;
+}

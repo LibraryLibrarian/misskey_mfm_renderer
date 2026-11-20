@@ -177,7 +177,10 @@ and [accessibility limits](https://librarylibrarian.github.io/misskey_mfm_render
 
 ### Scale Limits
 
-The `scale` function is capped at 5x. With `enableAdvancedMfm: false`, it applies
+The `scale` function is capped at 5x, with no lower bound like upstream: negative
+values mirror and enlarge the content, and `MfmEmojiContext.scale` is multiplied by
+the signed larger of `x` and `y`, so it can be zero, negative or infinite. As a
+library safety limit, the paint transform alone is bounded below at -1024. With `enableAdvancedMfm: false`, it applies
 neither a paint transform nor a multiplier to `MfmEmojiContext.scale`; inherited
 outer x-function scale is preserved. Its static `TextSpan` children do not
 reproduce the upstream empty inline-block line-layout boundary.
