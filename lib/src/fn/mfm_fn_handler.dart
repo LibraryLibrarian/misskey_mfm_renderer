@@ -7,7 +7,7 @@ import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import '../builder/mfm_node_builder.dart';
 import '../config/mfm_unixtime_options.dart';
 import '../utils/color_parser.dart';
-import '../utils/nyaize.dart';
+import '../utils/js_parse_float.dart';
 import '../utils/unixtime.dart';
 import '../widgets/mfm_border.dart';
 import '../widgets/mfm_unixtime_label.dart';
@@ -23,6 +23,7 @@ import 'animated/mfm_spin_widget.dart';
 import 'animated/mfm_tada_widget.dart';
 import 'animated/mfm_twitch_widget.dart';
 import 'mfm_border_options.dart';
+import 'ruby/mfm_ruby.dart';
 
 /// fn関数のハンドラー
 class MfmFnHandler {
@@ -61,7 +62,7 @@ class MfmFnHandler {
       case 'blur':
         return _buildBlur(node, builder);
       case 'ruby':
-        return _buildRuby(node, builder);
+        return buildMfmRuby(node, builder);
       case 'unixtime':
         return _buildUnixtime(node, builder);
       case 'clickable':
@@ -179,29 +180,24 @@ class MfmFnHandler {
   }
 
   static InlineSpan _buildRotate(FnNode node, MfmNodeBuilder builder) {
-    final args = node.args;
+    // 本家と同じくparseFloatで先頭の数値を読む（`45deg`は45度）。
+    final degrees = jsParseFloat(node.args['deg']) ?? 90.0;
+    final child = builder.buildInlineRichText(
+      builder.buildNodes(node.children),
+    );
 
-    // deg引数を取得（デフォルト: 90度）
-    var degrees = 90.0;
-    if (args.containsKey('deg')) {
-      final degValue = args['deg'];
-      if (degValue is num) {
-        degrees = degValue.toDouble();
-      } else if (degValue is String) {
-        degrees = double.tryParse(degValue) ?? 90.0;
-      }
+    // Infinityは本家のCSSでは無効な値になり、回転しない。
+    // 子のStateを保つため、Transform自体は残して角度を0にする。
+    var radians = degrees.isFinite ? degrees * math.pi / 180.0 : 0.0;
+    if (!radians.isFinite) {
+      // 有限でもラジアンへの変換で溢れる巨大な角度は、同じ向きの角度に直す。
+      radians = degrees % 360 * math.pi / 180.0;
     }
-
-    final radians = degrees * math.pi / 180.0;
-    final children = builder.buildNodes(node.children);
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: Transform.rotate(
-        angle: radians,
-        child: builder.buildInlineRichText(children),
-      ),
+      child: Transform.rotate(angle: radians, child: child),
     );
   }
 
@@ -224,9 +220,10 @@ class MfmFnHandler {
         ? MfmSpinDirection.alternate
         : MfmSpinDirection.normal;
 
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 1500);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 1500),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -255,9 +252,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 750);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 750),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -284,9 +282,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 750);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 750),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -322,9 +321,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 1000);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 1000),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
     final children = builder.buildNodes(node.children);
 
@@ -367,9 +367,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 500);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 500),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -396,9 +397,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 500);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 500),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -421,9 +423,10 @@ class MfmFnHandler {
 
   static InlineSpan _buildTada(FnNode node, MfmNodeBuilder builder) {
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 1000);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 1000),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     // 150%は描画時のTransformではなく実フォントサイズとしてレイアウトに反映する。
@@ -454,9 +457,10 @@ class MfmFnHandler {
     }
 
     final args = node.args;
-    final duration =
-        MfmAnimatedWrapper.parseTime(args['speed']) ??
-        const Duration(milliseconds: 1000);
+    final duration = MfmAnimatedWrapper.parseSpeed(
+      args['speed'],
+      fallback: const Duration(milliseconds: 1000),
+    );
     final delay = MfmAnimatedWrapper.parseTime(args['delay']) ?? Duration.zero;
 
     final children = builder.buildNodes(node.children);
@@ -482,47 +486,42 @@ class MfmFnHandler {
       return TextSpan(children: builder.buildNodes(node.children));
     }
 
-    final args = node.args;
+    // 本家と同じくparseFloatで先頭の数値を読み、上限5倍だけをかける。
+    // 下限はないため、負の値は反転したうえで指定どおりに拡大する。
+    final scaleX = math.min<double>(jsParseFloat(node.args['x']) ?? 1.0, 5);
+    final scaleY = math.min<double>(jsParseFloat(node.args['y']) ?? 1.0, 5);
 
-    // x, y引数を取得（デフォルト: 1.0）
-    var scaleX = 1.0;
-    var scaleY = 1.0;
-
-    if (args.containsKey('x')) {
-      final xValue = args['x'];
-      if (xValue is num) {
-        scaleX = xValue.toDouble().clamp(-5.0, 5.0);
-      } else if (xValue is String) {
-        scaleX = (double.tryParse(xValue) ?? 1.0).clamp(-5.0, 5.0);
-      }
+    // 子へ伝える倍率は本家と同じく符号付きの大きい方を掛ける。
+    // 本家は変形がCSSとして無効になる場合も倍率を更新する。
+    var newScale = builder.scale * math.max(scaleX, scaleY);
+    if (newScale.isNaN) {
+      // 0 * -Infinityなど。本家ではNaNになるが、useOriginalSize（>= 2.5）や
+      // その後の乗算の結果は0と変わらないため、等値比較できる0に寄せる。
+      newScale = 0;
     }
-
-    if (args.containsKey('y')) {
-      final yValue = args['y'];
-      if (yValue is num) {
-        scaleY = yValue.toDouble().clamp(-5.0, 5.0);
-      } else if (yValue is String) {
-        scaleY = (double.tryParse(yValue) ?? 1.0).clamp(-5.0, 5.0);
-      }
-    }
-
-    // スケールを伝播（本家と同じくx, yの大きい方を掛ける）
-    // 本家はabsを取らないため反転指定でscaleが負になるが、それは本家側の
-    // 不備なので、ここでは絶対値の大きい方を採用する。
-    final newScale = builder.scale * math.max(scaleX.abs(), scaleY.abs());
     final scaledBuilder = builder.withScale(newScale);
-    final children = scaledBuilder.buildNodes(node.children);
+    final child = scaledBuilder.buildInlineRichText(
+      scaledBuilder.buildNodes(node.children),
+    );
 
+    // -Infinityは本家のCSSでは無効な値になり、変形しない。
+    // 子のStateを保つため、Transform自体は残して等倍にする。
+    final valid = scaleX.isFinite && scaleY.isFinite;
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: Transform.scale(
-        scaleX: scaleX,
-        scaleY: scaleY,
-        child: scaledBuilder.buildInlineRichText(children),
+        // 極端な負の値では変形行列の逆行列が非有限になり、hit testなどが
+        // 壊れるため、描画にだけライブラリ独自の下限をかける。
+        scaleX: valid ? math.max(scaleX, _minPaintScale) : 1.0,
+        scaleY: valid ? math.max(scaleY, _minPaintScale) : 1.0,
+        child: child,
       ),
     );
   }
+
+  /// scale fnの描画に使う倍率の下限。本家にはないライブラリ独自の安全制限。
+  static const _minPaintScale = -1024.0;
 
   static InlineSpan _buildPosition(FnNode node, MfmNodeBuilder builder) {
     // advancedMfmが無効な場合はリテラルで表示
@@ -530,43 +529,26 @@ class MfmFnHandler {
       return _buildLiteral(node, builder);
     }
 
-    final args = node.args;
-
-    // x, y引数を取得（em単位）
-    var x = 0.0;
-    var y = 0.0;
-
-    if (args.containsKey('x')) {
-      final xValue = args['x'];
-      if (xValue is num) {
-        x = xValue.toDouble();
-      } else if (xValue is String) {
-        x = double.tryParse(xValue) ?? 0.0;
-      }
-    }
-
-    if (args.containsKey('y')) {
-      final yValue = args['y'];
-      if (yValue is num) {
-        y = yValue.toDouble();
-      } else if (yValue is String) {
-        y = double.tryParse(yValue) ?? 0.0;
-      }
-    }
-
-    final children = builder.buildNodes(node.children);
+    // x, y引数を取得（em単位）。本家と同じくparseFloatで先頭の数値を読む。
+    final x = jsParseFloat(node.args['x']) ?? 0.0;
+    final y = jsParseFloat(node.args['y']) ?? 0.0;
 
     // emをピクセルに変換（祖先のサイズ変更を含む実効サイズを使用）
     final baseSize = builder.effectiveStyle.fontSize!;
-    final offsetX = x * baseSize;
-    final offsetY = y * baseSize;
+    final offset = Offset(x * baseSize, y * baseSize);
+    final child = builder.buildInlineRichText(
+      builder.buildNodes(node.children),
+    );
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
+      // Infinityは本家のCSSでは無効な値になり、x, yとも移動しない。
+      // px換算で溢れた場合も、座標がNaNにならないよう移動しない。
+      // 子のStateを保つため、Transform自体は残す。
       child: Transform.translate(
-        offset: Offset(offsetX, offsetY),
-        child: builder.buildInlineRichText(children),
+        offset: offset.isFinite ? offset : Offset.zero,
+        child: child,
       ),
     );
   }
@@ -640,6 +622,7 @@ class MfmFnHandler {
     final options = MfmBorderOptions.resolve(
       node.args,
       builder.colorScheme.accent,
+      maxWidth: builder.config.maxBorderWidth,
     );
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
@@ -706,7 +689,8 @@ class MfmFnHandler {
           fontFamilyFallback: ['fantasy'],
         );
       default:
-        // emoji, mathはデフォルトフォント
+        // emoji, mathは各バックエンドで本家のCSS総称ファミリーと同じ割り当てを
+        // 保証できないため、fontFamilyResolverで指定されない限り継承したままにする。
         return TextSpan(children: builder.buildNodes(node.children));
     }
 
@@ -722,77 +706,6 @@ class MfmFnHandler {
       child: _MfmBlurWidget(
         child: builder.buildInlineRichText(children),
       ),
-    );
-  }
-
-  static InlineSpan _buildRuby(FnNode node, MfmNodeBuilder builder) {
-    // ruby構文: $[ruby ベーステキスト ルビテキスト]
-    if (node.children.isEmpty) {
-      return TextSpan(children: builder.buildNodes(node.children));
-    }
-
-    final InlineSpan baseSpan;
-    final String rubyText;
-    final lastChild = node.children.last;
-    if (node.children.length == 1 && lastChild is TextNode) {
-      // テキストのみの場合、本家と同じく全文をnyaizeしてから空白分割し、
-      // 2番目だけをルビにする。分割前に変換しないとnyaizeの
-      // 空白依存パターンが分割位置に影響されてしまう。
-      final raw = builder.shouldNyaize
-          ? nyaize(lastChild.text)
-          : lastChild.text;
-      final parts = raw.split(' ');
-      if (parts.length < 2 || parts[1].isEmpty) {
-        return TextSpan(children: builder.buildNodes(node.children));
-      }
-      baseSpan = TextSpan(text: parts[0]);
-      rubyText = parts[1];
-    } else {
-      // 最後の子をルビ、それ以外を装飾を保持したベースとして描画する。
-      // TextPainterではルビ側の非テキストノードを描けないため、そのまま表示する。
-      if (lastChild is! TextNode || lastChild.text.trim().isEmpty) {
-        return TextSpan(children: builder.buildNodes(node.children));
-      }
-      baseSpan = TextSpan(
-        children: builder.buildNodes(
-          node.children.sublist(0, node.children.length - 1),
-        ),
-      );
-      // 本家と同じくnyaizeしてからトリムする。
-      // ベース側はbuildNodes経由でnyaizeされる。
-      rubyText =
-          (builder.shouldNyaize ? nyaize(lastChild.text) : lastChild.text)
-              .trim();
-
-      // TextPainter単体ではWidgetSpanを描けない。ネストしたものも検出する。
-      if (!baseSpan.visitChildren((span) => span is! WidgetSpan)) {
-        return TextSpan(children: builder.buildNodes(node.children));
-      }
-    }
-
-    final baseStyle = builder.effectiveStyle;
-    final rubyFontSize = baseStyle.fontSize! * 0.5;
-    final rubyStyle = baseStyle.copyWith(
-      fontSize: rubyFontSize,
-      height: 1,
-    );
-
-    final ruby = _RubyTextWidget(
-      baseSpan: baseSpan,
-      rubyText: rubyText,
-      baseStyle: baseStyle,
-      rubyStyle: rubyStyle,
-      rubyFontSize: rubyFontSize,
-      rainbowScope: builder.rainbowScope,
-      rainbowOpacity: builder.rainbowForeground
-          ? builder.foregroundOpacity
-          : null,
-    );
-    return WidgetSpan(
-      alignment: PlaceholderAlignment.baseline,
-      baseline: TextBaseline.alphabetic,
-      // 実効スタイルの文字色は既にsmallのalphaを含んでいる。
-      child: ruby,
     );
   }
 
@@ -903,242 +816,6 @@ class MfmFnHandler {
         child: builder.buildInlineRichText(children),
       ),
     );
-  }
-}
-
-/// Rubyテキストを表示するカスタムウィジェット
-/// ベーステキストのベースラインを維持しながら、ルビテキストを上に配置
-class _RubyTextWidget extends LeafRenderObjectWidget {
-  const _RubyTextWidget({
-    required this.baseSpan,
-    required this.rubyText,
-    required this.baseStyle,
-    required this.rubyStyle,
-    required this.rubyFontSize,
-    this.rainbowScope,
-    this.rainbowOpacity,
-  });
-
-  final InlineSpan baseSpan;
-  final String rubyText;
-  final TextStyle? baseStyle;
-  final TextStyle rubyStyle;
-  final double rubyFontSize;
-  final MfmRainbowScope? rainbowScope;
-  final double? rainbowOpacity;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) {
-    return _RenderRubyText(
-      baseSpan: baseSpan,
-      rubyText: rubyText,
-      baseStyle: baseStyle,
-      rubyStyle: rubyStyle,
-      rubyFontSize: rubyFontSize,
-      rainbowScope: rainbowScope,
-      rainbowOpacity: rainbowOpacity,
-    );
-  }
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderRubyText renderObject,
-  ) {
-    renderObject
-      ..baseSpan = baseSpan
-      ..rubyText = rubyText
-      ..baseStyle = baseStyle
-      ..rubyStyle = rubyStyle
-      ..rubyFontSize = rubyFontSize
-      ..rainbowScope = rainbowScope
-      ..rainbowOpacity = rainbowOpacity;
-  }
-}
-
-class _RenderRubyText extends RenderBox {
-  _RenderRubyText({
-    required InlineSpan baseSpan,
-    required String rubyText,
-    required TextStyle? baseStyle,
-    required TextStyle rubyStyle,
-    required double rubyFontSize,
-    MfmRainbowScope? rainbowScope,
-    double? rainbowOpacity,
-  }) : _rainbowScope = rainbowScope,
-       _rainbowOpacity = rainbowOpacity,
-       _baseSpan = baseSpan,
-       _rubyText = rubyText,
-       _baseStyle = baseStyle,
-       _rubyStyle = rubyStyle,
-       _rubyFontSize = rubyFontSize;
-
-  InlineSpan _baseSpan;
-  InlineSpan get baseSpan => _baseSpan;
-  set baseSpan(InlineSpan value) {
-    if (_baseSpan != value) {
-      _baseSpan = value;
-      _basePainter = null;
-      markNeedsLayout();
-    }
-  }
-
-  String _rubyText;
-  String get rubyText => _rubyText;
-  set rubyText(String value) {
-    if (_rubyText != value) {
-      _rubyText = value;
-      _rubyPainter = null;
-      markNeedsLayout();
-    }
-  }
-
-  TextStyle? _baseStyle;
-  TextStyle? get baseStyle => _baseStyle;
-  set baseStyle(TextStyle? value) {
-    if (_baseStyle != value) {
-      _baseStyle = value;
-      _basePainter = null;
-      markNeedsLayout();
-    }
-  }
-
-  TextStyle _rubyStyle;
-  TextStyle get rubyStyle => _rubyStyle;
-  set rubyStyle(TextStyle value) {
-    if (_rubyStyle != value) {
-      _rubyStyle = value;
-      _rubyPainter = null;
-      markNeedsLayout();
-    }
-  }
-
-  double _rubyFontSize;
-  double get rubyFontSize => _rubyFontSize;
-  set rubyFontSize(double value) {
-    if (_rubyFontSize != value) {
-      _rubyFontSize = value;
-      markNeedsLayout();
-    }
-  }
-
-  MfmRainbowScope? _rainbowScope;
-  MfmRainbowScope? get rainbowScope => _rainbowScope;
-  set rainbowScope(MfmRainbowScope? value) {
-    if (identical(value, _rainbowScope)) return;
-    _rainbowScope = value;
-    _basePainter = null;
-    _rubyPainter = null;
-    markNeedsLayout();
-  }
-
-  double? _rainbowOpacity;
-  double? get rainbowOpacity => _rainbowOpacity;
-  set rainbowOpacity(double? value) {
-    if (value == _rainbowOpacity) return;
-    _rainbowOpacity = value;
-    markNeedsPaint();
-  }
-
-  TextPainter? _basePainter;
-  TextPainter? _rubyPainter;
-
-  TextPainter _getBasePainter() {
-    _basePainter ??= TextPainter(
-      text: TextSpan(style: _baseStyle, children: [_baseSpan]),
-      textDirection: TextDirection.ltr,
-    );
-    return _basePainter!;
-  }
-
-  TextPainter _getRubyPainter() {
-    _rubyPainter ??= TextPainter(
-      text: TextSpan(text: _rubyText, style: _rubyStyle),
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
-    return _rubyPainter!;
-  }
-
-  @override
-  void performLayout() {
-    final basePainter = _getBasePainter();
-    final rubyPainter = _getRubyPainter();
-
-    // 制約内でレイアウト
-    basePainter.layout(maxWidth: constraints.maxWidth);
-    rubyPainter.layout(maxWidth: constraints.maxWidth);
-
-    final maxWidth = math.max(basePainter.width, rubyPainter.width);
-    final totalHeight = rubyPainter.height + basePainter.height;
-
-    // 制約を考慮してサイズを決定
-    size = constraints.constrain(Size(maxWidth, totalHeight));
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    final basePainter = _getBasePainter();
-    final rubyPainter = _getRubyPainter();
-
-    final maxWidth = math.max(basePainter.width, rubyPainter.width);
-
-    final rubyOrigin = Offset((maxWidth - rubyPainter.width) / 2, 0);
-    final baseOrigin = Offset(
-      (maxWidth - basePainter.width) / 2,
-      rubyPainter.height,
-    );
-    final scope = _rainbowScope;
-    if (scope != null) {
-      final opacity = _rainbowOpacity;
-      final base = opacity == null
-          ? TextSpan(style: _baseStyle, children: [_baseSpan])
-          : MfmRainbowSpan(
-              opacity: opacity,
-              style: _baseStyle,
-              children: [_baseSpan],
-            );
-      final ruby = opacity == null
-          ? TextSpan(text: _rubyText, style: _rubyStyle)
-          : MfmRainbowSpan(
-              opacity: opacity,
-              text: _rubyText,
-              style: _rubyStyle,
-            );
-      basePainter
-        ..text = scope.colorize(base, this, origin: baseOrigin)
-        ..layout(maxWidth: constraints.maxWidth);
-      rubyPainter
-        ..text = scope.colorize(ruby, this, origin: rubyOrigin)
-        ..layout(maxWidth: constraints.maxWidth);
-    } else {
-      rubyPainter.paint(context.canvas, offset + rubyOrigin);
-      basePainter.paint(context.canvas, offset + baseOrigin);
-      return;
-    }
-    // ルビを上部中央に、ベーステキストをその下に配置する。
-    final canvas = context.canvas
-      ..save()
-      ..translate(offset.dx + rubyOrigin.dx, offset.dy + rubyOrigin.dy);
-    rubyPainter.paint(canvas, Offset.zero);
-    canvas
-      ..restore()
-      ..save()
-      ..translate(offset.dx + baseOrigin.dx, offset.dy + baseOrigin.dy);
-    basePainter.paint(canvas, Offset.zero);
-    canvas.restore();
-  }
-
-  @override
-  double computeDistanceToActualBaseline(TextBaseline baseline) {
-    final basePainter = _getBasePainter();
-    final rubyPainter = _getRubyPainter();
-
-    // ベーステキストのベースラインを計算
-    final baseBaseline = basePainter.computeDistanceToActualBaseline(baseline);
-
-    // ルビテキストの高さを加えた位置がベーステキストのベースライン
-    return rubyPainter.height + baseBaseline;
   }
 }
 

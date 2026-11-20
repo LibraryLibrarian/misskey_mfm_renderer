@@ -39,6 +39,7 @@ class ConfigExample extends StatelessWidget {
 | 设置 | 默认值／解析顺序 |
 | --- | --- |
 | `enableAdvancedMfm`, `enableAnimation` | 均为 `true`；`useAnimation` 是两者的逻辑与。 |
+| `followPlatformReducedMotion` | `null` 与 `true` 一样遵循操作系统的减少动态效果设置。设置启用时，`MfmText` 的渲染与 `enableAnimation: false` 相同。设为 `false` 可忽略该设置。见[动画与无障碍](animation-accessibility.md)。 |
 | `enableNyaize` | `false`；新代码优先使用显式 `nyaizeMode`。 |
 | `baseTextStyle` | 已配置样式，否则使用 `DefaultTextStyle`；字号缺失时回退为 14。 |
 | `brightness` | 显式值、Material 主题、Cupertino 主题、平台亮度依次回退，最后使用亮色。 |
@@ -47,7 +48,7 @@ class ConfigExample extends StatelessWidget {
 | `showCodeBlockCopyButton` | `null` 表示显示；设为 `false` 可隐藏。 |
 | `useLocaleSearchButtonLabel` | `false`。没有 `searchButtonLabel` 时，标签由当前语言决定。设为 `true` 可清除显式／继承的标签并使用当前语言；它优先于 `searchButtonLabel`。 |
 
-可空字段通常回退到继承设置。**取默认值的布尔字段并不无条件覆盖父配置**：子级的 `enableAnimation: true` 不会重新启用父级禁用的动画。应在共享配置边界设置有效选项，而不是逐帖尝试撤销。配置实例变化时，`MfmConfig` 会通知依赖项；可行时复用稳定实例，但主题或无障碍输入改变时仍需重建。
+可空字段通常回退到继承设置。例如，子级显式设置的 `followPlatformReducedMotion: false` 会覆盖父级的 `true`。**取默认值的布尔字段并不无条件覆盖父配置**：子级的 `enableAnimation: true` 不会重新启用父级禁用的动画。应在共享配置边界设置有效选项，而不是逐帖尝试撤销。配置实例变化时，`MfmConfig` 会通知依赖项；可行时复用稳定实例，但主题或无障碍输入改变时仍需重建。
 
 ## 颜色、字体与代码
 

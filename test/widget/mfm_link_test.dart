@@ -316,13 +316,13 @@ void main() {
 
   for (final entry in [
     (text: '[LABEL]($_url)', alpha: 1.0, size: 20.0),
-    (text: '<small>[LABEL]($_url)</small>', alpha: .7, size: 16.0),
+    (text: '<small>[LABEL]($_url)</small>', alpha: .7, size: 20 / 1.2),
     (
       text: '<small><small>[LABEL]($_url)</small></small>',
       alpha: .49,
-      size: 12.8,
+      size: 20 / 1.2 / 1.2,
     ),
-    (text: '> <small>[LABEL]($_url)</small>', alpha: .49, size: 16.0),
+    (text: '> <small>[LABEL]($_url)</small>', alpha: .49, size: 20 / 1.2),
   ]) {
     testWidgets('label icon applies cumulative opacity once ${entry.text}', (
       tester,
@@ -421,7 +421,14 @@ void main() {
         onLinkTap: calls.add,
         nowrap: true,
       );
-      expect(tester.widget<RichText>(find.byType(RichText).first).maxLines, 1);
+      final root = find.byType(RichText).first;
+      final rich = tester.widget<RichText>(root);
+      expect(rich.maxLines, isNull);
+      expect(rich.softWrap, isFalse);
+      expect(rich.overflow, TextOverflow.ellipsis);
+      final nowrapParagraph = tester.renderObject<RenderParagraph>(root);
+      expect(nowrapParagraph.size.height, 30);
+      expect(nowrapParagraph.didExceedMaxLines, isTrue);
     },
   );
 
@@ -652,7 +659,7 @@ void main() {
       onLinkTap: calls.add,
     );
     final ruby = find.byWidgetPredicate(
-      (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+      (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
     );
     final rect = tester.getRect(ruby);
     await tester.tapAt(Offset(rect.center.dx, rect.bottom - 3));

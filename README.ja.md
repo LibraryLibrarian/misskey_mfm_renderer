@@ -167,7 +167,9 @@ Microsoft Visual C++ Runtime（`VCRUNTIME140.dll`）が必要です。
 
 ### スケールの制限
 
-`scale` 関数は最大5倍です。`enableAdvancedMfm: false` の場合は描画時の変形も
+`scale` 関数は本家と同じく上限5倍だけで、下限はありません。負の値は反転したうえで拡大し、
+`MfmEmojiContext.scale` には `x` と `y` の大きい方を符号付きのまま掛けるため、0・負の値・無限大になりえます。
+ライブラリ独自の安全制限として、描画時の変形にだけ-1024の下限をかけます。`enableAdvancedMfm: false` の場合は描画時の変形も
 `MfmEmojiContext.scale` への倍率伝播も行わず、外側のx系関数から継承した倍率を維持します。
 静的な `TextSpan` の子要素は、本家の空のinline-blockによる行レイアウトの境界までは再現しません。
 
@@ -185,11 +187,26 @@ Microsoft Visual C++ Runtime（`VCRUNTIME140.dll`）が必要です。
 維持しつつ、公称倍率2/3/4は伝播します。後者の例は14pxのままscale 6を渡します。
 `enableAnimation` だけを無効にしてもサイズ関数の動作は変わりません。
 
+### フォントの指定
+
+`$[font.serif]`、`monospace`、`cursive`、`fantasy` には既定の指定があります。
+`$[font.emoji]` と `$[font.math]` にはありません。Flutterの各バックエンドでCSSの総称ファミリー
+`emoji` / `math` と同じ割り当てを保証できないため、中身は継承したフォントのまま表示します。
+特定のフォントを使う場合は、アプリにフォントを登録し、`MfmRenderConfig.fontFamilyResolver` で
+そのファミリー名を返してください。
+
 ### borderのクリッピング
 
 `border` 関数の `noclip` 引数は子要素の描画クリッピングを無効にしますが、祖先のヒット領域は
 拡大しません。borderのスタイル、数値・色のパース、クリッピングにはさらに**未公開の変更**があります。
 開発版の動作が公開版に含まれると考えず、以下の移行情報を確認してください。
+
+本家は `width` 引数をそのままpxとして使います。巨大な値では段落の高さがレイアウトできる範囲を
+超えるため、このライブラリは既定で線の太さを1024 logical pxに収めます。より太い線を描く場合は
+`MfmRenderConfig.maxBorderWidth` を指定してください（例: `MfmRenderConfig(maxBorderWidth: 4096)`）。
+指定値は33,554,432（本家を表示するChromiumが線の太さを飽和させる値）以下に収め、
+nullは未指定として親の `MfmConfig` を継承し、継承後も未指定なら1024です。
+明示した0・負の値・非有限の値は親の値より優先し、既定の1024として扱います。
 
 ## 開発版と未公開の変更
 

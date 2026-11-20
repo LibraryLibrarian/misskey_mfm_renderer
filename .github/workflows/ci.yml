@@ -58,7 +58,119 @@ jobs:
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze
+        if: matrix.name != 'stable'
         run: flutter analyze --fatal-infos
+
+      # Flutter 3.47 で package:flutter/material.dart と cupertino.dart が
+      # material_ui / cupertino_ui へ分離され、それらの import が非推奨になった。
+      # 移行先は Flutter 3.47 以上を要求し、3.38.1 をサポートする間は移行できない。
+      # このため stable では、分離に伴う非推奨通知の4文言だけを完全一致で除外する。
+      # それ以外の診断 (info を含む) は従来どおり1件でもあれば失敗させる。
+      - name: Analyze (excluding the material_ui / cupertino_ui migration notices)
+        if: matrix.name == 'stable'
+        run: |
+          set -uo pipefail
+          out="$RUNNER_TEMP/analyze-machine.txt"
+          # GitHub Actions の bash は -e 付きで起動するため、終了コードを明示的に受け取る
+          status=0
+          dart analyze --format=machine --fatal-infos > "$out" 2>&1 || status=$?
+          python3 - "$out" "$status" <<'PY'
+          import collections
+          import os
+          import sys
+
+          path, status = sys.argv[1], int(sys.argv[2])
+          EXCLUDED = {
+              "'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre.",
+              "'package:flutter/cupertino.dart' is deprecated and shouldn't be used. Use package:cupertino_ui/cupertino_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre.",
+              "'GlobalMaterialLocalizations' is deprecated and shouldn't be used. Use GlobalMaterialLocalizations from package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre.",
+              "'GlobalCupertinoLocalizations' is deprecated and shouldn't be used. Use GlobalCupertinoLocalizations from package:cupertino_ui/cupertino_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre.",
+          }
+
+          # machine 形式は | 区切りで、値の中の \ | 改行 復帰は \\ \| \n \r にエスケープされる。
+          # それ以外のエスケープや末尾の孤立した \ は形式外として None を返す
+          ESCAPES = {"\\": "\\", "|": "|", "n": "\n", "r": "\r"}
+
+          def split(line):
+              fields, current, escaped = [], [], False
+              for ch in line:
+                  if escaped:
+                      if ch not in ESCAPES:
+                          return None
+                      current.append(ESCAPES[ch])
+                      escaped = False
+                  elif ch == "\\":
+                      escaped = True
+                  elif ch == "|":
+                      fields.append("".join(current))
+                      current = []
+                  else:
+                      current.append(ch)
+              if escaped:
+                  return None
+              fields.append("".join(current))
+              return fields
+
+          def is_int(value, minimum):
+              return value.isascii() and value.isdigit() and int(value) >= minimum
+
+          def parse(line):
+              fields = split(line)
+              if fields is None or len(fields) != 8:
+                  return None
+              severity, kind, code, file, row, col, length, message = fields
+              if (severity not in ("INFO", "WARNING", "ERROR") or not kind or not code
+                      or not file or not is_int(row, 1) or not is_int(col, 1)
+                      or not is_int(length, 0)):
+                  return None
+              return fields
+
+          workspace = os.path.realpath(os.environ.get("GITHUB_WORKSPACE", os.getcwd()))
+          excluded = collections.Counter()
+          remaining, unexpected = [], []
+          with open(path, encoding="utf-8") as f:
+              for line in f.read().split("\n"):
+                  if not line.strip():
+                      continue
+                  fields = parse(line)
+                  if fields is None:
+                      unexpected.append(line)
+                      continue
+                  severity, kind, code, file, row, col, _, message = fields
+                  if (severity == "INFO" and kind == "HINT" and code == "DEPRECATED_MEMBER_USE"
+                          and message in EXCLUDED):
+                      excluded[message] += 1
+                      continue
+                  remaining.append((severity, code, os.path.relpath(file, workspace), row, col, message))
+
+          total = sum(excluded.values())
+          print(f"dart analyze exited with {status}.")
+          print(f"Excluded {total} material_ui / cupertino_ui migration notice(s):")
+          for message, count in sorted(excluded.items()):
+              print(f"  {count:4d}  {message}")
+          print(f"::notice::Excluded {total} material_ui / cupertino_ui migration notice(s) from analyze.")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"## Analyze (stable)\n\nExcluded {total} material_ui / cupertino_ui migration notice(s).\n\n")
+              for message, count in sorted(excluded.items()):
+                  summary.write(f"- {count} × {message}\n")
+
+          for severity, code, file, row, col, message in remaining:
+              print(f"::error file={file},line={row},col={col}::{severity} {code.lower()}: {message}")
+          for line in unexpected:
+              print(f"Unexpected analyzer output: {line}")
+
+          if remaining or unexpected:
+              print(f"::error::{len(remaining)} diagnostic(s) and {len(unexpected)} unexpected line(s) remain after the exclusion.")
+              sys.exit(1)
+          # --fatal-infos では、診断なしが 0、info だけが 1。warning・error は 2・3 で、
+          # それ以外 (解析の異常終了など) は除外件数にかかわらず失敗させる
+          if status not in (0, 1):
+              print(f"::error::dart analyze exited with {status}.")
+              sys.exit(1)
+          if status == 1 and total == 0:
+              print("::error::dart analyze exited with 1 without reporting diagnostics.")
+              sys.exit(1)
+          PY
 
       - name: Run tests
         run: flutter test --exclude-tags golden

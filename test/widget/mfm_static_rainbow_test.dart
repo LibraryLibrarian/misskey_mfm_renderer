@@ -159,7 +159,8 @@ void main() {
         ),
       );
       final paragraph = _paragraph(tester, 'AAA');
-      expect(paragraph.textScaler, const TextScaler.linear(2));
+      expect(paragraph.textScaler, TextScaler.noScaling);
+      expect(paragraph.text.style!.fontSize, _style.fontSize! * 2);
       expected ??= paragraph.size;
       expect(paragraph.size, expected);
       expect(tester.takeException(), isNull);
@@ -541,7 +542,7 @@ void main() {
         ),
       );
       final ruby = find.byWidgetPredicate(
-        (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+        (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
       );
       final rect = tester.getRect(ruby);
       final base = await _pixel(tester, rect.topLeft + const Offset(10, 20));
@@ -581,9 +582,14 @@ void main() {
       final Offset point;
       if (text.contains('ruby')) {
         final ruby = find.byWidgetPredicate(
-          (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+          (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
         );
-        point = tester.getRect(ruby).topLeft + const Offset(8, 16);
+        point = _letterCenter(
+          tester.renderObject<RenderParagraph>(
+            find.descendant(of: ruby, matching: find.byType(RichText)).first,
+          ),
+          0,
+        );
       } else {
         final paragraph = tester.renderObject<RenderParagraph>(
           find
@@ -614,15 +620,19 @@ void main() {
       ),
     );
     final ruby = find.byWidgetPredicate(
-      (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+      (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
     );
-    final renderObject = tester.renderObject(ruby);
-    final baseStyle = (renderObject as dynamic).baseStyle as TextStyle;
-    final rubyStyle = (renderObject as dynamic).rubyStyle as TextStyle;
-    expect(baseStyle.fontSize, 32);
-    expect(rubyStyle.fontSize, 16);
+    final styles = _rubyStyles(tester, ruby);
+    final baseStyle = styles.base;
+    final rubyStyle = styles.ruby;
+    expect(baseStyle.fontSize, closeTo(40 / 1.2, 1e-6));
+    expect(rubyStyle.fontSize, closeTo(20 / 1.2, 1e-6));
     final rect = tester.getRect(ruby);
-    for (final offset in [const Offset(16, 32), const Offset(24, 8)]) {
+    // Sample the first base/reading glyph centers as fractional sizes change.
+    for (final offset in [
+      Offset(rect.width / 4, rect.height * 2 / 3),
+      Offset(rect.width * 3 / 8, rect.height / 6),
+    ]) {
       final pixel = await _pixel(tester, rect.topLeft + offset);
       expect(pixel[3], closeTo(128 * 0.7, 2));
       expect(pixel.take(3).toSet().length, greaterThan(1));
@@ -667,7 +677,7 @@ void main() {
           (iconText.text as MfmRainbowSpan).opacity,
           closeTo(128 / 255 * 0.7, 1e-6),
         );
-        expect(iconText.text.style!.fontSize, closeTo(20 * 0.8 * 0.9, 1e-6));
+        expect(iconText.text.style!.fontSize, closeTo(20 / 1.2 * 0.9, 1e-6));
       }
       expect(tester.takeException(), isNull);
     }
@@ -725,4 +735,19 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+}
+
+({TextStyle base, TextStyle ruby}) _rubyStyles(
+  WidgetTester tester,
+  Finder finder,
+) {
+  final texts = tester
+      .widgetList<RichText>(
+        find.descendant(
+          of: finder,
+          matching: find.byWidgetPredicate((widget) => widget is RichText),
+        ),
+      )
+      .toList();
+  return (base: texts.first.text.style!, ruby: texts.last.text.style!);
 }

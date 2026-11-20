@@ -39,6 +39,7 @@ class ConfigExample extends StatelessWidget {
 | Einstellung | Standard / Auflösung |
 | --- | --- |
 | `enableAdvancedMfm`, `enableAnimation` | Beide `true`; `useAnimation` ist ihre logische UND-Verknüpfung. |
+| `followPlatformReducedMotion` | `null` folgt wie `true` der Betriebssystemeinstellung für reduzierte Bewegung. Ist sie aktiviert, stellt `MfmText` wie bei `enableAnimation: false` dar. Setze `false`, um sie zu ignorieren. Siehe [Animation und Barrierefreiheit](animation-accessibility.md). |
 | `enableNyaize` | `false`; für neuen Code ist ein expliziter `nyaizeMode` vorzuziehen. |
 | `baseTextStyle` | Konfigurierter Stil, sonst `DefaultTextStyle`; fehlt die Schriftgröße, gilt 14. |
 | `brightness` | Expliziter Wert, dann Material-Theme, Cupertino-Theme, Plattformhelligkeit, schließlich hell. |
@@ -47,7 +48,7 @@ class ConfigExample extends StatelessWidget {
 | `showCodeBlockCopyButton` | `null` bedeutet sichtbar. `false` blendet den Button aus. |
 | `useLocaleSearchButtonLabel` | `false`. Ohne `searchButtonLabel` stammt die Beschriftung aus der Spracheinstellung. `true` entfernt eine explizite/geerbte Beschriftung zugunsten der aktuellen Sprache und hat Vorrang vor `searchButtonLabel`. |
 
-Nullable-Felder greifen gewöhnlich auf geerbte Werte zurück. **Boolesche Standardwerte überschreiben nicht bedingungslos**: `enableAnimation: true` beim Kind aktiviert keine Animation, die beim Elternteil deaktiviert ist. Setze die wirksame Wahl an der gemeinsamen Konfigurationsgrenze, statt sie pro Beitrag rückgängig zu machen. `MfmConfig` benachrichtigt abhängige Widgets bei einem Wechsel der Konfigurationsinstanz. Verwende nach Möglichkeit stabile Instanzen, baue sie aber bei geänderten Theme- oder Barrierefreiheitseingaben neu auf.
+Nullable-Felder greifen gewöhnlich auf geerbte Werte zurück. Zum Beispiel überschreibt ein explizites `followPlatformReducedMotion: false` beim Kind ein `true` beim Elternteil. **Boolesche Standardwerte überschreiben nicht bedingungslos**: `enableAnimation: true` beim Kind aktiviert keine Animation, die beim Elternteil deaktiviert ist. Setze die wirksame Wahl an der gemeinsamen Konfigurationsgrenze, statt sie pro Beitrag rückgängig zu machen. `MfmConfig` benachrichtigt abhängige Widgets bei einem Wechsel der Konfigurationsinstanz. Verwende nach Möglichkeit stabile Instanzen, baue sie aber bei geänderten Theme- oder Barrierefreiheitseingaben neu auf.
 
 ## Farben, Schriften und Code
 

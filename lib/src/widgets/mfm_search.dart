@@ -140,9 +140,9 @@ class _MfmSearchState extends State<MfmSearch> {
                         onSubmitted: (_) => _submit(),
                         decoration: BoxDecoration(
                           border: Border.fromBorderSide(borderSide),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            bottomLeft: Radius.circular(4),
+                          borderRadius: const BorderRadiusDirectional.only(
+                            topStart: Radius.circular(4),
+                            bottomStart: Radius.circular(4),
                           ),
                         ),
                       ),
@@ -188,15 +188,16 @@ class _MfmSearchState extends State<MfmSearch> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                border: Border(
+                                border: BorderDirectional(
                                   top: borderSide,
-                                  right: borderSide,
+                                  end: borderSide,
                                   bottom: borderSide,
                                 ),
-                                borderRadius: const BorderRadius.only(
-                                  topRight: Radius.circular(4),
-                                  bottomRight: Radius.circular(4),
-                                ),
+                                borderRadius:
+                                    const BorderRadiusDirectional.only(
+                                      topEnd: Radius.circular(4),
+                                      bottomEnd: Radius.circular(4),
+                                    ),
                               ),
                               foregroundDecoration: _buttonFocused && enabled
                                   ? BoxDecoration(

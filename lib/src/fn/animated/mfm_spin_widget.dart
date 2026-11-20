@@ -40,13 +40,15 @@ class MfmSpinWidget extends StatelessWidget {
     switch (axis) {
       case MfmSpinAxis.z:
         return Matrix4.rotationZ(angle);
+      // 本家の perspective(128px) は CSS 行列で m34 = -1/128。
+      // Matrix4 も同じ座標系なので、手前 (正の z) が拡大される符号にする。
       case MfmSpinAxis.x:
         return Matrix4.identity()
-          ..setEntry(3, 2, 1 / 128)
+          ..setEntry(3, 2, -1 / 128)
           ..rotateX(angle);
       case MfmSpinAxis.y:
         return Matrix4.identity()
-          ..setEntry(3, 2, 1 / 128)
+          ..setEntry(3, 2, -1 / 128)
           ..rotateY(angle);
     }
   }

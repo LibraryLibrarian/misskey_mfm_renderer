@@ -35,6 +35,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          baseTextStyle: config.baseTextStyle,
          enableAdvancedMfm: config.enableAdvancedMfm,
          enableAnimation: config.enableAnimation,
+         followPlatformReducedMotion: config.followPlatformReducedMotion,
          enableNyaize: config.enableNyaize,
          nyaizeMode: config.nyaizeMode,
          emojiBuilder: config.emojiBuilder,
@@ -62,6 +63,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          onCodeCopied: config.onCodeCopied,
          codeCopyTooltip: config.codeCopyTooltip,
          codeCopiedMessage: config.codeCopiedMessage,
+         maxBorderWidth: config.maxBorderWidth,
        );
 
   final _MfmEmojiConfigLifecycle _lifecycle;
@@ -85,6 +87,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     TextStyle? baseTextStyle,
     bool? enableAdvancedMfm,
     bool? enableAnimation,
+    bool? followPlatformReducedMotion,
     bool? enableNyaize,
     MfmNyaizeMode? nyaizeMode,
     Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
@@ -117,11 +120,13 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     void Function(String code)? onCodeCopied,
     String? codeCopyTooltip,
     String? codeCopiedMessage,
+    double? maxBorderWidth,
   }) {
     final config = super.copyWith(
       baseTextStyle: baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm,
       enableAnimation: enableAnimation,
+      followPlatformReducedMotion: followPlatformReducedMotion,
       enableNyaize: enableNyaize,
       nyaizeMode: nyaizeMode,
       emojiBuilder: emojiBuilder,
@@ -154,6 +159,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       onCodeCopied: onCodeCopied,
       codeCopyTooltip: codeCopyTooltip,
       codeCopiedMessage: codeCopiedMessage,
+      maxBorderWidth: maxBorderWidth,
     );
     return MfmEmojiConfigHandle._(config: config, lifecycle: _lifecycle);
   }

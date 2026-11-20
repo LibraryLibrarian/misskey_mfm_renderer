@@ -39,6 +39,7 @@ class ConfigExample extends StatelessWidget {
 | Setting | Default / resolution |
 | --- | --- |
 | `enableAdvancedMfm`, `enableAnimation` | Both `true`; `useAnimation` is their logical AND. |
+| `followPlatformReducedMotion` | `null`, which follows the OS reduced-motion setting like `true`. When the OS setting is on, `MfmText` renders as with `enableAnimation: false`. Set `false` to ignore it. See [Animation and accessibility](animation-accessibility.md). |
 | `enableNyaize` | `false`; prefer an explicit `nyaizeMode` for new code. |
 | `baseTextStyle` | Configured style, otherwise `DefaultTextStyle`; a missing font size falls back to 14. |
 | `brightness` | Explicit value, then Material theme, Cupertino theme, platform brightness, with a light fallback. |
@@ -47,7 +48,7 @@ class ConfigExample extends StatelessWidget {
 | `showCodeBlockCopyButton` | `null` means shown. Set `false` to hide it. |
 | `useLocaleSearchButtonLabel` | `false`. Labels are locale-derived when `searchButtonLabel` is absent. Set `true` to clear an explicit/inherited label and use the current locale; it takes precedence over `searchButtonLabel`. |
 
-Nullable fields generally fall back to inherited settings. **Default-valued booleans are not unconditional overrides**: a child's `enableAnimation: true` does not re-enable animation disabled by the parent. Put the effective choice at the shared configuration boundary instead of trying to undo it per note. `MfmConfig` notifies dependents when the config instance changes; reuse stable instances where practical, but rebuild when theme or accessibility inputs change.
+Nullable fields generally fall back to inherited settings; for example, a child's explicit `followPlatformReducedMotion: false` overrides a parent's `true`. **Default-valued booleans are not unconditional overrides**: a child's `enableAnimation: true` does not re-enable animation disabled by the parent. Put the effective choice at the shared configuration boundary instead of trying to undo it per note. `MfmConfig` notifies dependents when the config instance changes; reuse stable instances where practical, but rebuild when theme or accessibility inputs change.
 
 ## Colors, fonts and code
 

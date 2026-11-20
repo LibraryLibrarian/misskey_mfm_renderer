@@ -177,7 +177,10 @@ and [accessibility limits](https://librarylibrarian.github.io/misskey_mfm_render
 
 ### Scale Limits
 
-The `scale` function is capped at 5x. With `enableAdvancedMfm: false`, it applies
+The `scale` function is capped at 5x, with no lower bound like upstream: negative
+values mirror and enlarge the content, and `MfmEmojiContext.scale` is multiplied by
+the signed larger of `x` and `y`, so it can be zero, negative or infinite. As a
+library safety limit, the paint transform alone is bounded below at -1024. With `enableAdvancedMfm: false`, it applies
 neither a paint transform nor a multiplier to `MfmEmojiContext.scale`; inherited
 outer x-function scale is preserved. Its static `TextSpan` children do not
 reproduce the upstream empty inline-block line-layout boundary.
@@ -198,12 +201,29 @@ depth, while nominal context multipliers 2/3/4 still propagate: the latter examp
 keeps a 14px font but passes scale 6. Disabling only `enableAnimation` does not
 change size functions.
 
+### Font families
+
+`$[font.serif]`, `monospace`, `cursive` and `fantasy` have built-in fallbacks.
+`$[font.emoji]` and `$[font.math]` have none: Flutter's backends cannot guarantee
+the same assignment as the CSS `emoji` and `math` generic families, so their content
+keeps the inherited font. To use a specific font, register it in your app and
+return its family name from `MfmRenderConfig.fontFamilyResolver`.
+
 ### Border clipping
 
 The `border` function's `noclip` argument disables its child paint clipping; it
 does not expand ancestor hit regions. Border styles, numeric/color parsing and
 clipping behavior have further **unreleased** changes; consult the migration
 notes below rather than assuming the development behavior is in the published version.
+
+Upstream uses the `width` argument directly as pixels. Because huge widths would
+make the paragraph too tall to lay out, this library caps the border width at
+1024 logical px by default. Set `MfmRenderConfig.maxBorderWidth` to draw thicker
+borders, for example `MfmRenderConfig(maxBorderWidth: 4096)`. The value is
+capped at 33,554,432 (where Chromium, which renders upstream, saturates border
+widths). Null means unset and inherits from an enclosing `MfmConfig` (falling
+back to 1024); explicit zero, negative and non-finite values override the
+inherited value and use the default 1024.
 
 ## Development and unreleased changes
 

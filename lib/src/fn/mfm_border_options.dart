@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 
 import '../utils/color_parser.dart';
+import '../utils/js_parse_float.dart';
 
 /// Internal, resolved border arguments. Not part of the package's public API.
 enum MfmBorderStyle {
@@ -30,7 +31,12 @@ class MfmBorderOptions {
     required this.noclip,
   });
 
-  factory MfmBorderOptions.resolve(Map<String, dynamic> args, Color accent) {
+  /// [maxWidth]は`MfmRenderConfig.maxBorderWidth`の値で、[effectiveMaxWidth]で解決する。
+  factory MfmBorderOptions.resolve(
+    Map<String, dynamic> args,
+    Color accent, {
+    double? maxWidth,
+  }) {
     final rawWidth = _number(args['width'], 1);
     final rawRadius = _number(args['radius'], 0);
     final style = MfmBorderStyle.values.firstWhere(
@@ -63,7 +69,9 @@ class MfmBorderOptions {
     return MfmBorderOptions(
       style: style,
       validity: validity,
-      width: validity == MfmBorderValidity.valid ? math.min(rawWidth, 1024) : 0,
+      width: validity == MfmBorderValidity.valid
+          ? math.min(rawWidth, effectiveMaxWidth(maxWidth))
+          : 0,
       radius: rawRadius.isFinite && rawRadius > 0 ? rawRadius : 0,
       color: color,
       noclip: _truthy(args['noclip']),
@@ -77,27 +85,27 @@ class MfmBorderOptions {
   final Color color;
   final bool noclip;
 
-  static final _hex = RegExp(r'^[0-9a-fA-F]{3,6}$');
-  // ECMAScript WhiteSpace + LineTerminator, not Dart's broader trim set.
-  static final _prefix = RegExp(
-    r'^[\u0009-\u000D\u0020\u00A0\u1680'
-    r'\u2000-\u200A\u2028\u2029\u202F'
-    r'\u205F\u3000\uFEFF]*'
-    r'([+-]?(?:Infinity|(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?))',
-  );
+  /// 線の太さの既定の上限（logical px）。
+  static const defaultMaxWidth = 1024.0;
 
-  static double _number(Object? value, double fallback) {
-    final double? parsed;
-    if (value is num) {
-      parsed = value.toDouble();
-    } else if (value is String) {
-      final prefix = _prefix.firstMatch(value)?.group(1);
-      parsed = prefix == null ? null : double.tryParse(prefix);
-    } else {
-      parsed = null;
-    }
-    return parsed == null || parsed.isNaN ? fallback : parsed;
-  }
+  /// `MfmRenderConfig.maxBorderWidth`で指定できる上限（logical px）。
+  ///
+  /// 本家を表示するChromiumがborderの太さと要素の寸法を飽和させる値（2^25）。
+  /// Chrome 157のheadlessで、`display: inline-block; border: <width>px solid`の
+  /// spanを描画し、getComputedStyleのborder-top-widthとgetBoundingClientRectを
+  /// 確かめた。3.4e7px以上の指定はすべて33554432pxになる（2026-11-20に計測）。
+  static const browserMaxWidth = 33554432.0;
+
+  /// 指定された上限を解決する。nullと0以下、非有限の値は[defaultMaxWidth]になる。
+  static double effectiveMaxWidth(double? value) =>
+      value == null || !value.isFinite || value <= 0
+      ? defaultMaxWidth
+      : math.min(value, browserMaxWidth);
+
+  static final _hex = RegExp(r'^[0-9a-fA-F]{3,6}$');
+
+  static double _number(Object? value, double fallback) =>
+      jsParseFloat(value) ?? fallback;
 
   static bool _truthy(Object? value) {
     if (value == null) return false;

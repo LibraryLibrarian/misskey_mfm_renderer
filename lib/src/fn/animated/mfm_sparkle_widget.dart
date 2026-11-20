@@ -1,11 +1,10 @@
-import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 class _SparkleParticle {
   const _SparkleParticle({
-    required this.id,
     required this.position,
     required this.size,
     required this.duration,
@@ -13,12 +12,20 @@ class _SparkleParticle {
     required this.startTime,
   });
 
-  final String id;
   final Offset position;
   final double size;
   final Duration duration;
   final Color color;
-  final DateTime startTime;
+  final Duration startTime;
+
+  Duration get removalTime =>
+      startTime + duration - const Duration(milliseconds: 100);
+
+  double progressAt(Duration now) =>
+      ((now - startTime).inMicroseconds / duration.inMicroseconds).clamp(
+        0.0,
+        1.0,
+      );
 }
 
 class MfmSparkleWidget extends StatefulWidget {
@@ -34,6 +41,21 @@ class MfmSparkleWidget extends StatefulWidget {
 
   @visibleForTesting
   static Path debugStarPath() => _SparklePainter._createStarPath();
+
+  /// 描画時点の粒子を変更不能なスナップショットとして取得する。
+  @visibleForTesting
+  static List<({Duration startTime, Duration duration, double progress})>
+  debugParticleFrames(CustomPainter painter) {
+    final sparkle = painter as _SparklePainter;
+    return List.unmodifiable([
+      for (final particle in sparkle.particles)
+        (
+          startTime: particle.startTime,
+          duration: particle.duration,
+          progress: particle.progressAt(sparkle.now),
+        ),
+    ]);
+  }
 
   static ({double size, Duration duration}) _particleMetrics(
     double sizeFactor,
@@ -54,13 +76,14 @@ class MfmSparkleWidget extends StatefulWidget {
 }
 
 class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   static const _paintPadding = 32.0;
 
   final _particles = <_SparkleParticle>[];
   final _random = math.Random();
-  Timer? _spawnTimer;
-  late final AnimationController _ticker;
+  late final Ticker _ticker;
+  final ValueNotifier<Duration> _elapsed = ValueNotifier(Duration.zero);
+  Duration _nextSpawn = Duration.zero;
   Size _paintBounds = Size.zero;
   final GlobalKey<State<StatefulWidget>> _childKey = GlobalKey();
 
@@ -75,18 +98,9 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
   @override
   void initState() {
     super.initState();
-    _ticker = AnimationController(
-      duration: const Duration(milliseconds: 16),
-      vsync: this,
-    );
+    _ticker = createTicker(_onTick);
     if (widget.enabled) {
-      // レンダリング後にサイズを取得してアニメーションを開始
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _updatePaintBounds();
-        _startTicker();
-        _scheduleNextParticle();
-      });
+      _scheduleStart();
     }
   }
 
@@ -98,52 +112,41 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
     }
 
     if (widget.enabled) {
-      // レンダリング後にサイズを取得してアニメーションを開始
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _updatePaintBounds();
-        _startTicker();
-        _scheduleNextParticle();
-      });
+      _scheduleStart();
     } else {
-      _stopTicker();
-      _clearParticles();
-    }
-  }
-
-  void _startTicker() {
-    if (!_ticker.isAnimating) {
-      _ticker.repeat();
-    }
-  }
-
-  void _stopTicker() {
-    _spawnTimer?.cancel();
-    if (_ticker.isAnimating) {
       _ticker.stop();
+      _particles.clear();
+      _elapsed.value = Duration.zero;
     }
   }
 
-  void _clearParticles() {
-    if (_particles.isEmpty) {
-      return;
-    }
-    setState(_particles.clear);
-  }
-
-  void _scheduleNextParticle() {
-    _spawnTimer?.cancel();
-    final delayMs = 500 + _random.nextInt(500);
-    _spawnTimer = Timer(Duration(milliseconds: delayMs), () {
-      if (!mounted || !widget.enabled) {
-        return;
-      }
-      _addParticle();
-      _scheduleNextParticle();
+  void _scheduleStart() {
+    // レンダリング後にサイズを取得し、最新の enabled を確認して開始する。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.enabled || _ticker.isActive) return;
+      _updatePaintBounds();
+      _particles.clear();
+      _elapsed.value = Duration.zero;
+      _nextSpawn = _randomInterval();
+      _ticker.start();
     });
   }
 
-  void _addParticle() {
+  Duration _randomInterval() =>
+      Duration(milliseconds: 500 + _random.nextInt(500));
+
+  void _onTick(Duration elapsed) {
+    _particles.removeWhere((particle) => elapsed >= particle.removalTime);
+    if (elapsed >= _nextSpawn) {
+      // mute やフレーム停止からの復帰でも、追いつき生成は最大1回にする。
+      _addParticle(elapsed);
+      _nextSpawn = elapsed + _randomInterval();
+    }
+    // 子全体の setState は行わず、粒子の描画部分だけを更新する。
+    _elapsed.value = elapsed;
+  }
+
+  void _addParticle(Duration elapsed) {
     // 最新のサイズを取得
     _updatePaintBounds();
 
@@ -156,7 +159,6 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
     final sizeFactor = _random.nextDouble();
     final metrics = MfmSparkleWidget._particleMetrics(sizeFactor);
     final particle = _SparkleParticle(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
       position: Offset(
         _paintPadding + _random.nextDouble() * usableWidth,
         _paintPadding + _random.nextDouble() * usableHeight,
@@ -164,21 +166,10 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
       size: metrics.size,
       duration: metrics.duration,
       color: _colors[_random.nextInt(_colors.length)],
-      startTime: DateTime.now(),
+      startTime: elapsed,
     );
 
-    setState(() {
-      _particles.add(particle);
-    });
-
-    Timer(particle.duration - const Duration(milliseconds: 100), () {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _particles.removeWhere((item) => item.id == particle.id);
-      });
-    });
+    _particles.add(particle);
   }
 
   void _updatePaintBounds() {
@@ -195,8 +186,8 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
 
   @override
   void dispose() {
-    _spawnTimer?.cancel();
     _ticker.dispose();
+    _elapsed.dispose();
     super.dispose();
   }
 
@@ -218,12 +209,12 @@ class _MfmSparkleWidgetState extends State<MfmSparkleWidget>
           bottom: -_paintPadding,
           child: IgnorePointer(
             child: AnimatedBuilder(
-              animation: _ticker,
+              animation: _elapsed,
               builder: (context, _) {
                 return CustomPaint(
                   painter: _SparklePainter(
-                    particles: _particles,
-                    now: DateTime.now(),
+                    particles: List.unmodifiable(_particles),
+                    now: _elapsed.value,
                   ),
                 );
               },
@@ -239,18 +230,14 @@ class _SparklePainter extends CustomPainter {
   _SparklePainter({required this.particles, required this.now});
 
   final List<_SparkleParticle> particles;
-  final DateTime now;
+  final Duration now;
 
   static final Path _starPath = _createStarPath();
 
   @override
   void paint(Canvas canvas, Size size) {
     for (final particle in particles) {
-      final elapsed = now.difference(particle.startTime).inMicroseconds;
-      final progress = (elapsed / particle.duration.inMicroseconds).clamp(
-        0.0,
-        1.0,
-      );
+      final progress = particle.progressAt(now);
       if (progress <= 0) {
         continue;
       }

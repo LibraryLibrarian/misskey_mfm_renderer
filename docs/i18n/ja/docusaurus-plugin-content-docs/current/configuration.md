@@ -39,6 +39,7 @@ class ConfigExample extends StatelessWidget {
 | 設定 | 既定値・解決方法 |
 | --- | --- |
 | `enableAdvancedMfm`, `enableAnimation` | ともに`true`。`useAnimation`は両者の論理積です。 |
+| `followPlatformReducedMotion` | `null`。`true`と同じくOSの「動きを減らす」設定に追従し、有効な間は`MfmText`が`enableAnimation: false`と同じ表示にします。`false`で無視します。[アニメーションとアクセシビリティ](animation-accessibility.md)を参照してください。 |
 | `enableNyaize` | `false`。新しいコードでは明示的な`nyaizeMode`を推奨します。 |
 | `baseTextStyle` | 設定値、なければ`DefaultTextStyle`。フォントサイズが未指定なら14です。 |
 | `brightness` | 明示値、Materialテーマ、Cupertinoテーマ、プラットフォームの明暗設定の順で解決し、lightへフォールバックします。 |
@@ -47,7 +48,7 @@ class ConfigExample extends StatelessWidget {
 | `showCodeBlockCopyButton` | `null`なら表示。`false`で非表示にします。 |
 | `useLocaleSearchButtonLabel` | `false`。`searchButtonLabel`がなければ既定でもロケールから解決します。`true`は明示・継承ラベルを解除して現在のロケールを使い、`searchButtonLabel`より優先されます。 |
 
-nullableな項目は通常、継承設定へフォールバックします。**既定値のboolは常に明示的な上書きになるわけではありません**。子の`enableAnimation: true`では親が無効化したアニメーションを再有効化できません。ノートごとに打ち消すのではなく、共通設定の境界で実効値を決定してください。`MfmConfig`はconfigのインスタンスが変わると依存先へ通知します。可能なら安定したインスタンスを再利用しつつ、テーマやアクセシビリティ設定の変化時には再構築してください。
+nullableな項目は通常、継承設定へフォールバックします。例えば子で明示した`followPlatformReducedMotion: false`は親の`true`を上書きします。**既定値のboolは常に明示的な上書きになるわけではありません**。子の`enableAnimation: true`では親が無効化したアニメーションを再有効化できません。ノートごとに打ち消すのではなく、共通設定の境界で実効値を決定してください。`MfmConfig`はconfigのインスタンスが変わると依存先へ通知します。可能なら安定したインスタンスを再利用しつつ、テーマやアクセシビリティ設定の変化時には再構築してください。
 
 ## 配色・フォント・コード
 

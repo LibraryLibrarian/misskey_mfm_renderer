@@ -69,6 +69,10 @@ class MfmEmojiContext {
   /// scale fnは描画時の変形なので、[fontSize]には反映されない。
   /// advanced MFMが無効でもx2/x3/x4の公称倍率は伝播するが、
   /// scale fnの倍率は伝播しない。
+  ///
+  /// 本家と同じくscale fnの`x`と`y`の大きい方を符号付きのまま掛けるため、
+  /// 0・負の値・±Infinityになりうる（NaNになる場合は0）。
+  /// 絵文字の寸法は[fontSize]を基準にし、この値を使う場合は有限性と符号を確認する。
   final double scale;
 
   /// 現在の文字スタイル。small / quoteの累積opacityを掛ける前の値。
@@ -120,6 +124,7 @@ class MfmRenderConfig {
     this.baseTextStyle,
     this.enableAdvancedMfm = true,
     this.enableAnimation = true,
+    this.followPlatformReducedMotion,
     this.enableNyaize = false,
     this.nyaizeMode,
     this.emojiBuilder,
@@ -147,6 +152,7 @@ class MfmRenderConfig {
     this.onCodeCopied,
     this.codeCopyTooltip,
     this.codeCopiedMessage,
+    this.maxBorderWidth,
   }) : searchButtonLabel = useLocaleSearchButtonLabel
            ? null
            : searchButtonLabel;
@@ -162,7 +168,22 @@ class MfmRenderConfig {
   /// [enableAdvancedMfm]が有効な場合のMFMアニメーションを有効化。
   final bool enableAnimation;
 
+  /// OSの「動きを減らす」設定（[MediaQueryData.disableAnimations]）に追従するか。
+  ///
+  /// `null`（未指定）と`true`は追従する。追従中にOS設定が有効になると、
+  /// `MfmText`は`enableAnimation: false`と同じ静止表示に切り替え、
+  /// 設定の変更にも追従する。`false`はOS設定を無視する。
+  ///
+  /// OS設定はアニメーションを止める方向にのみ働き、
+  /// [enableAnimation]が`false`の場合は常にそちらが優先される。
+  /// 親子の設定では子の明示的な`true`/`false`が親を上書きし、
+  /// `null`は親の値を継承する。
+  final bool? followPlatformReducedMotion;
+
   /// MFMアニメーションの実効的な有効判定。
+  ///
+  /// この設定値だけから求めるため、[followPlatformReducedMotion]による
+  /// OS設定の反映は含まない。OS設定を含めた判定は`MfmText`の描画時に行う。
   bool get useAnimation => enableAdvancedMfm && enableAnimation;
 
   /// nyaize変換を有効化。
@@ -269,6 +290,10 @@ class MfmRenderConfig {
   /// MFMの`$[font.xxx]`構文で使用されるフォントタイプ（'serif', 'monospace'等）を
   /// 実際のフォントファミリー名に変換
   ///
+  /// 'emoji'と'math'には既定の指定がない。FlutterではCSSの総称ファミリー
+  /// `emoji` / `math` と同じ割り当てを保証できないため、nullを返すと継承した
+  /// フォントのまま表示する。使う場合はアプリでフォントを登録し、ここで返す。
+  ///
   /// 例: Google Fontsを使用する場合
   /// ```dart
   /// MfmRenderConfig(
@@ -332,6 +357,17 @@ class MfmRenderConfig {
   /// それ以外は"Copied to clipboard"を使用。[onCodeCopied]指定時は使用しない。
   final String? codeCopiedMessage;
 
+  /// border fnの線の太さの上限（logical px）。
+  ///
+  /// nullは未指定で、`MfmConfig`の親設定を継承する（継承後も未指定なら1024）。
+  /// 本家は`width`の値をそのままpxとして使うが、
+  /// 巨大な値では段落の高さが表現できる範囲を超えて例外になるため、
+  /// このライブラリは既定で1024に収める。より太い線を本家に近づけて描く場合に
+  /// 大きな値を指定する。指定値は33,554,432（本家を表示するChromiumが
+  /// 線の太さを飽和させる値）以下に収める。明示した0以下と非有限の値は、
+  /// 親設定より優先したうえで既定の1024として扱う。
+  final double? maxBorderWidth;
+
   /// 設定をコピーして新しいインスタンスを作成。
   ///
   /// {@template mfm_render_config_copy_with_mention_context}
@@ -346,6 +382,7 @@ class MfmRenderConfig {
     TextStyle? baseTextStyle,
     bool? enableAdvancedMfm,
     bool? enableAnimation,
+    bool? followPlatformReducedMotion,
     bool? enableNyaize,
     MfmNyaizeMode? nyaizeMode,
     Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
@@ -378,6 +415,7 @@ class MfmRenderConfig {
     void Function(String code)? onCodeCopied,
     String? codeCopyTooltip,
     String? codeCopiedMessage,
+    double? maxBorderWidth,
   }) {
     if (clearUnixtimeOptions && unixtimeOptions != null) {
       throw ArgumentError.value(
@@ -422,6 +460,8 @@ class MfmRenderConfig {
       baseTextStyle: baseTextStyle ?? this.baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm ?? this.enableAdvancedMfm,
       enableAnimation: enableAnimation ?? this.enableAnimation,
+      followPlatformReducedMotion:
+          followPlatformReducedMotion ?? this.followPlatformReducedMotion,
       enableNyaize: enableNyaize ?? this.enableNyaize,
       nyaizeMode: nyaizeMode ?? this.nyaizeMode,
       emojiBuilder: emojiBuilder ?? this.emojiBuilder,
@@ -456,6 +496,7 @@ class MfmRenderConfig {
       onCodeCopied: onCodeCopied ?? this.onCodeCopied,
       codeCopyTooltip: codeCopyTooltip ?? this.codeCopyTooltip,
       codeCopiedMessage: codeCopiedMessage ?? this.codeCopiedMessage,
+      maxBorderWidth: maxBorderWidth ?? this.maxBorderWidth,
     );
   }
 }

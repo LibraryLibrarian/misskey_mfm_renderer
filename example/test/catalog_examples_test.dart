@@ -61,11 +61,11 @@ void main() {
     expect(fallbacks, hasLength(2));
     expect(fallbacks.map((text) => text.style!.fontSize), [
       closeTo(14, 1e-9),
-      closeTo(11.2, 1e-9),
+      closeTo(14 / 1.2, 1e-9),
     ]);
     expect(images.map((image) => image.height), [
       closeTo(17.5, 1e-9),
-      closeTo(14, 1e-9),
+      closeTo(17.5 / 1.2, 1e-9),
       closeTo(35, 1e-9),
     ]);
     expect(_richTextPlainText(tester), isNot(contains(':🚀:')));

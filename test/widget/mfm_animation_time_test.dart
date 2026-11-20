@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
@@ -29,7 +31,7 @@ void main() {
     for (final entry in const <String, Duration>{
       '2s': Duration(seconds: 2),
       '.5s': Duration(milliseconds: 500),
-      '1.s': Duration(seconds: 1),
+      '1.5s': Duration(milliseconds: 1500),
     }.entries) {
       test('${entry.key}は秒数として受理する', () {
         expect(MfmAnimatedWrapper.parseTime(entry.key), entry.value);
@@ -49,7 +51,10 @@ void main() {
       '末尾の空白': '2s ',
       '不正な文字列': 'abc',
       '空文字列': '',
+      '末尾の小数点': '1.s',
+      '連続する小数点': '1..s',
       '複数の小数点': '1.2.3s',
+      '負符号と小数点のみ': '-.s',
       '数字なし': '.s',
       '正符号': '+2s',
       '指数表記': '2e1s',
@@ -60,6 +65,229 @@ void main() {
     }.entries) {
       test('${entry.key}はnullになる', () {
         expect(MfmAnimatedWrapper.parseTime(entry.value), isNull);
+      });
+    }
+  });
+
+  group('MfmAnimatedWrapper.parseSpeed', () {
+    const fallback = Duration(seconds: 3);
+    for (final value in <Object?>[
+      null,
+      true,
+      false,
+      2,
+      '2',
+      'abc',
+      '2ms',
+      '2e1s',
+      '+2s',
+      ' 2s',
+      '2s ',
+    ]) {
+      test('$valueは既定値になる', () {
+        expect(
+          MfmAnimatedWrapper.parseSpeed(value, fallback: fallback),
+          fallback,
+        );
+      });
+    }
+
+    for (final value in ['1.s', '1..s', '.s', '1.2.3s', '-.s']) {
+      test('$valueは静止表示になる', () {
+        expect(
+          MfmAnimatedWrapper.parseSpeed(value, fallback: fallback),
+          Duration.zero,
+        );
+      });
+    }
+
+    for (final entry in const <String, Duration>{
+      '.5s': Duration(milliseconds: 500),
+      '1.5s': Duration(milliseconds: 1500),
+      '0s': Duration.zero,
+      '-1s': Duration(seconds: -1),
+    }.entries) {
+      test('${entry.key}は指定秒数になる', () {
+        expect(
+          MfmAnimatedWrapper.parseSpeed(entry.key, fallback: fallback),
+          entry.value,
+        );
+      });
+    }
+  });
+
+  group('巨大なtimeの飽和', () {
+    const maxMicroseconds = 9007199254740991;
+    for (final digits in [307, 310]) {
+      for (final sign in ['', '-']) {
+        test('$digits桁の${sign.isEmpty ? '正数' : '負数'}を上限へ飽和させる', () {
+          final value = '$sign${'9' * digits}s';
+          final expected = Duration(
+            microseconds: sign.isEmpty ? maxMicroseconds : -maxMicroseconds,
+          );
+          expect(MfmAnimatedWrapper.parseTime(value), expected);
+          expect(
+            MfmAnimatedWrapper.parseSpeed(
+              value,
+              fallback: const Duration(seconds: 1),
+            ),
+            expected,
+          );
+        });
+      }
+    }
+
+    for (final entry in const <String, int>{
+      '9007199254.740988s': 9007199254740988,
+      '9007199254.740990s': 9007199254740990,
+      '9007199254.740991s': maxMicroseconds,
+      '9007199254.740992s': maxMicroseconds,
+      '9007199254.740993s': maxMicroseconds,
+    }.entries) {
+      for (final sign in ['', '-']) {
+        test('$sign${entry.key}を安全なマイクロ秒範囲に収める', () {
+          final value = '$sign${entry.key}';
+          final expected = Duration(
+            microseconds: sign.isEmpty ? entry.value : -entry.value,
+          );
+          expect(MfmAnimatedWrapper.parseTime(value), expected);
+          expect(
+            MfmAnimatedWrapper.parseSpeed(
+              value,
+              fallback: const Duration(seconds: 1),
+            ),
+            expected,
+          );
+        });
+      }
+    }
+  });
+
+  group('長い正のdelay', () {
+    const timerLimit = Duration(milliseconds: 0x7fffffff);
+    const tail = Duration(seconds: 2);
+    final longDelay = timerLimit * 2 + tail;
+
+    Widget wrapper({
+      required Duration delay,
+      Duration duration = const Duration(seconds: 1),
+      bool enabled = true,
+      MfmAnimatedBuilder? builder,
+    }) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: MfmAnimatedWrapper(
+        duration: duration,
+        delay: delay,
+        enabled: enabled,
+        builder: builder ?? (context, child, controller, progress) => child,
+        child: const Text('delayed'),
+      ),
+    );
+
+    for (final delay in [timerLimit, longDelay]) {
+      testWidgets('delay=$delayは分割待機後に開始する', (tester) async {
+        await tester.pumpWidget(wrapper(delay: delay));
+        expect(tester.hasRunningAnimations, isFalse);
+        if (delay > timerLimit) {
+          await tester.pump(timerLimit);
+          expect(tester.hasRunningAnimations, isFalse);
+          await tester.pump(timerLimit);
+          expect(tester.hasRunningAnimations, isFalse);
+        }
+        final lastPart = delay > timerLimit ? tail : timerLimit;
+        await tester.pump(lastPart - const Duration(milliseconds: 1));
+        expect(tester.hasRunningAnimations, isFalse);
+        await tester.pump(const Duration(milliseconds: 1));
+        expect(tester.takeException(), isNull);
+        expect(tester.hasRunningAnimations, isTrue);
+      });
+    }
+
+    testWidgets('Timerへ渡す待機時間はWebのsetTimeout上限を超えない', (tester) async {
+      // FakeAsyncは任意の長さのTimerを受け付けるため、作成されたTimerの長さを
+      // Zoneで記録し、1本のTimerで待つ実装を検出する。連鎖するTimerも
+      // 登録時のZoneで実行されるので同じく記録される。
+      final durations = <Duration>[];
+      await runZoned(
+        () async {
+          await tester.pumpWidget(wrapper(delay: longDelay));
+          await tester.pump(timerLimit);
+          await tester.pump(timerLimit);
+          await tester.pump(tail);
+        },
+        zoneSpecification: ZoneSpecification(
+          createTimer: (self, parent, zone, duration, callback) {
+            durations.add(duration);
+            return parent.createTimer(zone, duration, callback);
+          },
+        ),
+      );
+
+      expect(tester.hasRunningAnimations, isTrue);
+      expect(durations, everyElement(lessThanOrEqualTo(timerLimit)));
+      expect(durations.where((d) => d == timerLimit), hasLength(2));
+      expect(durations, contains(tail));
+    });
+
+    testWidgets('分割待機中のdelay変更は元の開始予定をキャンセルする', (tester) async {
+      AnimationController? current;
+      Widget host(Duration delay) => wrapper(
+        delay: delay,
+        builder: (context, child, controller, progress) {
+          current = controller;
+          return child;
+        },
+      );
+      await tester.pumpWidget(host(longDelay));
+      await tester.pump(timerLimit * 2);
+      await tester.pumpWidget(host(const Duration(milliseconds: 100)));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(current!.isAnimating, isTrue);
+      await tester.pump(const Duration(seconds: 2));
+      expect(current!.lastElapsedDuration, const Duration(seconds: 2));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('分割待機中のduration変更は待機を最初からやり直す', (tester) async {
+      await tester.pumpWidget(wrapper(delay: longDelay));
+      await tester.pump(timerLimit * 2);
+      await tester.pumpWidget(
+        wrapper(delay: longDelay, duration: const Duration(seconds: 2)),
+      );
+      await tester.pump(tail);
+      expect(tester.hasRunningAnimations, isFalse);
+      await tester.pump(longDelay - tail);
+      expect(tester.takeException(), isNull);
+      expect(tester.hasRunningAnimations, isTrue);
+    });
+
+    testWidgets('分割待機中の無効化はTimerをキャンセルし再有効化で待機し直す', (tester) async {
+      await tester.pumpWidget(wrapper(delay: longDelay));
+      await tester.pump(timerLimit * 2);
+      await tester.pumpWidget(wrapper(delay: longDelay, enabled: false));
+      await tester.pump(tail);
+      expect(tester.hasRunningAnimations, isFalse);
+      await tester.pumpWidget(wrapper(delay: longDelay));
+      await tester.pump(longDelay - const Duration(milliseconds: 1));
+      expect(tester.hasRunningAnimations, isFalse);
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(tester.takeException(), isNull);
+      expect(tester.hasRunningAnimations, isTrue);
+    });
+
+    for (final enabled in [false, true]) {
+      testWidgets('分割待機を${enabled ? '破棄' : '無効化'}した後にTimerを残さない', (
+        tester,
+      ) async {
+        await tester.pumpWidget(wrapper(delay: longDelay));
+        await tester.pump(timerLimit);
+        await tester.pumpWidget(
+          enabled
+              ? const SizedBox.shrink()
+              : wrapper(delay: longDelay, enabled: false),
+        );
+        expect(tester.takeException(), isNull);
+        // テスト終了時の pending Timer 検査でもキャンセルを確認する。
       });
     }
   });
@@ -81,7 +309,6 @@ void main() {
         'speed=2,delay=2',
         'speed,delay',
         'speed=abc,delay=abc',
-        'speed=1.2.3s,delay=1.2.3s',
       ]) {
         testWidgets('${entry.key}の$argsは既定値にフォールバックする', (tester) async {
           await tester.pumpWidget(
@@ -98,6 +325,56 @@ void main() {
           );
           expect(wrapper.duration, entry.value);
           expect(wrapper.delay, Duration.zero);
+        });
+      }
+
+      for (final speed in <String?>[null, '2s']) {
+        testWidgets('${entry.key}のdelayだけCSS無効でもspeed=$speedで動く', (
+          tester,
+        ) async {
+          final speedArg = speed == null ? '' : 'speed=$speed,';
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: '\$[${entry.key}.${speedArg}delay=1.2.3s test]',
+                ),
+              ),
+            ),
+          );
+
+          expect(tester.takeException(), isNull);
+          final wrapper = tester.widget<MfmAnimatedWrapper>(
+            find.byType(MfmAnimatedWrapper),
+          );
+          expect(
+            wrapper.duration,
+            speed == null ? entry.value : const Duration(seconds: 2),
+          );
+          expect(wrapper.delay, Duration.zero);
+          expect(tester.hasRunningAnimations, isTrue);
+        });
+      }
+
+      for (final delay in <String?>[null, '2s', '1.2.3s']) {
+        testWidgets('${entry.key}のCSS無効speedはdelay=$delayでも静止する', (
+          tester,
+        ) async {
+          final delayArg = delay == null ? '' : ',delay=$delay';
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: '\$[${entry.key}.speed=1.2.3s$delayArg test]',
+                ),
+              ),
+            ),
+          );
+
+          expect(tester.takeException(), isNull);
+          expect(find.byType(MfmAnimatedWrapper), findsNothing);
+          expect(_containsText(tester, 'test'), isTrue);
+          expect(tester.hasRunningAnimations, isFalse);
         });
       }
 

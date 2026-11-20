@@ -12,12 +12,28 @@ import '../fn/mfm_fn_handler.dart';
 import '../utils/mention_display.dart';
 import '../utils/nyaize.dart';
 import '../utils/paragraph_semantics.dart';
+import '../utils/plain_text.dart';
+import '../utils/tap_recognizer_pool.dart';
 import '../utils/url_display.dart';
 import '../widgets/mfm_code_block.dart';
 import '../widgets/mfm_link_span.dart';
 import '../widgets/mfm_mention.dart';
 import '../widgets/mfm_mention_text_span.dart';
 import '../widgets/mfm_search.dart';
+
+const _maxNodeDepth = 100;
+final _leadingLineBreak = RegExp(r'^[\n\u2028\u2029]');
+final _trailingLineBreak = RegExp(r'[\n\u2028\u2029]$');
+
+// Rendered blocks whose parsers consume the surrounding line breaks.
+bool _isBlockNode(MfmNode node) => switch (node) {
+  CenterNode() || QuoteNode() || CodeBlockNode() || SearchNode() => true,
+  _ => false,
+};
+
+// 本家の<small>はUAのfont-size: smallerを使用する。
+// Blink font_description.ccのSmallerSizeとFirefoxに合わせ、親サイズを1.2で割る。
+const double _smallFontSizeRatio = 1 / 1.2;
 
 /// MfmNodeをWidgetに変換するビルダー
 class MfmNodeBuilder {
@@ -35,7 +51,13 @@ class MfmNodeBuilder {
     this.isNote = true,
     this.rainbowScope,
     this.rainbowForeground = false,
-  }) : unattenuatedStyle = unattenuatedStyle ?? effectiveStyle;
+    this.recognizerPool,
+    int depth = 0,
+  }) : _depth = depth,
+       unattenuatedStyle = unattenuatedStyle ?? effectiveStyle;
+
+  /// 現在のノードまでの深さ。子リストの構築ごとに1段進める。
+  final int _depth;
 
   /// レンダリング設定
   final MfmRenderConfig config;
@@ -65,7 +87,7 @@ class MfmNodeBuilder {
   /// 本家MkMfmのplain表示を使うか。
   final bool plain;
 
-  /// 1行に収める表示を使うか。
+  /// 明示的な改行を保持し、自動折り返しを止めるか。
   final bool nowrap;
 
   /// ハッシュタグをノート用の遷移先へ向けるか。
@@ -74,6 +96,9 @@ class MfmNodeBuilder {
   /// 静的rainbowの範囲と継承色。fg/link等の明示色ではforegroundだけを解除する。
   final MfmRainbowScope? rainbowScope;
   final bool rainbowForeground;
+
+  /// MfmTextが所有するrecognizer。直接使う場合は従来どおり呼び出し側で管理する。
+  final MfmTapRecognizerPool? recognizerPool;
 
   /// 実効文字色にはsmall等の減光を反映済み。shaderでもそのalphaを維持する。
   double get foregroundOpacity =>
@@ -84,6 +109,7 @@ class MfmNodeBuilder {
     TextStyle? unattenuatedStyle,
     double? scale,
     int? sizeDepth,
+    int? depth,
     double? opacity,
     bool? disableNyaize,
     bool? plain,
@@ -94,6 +120,8 @@ class MfmNodeBuilder {
   }) {
     return MfmNodeBuilder(
       config: config,
+      recognizerPool: recognizerPool,
+      depth: depth ?? _depth,
       colorScheme: colorScheme,
       effectiveStyle: effectiveStyle ?? this.effectiveStyle,
       unattenuatedStyle: unattenuatedStyle ?? this.unattenuatedStyle,
@@ -186,16 +214,19 @@ class MfmNodeBuilder {
           )
         : TextSpan(style: effectiveStyle, children: children);
     final scope = rainbowScope;
+    // 両方とも既定のoverflow: clipを維持し、nowrapでも明示改行を残す。
     return scope == null
         ? RichText(
             key: paragraphSemanticsKey(text),
             textAlign: textAlign,
+            softWrap: !nowrap,
             text: text,
           )
         : MfmRainbowRichText(
             key: paragraphSemanticsKey(text),
             scope: scope,
             textAlign: textAlign,
+            softWrap: !nowrap,
             text: text,
           );
   }
@@ -215,11 +246,46 @@ class MfmNodeBuilder {
 
   /// ノードリストをWidgetリストに変換
   List<InlineSpan> buildNodes(List<MfmNode> nodes) {
-    return nodes.map(buildNode).toList();
+    // fnハンドラーを含め、子ノードは必ずこの入口を通る。
+    final nested = _copyWith(depth: _depth + 1);
+    if (nested._depth > _maxNodeDepth) {
+      return [
+        TextSpan(
+          text: mfmPlainText(
+            nodes,
+            plain: plain,
+            shouldNyaize: shouldNyaize,
+            disableNyaize: disableNyaize,
+          ),
+        ),
+      ];
+    }
+    final spans = nodes.map(nested._buildNode).toList();
+    if (!nowrap || spans.length < 2) return spans;
+
+    final separated = <InlineSpan>[spans.first];
+    for (var i = 1; i < spans.length; i++) {
+      if (_isBlockNode(nodes[i - 1]) || _isBlockNode(nodes[i])) {
+        // Keep WidgetSpan placeholders: an internal newline cannot separate
+        // the widget from its siblings in the containing paragraph.
+        final previous = spans[i - 1].toPlainText(
+          includeSemanticsLabels: false,
+        );
+        final current = spans[i].toPlainText(includeSemanticsLabels: false);
+        if (!_trailingLineBreak.hasMatch(previous) &&
+            !_leadingLineBreak.hasMatch(current)) {
+          separated.add(const TextSpan(text: '\n'));
+        }
+      }
+      separated.add(spans[i]);
+    }
+    return separated;
   }
 
-  /// 単一ノードをInlineSpanに変換
-  InlineSpan buildNode(MfmNode node) {
+  /// 単一ノードでもリストと同じ深さ制限を適用する。
+  InlineSpan buildNode(MfmNode node) => buildNodes([node]).single;
+
+  InlineSpan _buildNode(MfmNode node) {
     return node.map(
       text: _buildText,
       bold: _buildBold,
@@ -247,9 +313,8 @@ class MfmNodeBuilder {
   InlineSpan _buildText(TextNode node) {
     // styleをnullにして親のスタイルを継承
     // ルートのTextSpanでbaseTextStyleが設定されているため、ここで再設定する必要はない
-    final normalized = plain
-        ? node.text.replaceAll(RegExp(r'\r\n|\r|\n'), '\n')
-        : node.text;
+    // 本家と同じく、plainに関係なくCRLF/CRをLFへ正規化する。
+    final normalized = node.text.replaceAll(RegExp(r'\r\n?'), '\n');
     final nyaized = shouldNyaize ? nyaize(normalized) : normalized;
     return TextSpan(text: plain ? nyaized.replaceAll('\n', ' ') : nyaized);
   }
@@ -304,7 +369,7 @@ class MfmNodeBuilder {
     final color = effectiveStyle.color ?? const Color(0xFF000000);
 
     final patch = _dimmedSecondaryColors(0.7).copyWith(
-      fontSize: effectiveStyle.fontSize! * 0.8,
+      fontSize: effectiveStyle.fontSize! * _smallFontSizeRatio,
       color: foreground == null ? color.withValues(alpha: color.a * 0.7) : null,
       foreground: foreground == null
           ? null
@@ -313,7 +378,9 @@ class MfmNodeBuilder {
                 alpha: foreground.color.a * 0.7,
               )),
     );
-    final rawPatch = TextStyle(fontSize: unattenuatedStyle.fontSize! * 0.8);
+    final rawPatch = TextStyle(
+      fontSize: unattenuatedStyle.fontSize! * _smallFontSizeRatio,
+    );
     final smaller = _copyWith(opacity: opacity * 0.7);
     if (rainbowForeground) {
       // smallは色の指定ではなく減光なので、虹色の継承を解除しない。
@@ -365,7 +432,7 @@ class MfmNodeBuilder {
       );
     }
 
-    // nowrapでは1行に収めるため、引用も全幅化せずインライン幅で描画する。
+    // nowrapでは引用を全幅化せず、内容の自然幅で描画する。
     return WidgetSpan(
       child: nowrap
           ? buildQuoteContainer()
@@ -410,6 +477,8 @@ class MfmNodeBuilder {
     final backgroundColor = colorScheme.bg;
     final text = Text(
       node.code,
+      softWrap: !nowrap,
+      overflow: nowrap ? TextOverflow.clip : null,
       style: effectiveStyle.copyWith(
         fontFamily: 'Consolas',
         fontFamilyFallback: const [
@@ -475,11 +544,24 @@ class MfmNodeBuilder {
     );
   }
 
+  TapGestureRecognizer _tapRecognizer(
+    MfmTapRecognizerKind kind,
+    String target,
+    VoidCallback onTap,
+  ) {
+    return recognizerPool?.acquire(kind, target, onTap) ??
+        (TapGestureRecognizer()..onTap = onTap);
+  }
+
   InlineSpan _buildUrl(UrlNode node) {
     final onLinkTap = config.onLinkTap;
     final recognizer = onLinkTap == null
         ? null
-        : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url));
+        : _tapRecognizer(
+            MfmTapRecognizerKind.url,
+            node.url,
+            () => onLinkTap(node.url),
+          );
     final baseColor = applyOpacity(colorScheme.link);
     final parts = parseUrlDisplay(node.url, localHost: config.localHost);
     if (parts == null) {
@@ -579,10 +661,13 @@ class MfmNodeBuilder {
 
   InlineSpan _buildLink(LinkNode node) {
     final onLinkTap = config.onLinkTap;
-    // Ownership remains the existing one-recognizer-per-link builder policy.
     final recognizer = onLinkTap == null
         ? null
-        : (TapGestureRecognizer()..onTap = () => onLinkTap(node.url));
+        : _tapRecognizer(
+            MfmTapRecognizerKind.link,
+            node.url,
+            () => onLinkTap(node.url),
+          );
     final label = _withDisableNyaize().buildStyledSpan(
       TextStyle(
         color: applyOpacity(colorScheme.link),
@@ -619,7 +704,7 @@ class MfmNodeBuilder {
     if (options?.presentation == MfmMentionPresentation.text) {
       final recognizer = onTap == null
           ? null
-          : (TapGestureRecognizer()..onTap = onTap);
+          : _tapRecognizer(MfmTapRecognizerKind.mention, resolvedAcct, onTap);
       return MfmMentionTextSpan(
         recognizer: recognizer,
         children: [
@@ -693,8 +778,10 @@ class MfmNodeBuilder {
       ),
       recognizer: onHashtagTapDetails == null && onHashtagTap == null
           ? null
-          : (TapGestureRecognizer()
-              ..onTap = () {
+          : _tapRecognizer(
+              MfmTapRecognizerKind.hashtag,
+              node.hashtag,
+              () {
                 if (onHashtagTapDetails != null) {
                   final pathPrefix = isNote ? '/tags/' : '/user-tags/';
                   onHashtagTapDetails(
@@ -707,7 +794,8 @@ class MfmNodeBuilder {
                 } else {
                   onHashtagTap!(node.hashtag);
                 }
-              }),
+              },
+            ),
     );
   }
 
