@@ -120,6 +120,7 @@ class MfmRenderConfig {
     this.baseTextStyle,
     this.enableAdvancedMfm = true,
     this.enableAnimation = true,
+    this.followPlatformReducedMotion,
     this.enableNyaize = false,
     this.nyaizeMode,
     this.emojiBuilder,
@@ -162,7 +163,22 @@ class MfmRenderConfig {
   /// [enableAdvancedMfm]が有効な場合のMFMアニメーションを有効化。
   final bool enableAnimation;
 
+  /// OSの「動きを減らす」設定（[MediaQueryData.disableAnimations]）に追従するか。
+  ///
+  /// `null`（未指定）と`true`は追従する。追従中にOS設定が有効になると、
+  /// `MfmText`は`enableAnimation: false`と同じ静止表示に切り替え、
+  /// 設定の変更にも追従する。`false`はOS設定を無視する。
+  ///
+  /// OS設定はアニメーションを止める方向にのみ働き、
+  /// [enableAnimation]が`false`の場合は常にそちらが優先される。
+  /// 親子の設定では子の明示的な`true`/`false`が親を上書きし、
+  /// `null`は親の値を継承する。
+  final bool? followPlatformReducedMotion;
+
   /// MFMアニメーションの実効的な有効判定。
+  ///
+  /// この設定値だけから求めるため、[followPlatformReducedMotion]による
+  /// OS設定の反映は含まない。OS設定を含めた判定は`MfmText`の描画時に行う。
   bool get useAnimation => enableAdvancedMfm && enableAnimation;
 
   /// nyaize変換を有効化。
@@ -346,6 +362,7 @@ class MfmRenderConfig {
     TextStyle? baseTextStyle,
     bool? enableAdvancedMfm,
     bool? enableAnimation,
+    bool? followPlatformReducedMotion,
     bool? enableNyaize,
     MfmNyaizeMode? nyaizeMode,
     Widget Function(String name, MfmEmojiContext context)? emojiBuilder,
@@ -422,6 +439,8 @@ class MfmRenderConfig {
       baseTextStyle: baseTextStyle ?? this.baseTextStyle,
       enableAdvancedMfm: enableAdvancedMfm ?? this.enableAdvancedMfm,
       enableAnimation: enableAnimation ?? this.enableAnimation,
+      followPlatformReducedMotion:
+          followPlatformReducedMotion ?? this.followPlatformReducedMotion,
       enableNyaize: enableNyaize ?? this.enableNyaize,
       nyaizeMode: nyaizeMode ?? this.nyaizeMode,
       emojiBuilder: emojiBuilder ?? this.emojiBuilder,

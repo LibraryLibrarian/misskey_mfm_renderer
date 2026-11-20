@@ -75,8 +75,16 @@ class MfmText extends StatelessWidget {
         mergedConfig.baseTextStyle ?? DefaultTextStyle.of(context).style;
     final rootStyle = rawStyle.copyWith(fontSize: rawStyle.fontSize ?? 14.0);
 
+    // OSの「動きを減らす」設定は、追従が有効でアニメーションが有効な場合だけ参照する。
+    // 参照時はMediaQueryのdisableAnimationsだけに依存し、その変更で再buildされる。
+    final reduceMotion =
+        (mergedConfig.followPlatformReducedMotion ?? true) &&
+        mergedConfig.useAnimation &&
+        (MediaQuery.maybeDisableAnimationsOf(context) ?? false);
+
     // baseTextStyleと解決済みbrightnessを設定
     final effectiveConfig = mergedConfig.copyWith(
+      enableAnimation: reduceMotion ? false : null,
       baseTextStyle: rootStyle,
       brightness: brightness,
       searchButtonLabel:
@@ -149,6 +157,9 @@ MfmRenderConfig _mergeConfigs(
     enableAnimation: explicit.enableAnimation != defaults.enableAnimation
         ? explicit.enableAnimation
         : inherited.enableAnimation,
+    followPlatformReducedMotion:
+        explicit.followPlatformReducedMotion ??
+        inherited.followPlatformReducedMotion,
     enableNyaize: explicit.enableNyaize != defaults.enableNyaize
         ? explicit.enableNyaize
         : inherited.enableNyaize,
@@ -196,6 +207,8 @@ bool _isDefaultConfig(MfmRenderConfig config) {
   return config.baseTextStyle == defaults.baseTextStyle &&
       config.enableAdvancedMfm == defaults.enableAdvancedMfm &&
       config.enableAnimation == defaults.enableAnimation &&
+      config.followPlatformReducedMotion ==
+          defaults.followPlatformReducedMotion &&
       config.enableNyaize == defaults.enableNyaize &&
       config.nyaizeMode == defaults.nyaizeMode &&
       config.emojiBuilder == defaults.emojiBuilder &&

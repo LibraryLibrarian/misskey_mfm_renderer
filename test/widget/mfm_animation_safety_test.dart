@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:misskey_client/misskey_client.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_animated_wrapper.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_rainbow_text.dart';
@@ -208,6 +210,168 @@ void main() {
         orderedEquals(before),
         reason: 'TickerMode停止中は粒子生成TimerのsetStateも停止する',
       );
+    });
+  });
+
+  group('followPlatformReducedMotion', () {
+    bool isAnimating(WidgetTester tester) =>
+        _descendants(find.byType(MfmAnimatedWrapper)).evaluate().isNotEmpty;
+
+    Widget host(
+      Widget child, {
+      required bool reducedMotion,
+      MfmRenderConfig? inherited,
+    }) {
+      var content = child;
+      if (inherited != null) {
+        content = MfmConfig(config: inherited, child: content);
+      }
+      return MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(disableAnimations: reducedMotion),
+          child: Scaffold(body: content),
+        ),
+      );
+    }
+
+    testWidgets('既定値はnullで、OS設定に追従する', (tester) async {
+      _cleanUp(tester);
+      expect(const MfmRenderConfig().followPlatformReducedMotion, isNull);
+      const text = MfmText(text: r'$[spin x]');
+
+      await tester.pumpWidget(host(reducedMotion: true, text));
+      expect(isAnimating(tester), isFalse);
+    });
+
+    testWidgets('同じMfmTextのままMediaQueryの変更だけで静止と再開を切り替える', (tester) async {
+      _cleanUp(tester);
+      // 同一インスタンスを渡し、MediaQueryへの依存登録だけで再buildされることを確認する。
+      const text = MfmText(text: r'$[spin x]');
+
+      await tester.pumpWidget(host(reducedMotion: false, text));
+      expect(isAnimating(tester), isTrue);
+
+      await tester.pumpWidget(host(reducedMotion: true, text));
+      expect(isAnimating(tester), isFalse);
+
+      await tester.pumpWidget(host(reducedMotion: false, text));
+      expect(isAnimating(tester), isTrue);
+      final before = _transforms(tester);
+      await tester.pump(const Duration(milliseconds: 137));
+      expect(_transforms(tester), isNot(before));
+    });
+
+    testWidgets('falseはOS設定を無視してアニメーションを続ける', (tester) async {
+      _cleanUp(tester);
+      await tester.pumpWidget(
+        host(
+          reducedMotion: true,
+          const MfmText(
+            text: r'$[spin x]',
+            config: MfmRenderConfig(followPlatformReducedMotion: false),
+          ),
+        ),
+      );
+      expect(isAnimating(tester), isTrue);
+      final before = _transforms(tester);
+      await tester.pump(const Duration(milliseconds: 137));
+      expect(_transforms(tester), isNot(before));
+    });
+
+    testWidgets('OS設定はenableAnimation=falseを再有効化しない', (tester) async {
+      _cleanUp(tester);
+      for (final follow in [null, true, false]) {
+        await tester.pumpWidget(
+          host(
+            reducedMotion: false,
+            MfmText(
+              text: r'$[spin x]',
+              config: MfmRenderConfig(
+                enableAnimation: false,
+                followPlatformReducedMotion: follow,
+              ),
+            ),
+          ),
+        );
+        expect(isAnimating(tester), isFalse, reason: 'follow=$follow');
+      }
+    });
+
+    testWidgets('MediaQueryがなくても既定値で例外を出さずアニメーションする', (tester) async {
+      _cleanUp(tester);
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: MfmText(text: r'$[spin x]'),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(isAnimating(tester), isTrue);
+    });
+
+    for (final entry in <String, (bool?, bool?, bool)>{
+      '親true・子false': (true, false, true),
+      '親false・子true': (false, true, false),
+      '親false・子null': (false, null, true),
+      '親true・子null': (true, null, false),
+    }.entries) {
+      testWidgets('継承: ${entry.key}', (tester) async {
+        _cleanUp(tester);
+        final (parent, child, animates) = entry.value;
+        await tester.pumpWidget(
+          host(
+            reducedMotion: true,
+            MfmText(
+              text: r'$[spin x]',
+              config: MfmRenderConfig(followPlatformReducedMotion: child),
+            ),
+            inherited: MfmRenderConfig(followPlatformReducedMotion: parent),
+          ),
+        );
+        expect(isAnimating(tester), animates);
+      });
+    }
+
+    test('copyWithは値を維持し、明示した値で上書きする', () {
+      const config = MfmRenderConfig(followPlatformReducedMotion: false);
+      expect(
+        config.copyWith(enableNyaize: true).followPlatformReducedMotion,
+        isFalse,
+      );
+      expect(
+        config
+            .copyWith(followPlatformReducedMotion: true)
+            .followPlatformReducedMotion,
+        isTrue,
+      );
+      // useAnimationは設定値だけで決まり、OS設定を含まない。
+      expect(config.useAnimation, isTrue);
+    });
+
+    test('MfmEmojiConfigHandleのcopyWithでも値を転送する', () async {
+      final dir = await Directory.systemTemp.createTemp('mfm_reduced_motion');
+      addTearDown(() => dir.delete(recursive: true));
+      final handle = await MfmEmojiConfig.createDefault(
+        client: MisskeyClient(
+          config: MisskeyClientConfig(
+            baseUrl: Uri.parse('https://example.com'),
+          ),
+        ),
+        storagePath: dir.path,
+        autoSync: false,
+        emojiStoreFactory:
+            ({required Uri serverUrl, required String directory}) =>
+                _EmptyEmojiStore(),
+      );
+      addTearDown(handle.dispose);
+
+      expect(handle.followPlatformReducedMotion, isNull);
+      final copied = handle.copyWith(followPlatformReducedMotion: false);
+      final preserved = copied.copyWith(enableAnimation: false);
+      for (final value in [copied, preserved]) {
+        expect(value, isA<MfmEmojiConfigHandle>());
+        expect(value.followPlatformReducedMotion, isFalse);
+      }
     });
   });
 
@@ -653,4 +817,28 @@ void _cleanUp(WidgetTester tester) {
     // sparkleの既存粒子の削除Timerも満了させ、失敗の原因から分離する。
     await tester.pump(const Duration(seconds: 3));
   });
+}
+
+class _EmptyEmojiStore implements EmojiStore {
+  @override
+  Future<EmojiSnapshot> load() async =>
+      const EmojiSnapshot(records: [], syncedAt: null);
+
+  @override
+  Future<void> save(
+    List<EmojiRecord> all, {
+    required DateTime syncedAt,
+  }) async {}
+
+  @override
+  Future<void> clear() async {}
+
+  @override
+  Future<int> count() async => 0;
+
+  @override
+  Future<int?> sizeInBytes() async => null;
+
+  @override
+  Future<void> dispose() async {}
 }

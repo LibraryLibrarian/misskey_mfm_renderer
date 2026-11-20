@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added `MfmRenderConfig.followPlatformReducedMotion` to choose whether `MfmText` follows the OS reduced-motion setting (`null`/`true` follow it, `false` ignores it); explicit child values override inherited ones, and the OS setting never re-enables animation disabled by `enableAnimation: false`
 - Added opt-in `MfmTwemojiBuilder` with explicit PNG image providers or a validated network directory, stable image baselines and original Unicode fallback; native rendering remains the default
 - Editable search fields with a search icon, button activation and keyboard Search/Enter submission through `onSearchTap`
 - Show the existing external-link icon after HTTP(S) external labelled links, including silent links
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `MfmCustomEmoji.semanticLabel` to override the default `:name:` accessibility label of the emoji image, standard loading placeholder and standard shortcode fallback
 
 ### Changed
+- **Breaking:** `MfmText` now follows the OS reduced-motion setting by default: while `MediaQuery.disableAnimations` is on, MFM renders exactly as with `enableAnimation: false` (enlarged static `tada`, static rainbow gradient, sparkle without particles) and follows changes to the setting. Migration: set `followPlatformReducedMotion: false` to keep animating regardless of the OS setting
 - **Breaking:** Search queries now render as editable controls instead of fixed Text, changing width, height, semantics and callback values. Migration: handle the edited query (including empty strings), update snapshots/finders for EditableText, and bundle MaterialIcons (normally `uses-material-design: true`)
 - **Breaking:** External labelled links now occupy extra inline width, can wrap differently, and add a WidgetSpan plain-text placeholder. Migration: bundle MaterialIcons (normally `uses-material-design: true`), allow the extra width/update snapshots, and obtain logical label text from the source/AST rather than display spans
 - **Breaking:** Border styles, numeric prefixes, RGBA/invalid colors, zero widths and inner-edge clipping now affect rendering. Migrate to `style=solid`, explicit finite nonnegative dimensions and 3/6-digit RGB for legacy solid borders; omit invalid colors for accent, use positive widths instead of zero hairlines, and use `noclip` to disable clipping (not to reproduce the old outer clip). Direct AST callers should use `noclip: true` to disable clipping, or false/null/omission to clip
