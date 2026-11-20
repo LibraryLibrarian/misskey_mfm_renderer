@@ -480,8 +480,32 @@ void main() {
           reason: 'Both base and reading must grow with TextScaler.linear(2).',
         );
       },
-      // 本文の TextScaler 設計が決まるまで保留
-      skip: true,
     );
+
+    testWidgets('keeps the base and reading on one line under nowrap', (
+      tester,
+    ) async {
+      const text = r'$[ruby $[fg.color=ff0000 abcdefghij] yomi]';
+      Future<({Rect red, Rect blue})> pump({required bool nowrap}) async {
+        await tester.pumpWidget(
+          _host(
+            SizedBox(
+              width: 60,
+              child: MfmText(text: text, nowrap: nowrap),
+            ),
+          ),
+        );
+        return _ink(tester);
+      }
+
+      final wrapped = await pump(nowrap: false);
+      final nowrap = await pump(nowrap: true);
+      // 幅60では4行に折り返し、nowrapでは1行（Ahem 20px）に収まる。
+      expect(wrapped.red.height, 80);
+      expect(nowrap.red.height, 20);
+      expect(nowrap.blue.height, 10);
+      expect(nowrap.blue.bottom, lessThanOrEqualTo(nowrap.red.top));
+      expect(tester.takeException(), isNull);
+    });
   });
 }

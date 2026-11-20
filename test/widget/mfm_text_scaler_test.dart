@@ -139,14 +139,24 @@ void main() {
         ),
       );
       final ruby = find.byWidgetPredicate(
-        (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+        (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
       );
       final box = tester.renderObject<RenderBox>(ruby);
       final start = box.localToGlobal(Offset.zero);
       final end = box.localToGlobal(box.size.bottomRight(Offset.zero));
       sizes.add(Size(end.dx - start.dx, end.dy - start.dy));
-      expect(((box as dynamic).baseStyle as TextStyle).fontSize, 14 * scale);
-      expect(((box as dynamic).rubyStyle as TextStyle).fontSize, 7 * scale);
+      // ベース、ルビの順に子のRichTextを持つ。
+      final styles = tester
+          .widgetList<RichText>(
+            find.descendant(
+              of: ruby,
+              matching: find.byWidgetPredicate((widget) => widget is RichText),
+            ),
+          )
+          .map((text) => text.text.style!)
+          .toList();
+      expect(styles.first.fontSize, 14 * scale);
+      expect(styles.last.fontSize, 7 * scale);
       expect(tester.takeException(), isNull);
     }
     expect(sizes[1].width, closeTo(sizes[0].width * 2, .01));
