@@ -40,7 +40,7 @@ Flutter 3.38.7です。Webではなく、Android、iOS、macOS、Linux、Windows
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.4
+  misskey_mfm_renderer: ^0.6.0-beta.5
 ```
 
 ```bash

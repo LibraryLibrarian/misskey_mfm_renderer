@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-beta.5] - 2026-11-21
+
 ### Added
 - Added `MfmRenderConfig.followPlatformReducedMotion` to choose whether `MfmText` follows the OS reduced-motion setting (`null`/`true` follow it, `false` ignores it); explicit child values override inherited ones, and the OS setting never re-enables animation disabled by `enableAnimation: false`
 - Added opt-in `MfmTwemojiBuilder` with explicit PNG image providers or a validated network directory, stable image baselines and original Unicode fallback; native rendering remains the default

@@ -13,7 +13,7 @@ Flutter **3.38.1 이상**, Dart **3.10.0 이상**을 사용하는 기존 Flutter
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.4
+  misskey_mfm_renderer: ^0.6.0-beta.5
 ```
 
 앱 디렉터리에서 의존성을 해결합니다.

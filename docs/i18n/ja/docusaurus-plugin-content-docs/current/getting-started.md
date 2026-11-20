@@ -13,7 +13,7 @@ Flutter **3.38.1以上**、Dart **3.10.0以上**を使用するFlutterアプリ�
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.4
+  misskey_mfm_renderer: ^0.6.0-beta.5
 ```
 
 アプリのディレクトリで依存関係を取得します。

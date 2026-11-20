@@ -13,7 +13,7 @@ Ajoutez cette entrée à côté de la dépendance au SDK Flutter dans le fichier
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.4
+  misskey_mfm_renderer: ^0.6.0-beta.5
 ```
 
 Résolvez ensuite les dépendances depuis le répertoire de l’application :
