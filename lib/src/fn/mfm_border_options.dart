@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 
 import '../utils/color_parser.dart';
+import '../utils/js_parse_float.dart';
 
 /// Internal, resolved border arguments. Not part of the package's public API.
 enum MfmBorderStyle {
@@ -78,26 +79,9 @@ class MfmBorderOptions {
   final bool noclip;
 
   static final _hex = RegExp(r'^[0-9a-fA-F]{3,6}$');
-  // ECMAScript WhiteSpace + LineTerminator, not Dart's broader trim set.
-  static final _prefix = RegExp(
-    r'^[\u0009-\u000D\u0020\u00A0\u1680'
-    r'\u2000-\u200A\u2028\u2029\u202F'
-    r'\u205F\u3000\uFEFF]*'
-    r'([+-]?(?:Infinity|(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?))',
-  );
 
-  static double _number(Object? value, double fallback) {
-    final double? parsed;
-    if (value is num) {
-      parsed = value.toDouble();
-    } else if (value is String) {
-      final prefix = _prefix.firstMatch(value)?.group(1);
-      parsed = prefix == null ? null : double.tryParse(prefix);
-    } else {
-      parsed = null;
-    }
-    return parsed == null || parsed.isNaN ? fallback : parsed;
-  }
+  static double _number(Object? value, double fallback) =>
+      jsParseFloat(value) ?? fallback;
 
   static bool _truthy(Object? value) {
     if (value == null) return false;

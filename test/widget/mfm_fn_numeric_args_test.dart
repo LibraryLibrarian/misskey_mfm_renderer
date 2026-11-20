@@ -48,6 +48,42 @@ void main() {
     });
   });
 
+  group('fnの数値引数が無限大になる場合', () {
+    // 本家のCSSでは rotate(Infinitydeg) や translateX(Infinityem) は無効な値で、
+    // transform宣言ごと捨てられる。
+    for (final deg in ['Infinity', '-Infinity', '1e400']) {
+      testWidgets('rotate.deg=$degは例外を出さず回転しない', (tester) async {
+        await _pumpMfm(tester, '\$[rotate.deg=$deg x]');
+
+        expect(tester.takeException(), isNull);
+        expect(_findTransform(), findsNothing);
+        expect(find.text('x', findRichText: true), findsOneWidget);
+      });
+    }
+
+    testWidgets('rotate.deg=1e308はラジアンに直すと溢れるが同じ向きに回転する', (tester) async {
+      await _pumpMfm(tester, r'$[rotate.deg=1e308 x]');
+
+      final matrix = _transform(tester).transform;
+      const radians = 1e308 % 360 * math.pi / 180;
+      expect(matrix.entry(0, 0), closeTo(math.cos(radians), 1e-9));
+      expect(matrix.entry(1, 0), closeTo(math.sin(radians), 1e-9));
+    });
+
+    for (final args in ['x=Infinity', 'x=1,y=Infinity', 'x=1e308']) {
+      testWidgets('position.$argsは座標をNaNにせず移動しない', (tester) async {
+        await _pumpMfm(tester, '\$[position.$args x]');
+
+        expect(tester.takeException(), isNull);
+        expect(_findTransform(), findsNothing);
+        final origin = tester
+            .renderObject<RenderBox>(find.text('x', findRichText: true))
+            .localToGlobal(Offset.zero);
+        expect(origin.isFinite, isTrue);
+      });
+    }
+  });
+
   group('scaleの負の倍率を本家どおりに扱う', () {
     testWidgets('scale.x=-10は負の倍率に下限を設けない', (tester) async {
       await _pumpMfm(tester, r'$[scale.x=-10 x]');
@@ -143,6 +179,8 @@ Future<void> _pumpMfm(
   ),
 );
 
-Transform _transform(WidgetTester tester) => tester.widget<Transform>(
-  find.descendant(of: find.byType(MfmText), matching: find.byType(Transform)),
-);
+Finder _findTransform() =>
+    find.descendant(of: find.byType(MfmText), matching: find.byType(Transform));
+
+Transform _transform(WidgetTester tester) =>
+    tester.widget<Transform>(_findTransform());

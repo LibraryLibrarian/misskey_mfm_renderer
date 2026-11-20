@@ -7,6 +7,7 @@ import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import '../builder/mfm_node_builder.dart';
 import '../config/mfm_unixtime_options.dart';
 import '../utils/color_parser.dart';
+import '../utils/js_parse_float.dart';
 import '../utils/unixtime.dart';
 import '../widgets/mfm_border.dart';
 import '../widgets/mfm_unixtime_label.dart';
@@ -179,29 +180,31 @@ class MfmFnHandler {
   }
 
   static InlineSpan _buildRotate(FnNode node, MfmNodeBuilder builder) {
-    final args = node.args;
+    // 本家と同じくparseFloatで先頭の数値を読む（`45deg`は45度）。
+    final degrees = jsParseFloat(node.args['deg']) ?? 90.0;
+    final child = builder.buildInlineRichText(
+      builder.buildNodes(node.children),
+    );
 
-    // deg引数を取得（デフォルト: 90度）
-    var degrees = 90.0;
-    if (args.containsKey('deg')) {
-      final degValue = args['deg'];
-      if (degValue is num) {
-        degrees = degValue.toDouble();
-      } else if (degValue is String) {
-        degrees = double.tryParse(degValue) ?? 90.0;
-      }
+    // Infinityは本家のCSSでは無効な値になり、回転しない。
+    if (!degrees.isFinite) {
+      return WidgetSpan(
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        child: child,
+      );
     }
 
-    final radians = degrees * math.pi / 180.0;
-    final children = builder.buildNodes(node.children);
+    var radians = degrees * math.pi / 180.0;
+    if (!radians.isFinite) {
+      // 有限でもラジアンへの変換で溢れる巨大な角度は、同じ向きの角度に直す。
+      radians = degrees % 360 * math.pi / 180.0;
+    }
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: Transform.rotate(
-        angle: radians,
-        child: builder.buildInlineRichText(children),
-      ),
+      child: Transform.rotate(angle: radians, child: child),
     );
   }
 
@@ -496,22 +499,13 @@ class MfmFnHandler {
     var scaleX = 1.0;
     var scaleY = 1.0;
 
+    // 本家と同じくparseFloatで先頭の数値を読む（`2foo`は2）。
     if (args.containsKey('x')) {
-      final xValue = args['x'];
-      if (xValue is num) {
-        scaleX = xValue.toDouble().clamp(-5.0, 5.0);
-      } else if (xValue is String) {
-        scaleX = (double.tryParse(xValue) ?? 1.0).clamp(-5.0, 5.0);
-      }
+      scaleX = (jsParseFloat(args['x']) ?? 1.0).clamp(-5.0, 5.0);
     }
 
     if (args.containsKey('y')) {
-      final yValue = args['y'];
-      if (yValue is num) {
-        scaleY = yValue.toDouble().clamp(-5.0, 5.0);
-      } else if (yValue is String) {
-        scaleY = (double.tryParse(yValue) ?? 1.0).clamp(-5.0, 5.0);
-      }
+      scaleY = (jsParseFloat(args['y']) ?? 1.0).clamp(-5.0, 5.0);
     }
 
     // スケールを伝播（本家と同じくx, yの大きい方を掛ける）
@@ -538,44 +532,25 @@ class MfmFnHandler {
       return _buildLiteral(node, builder);
     }
 
-    final args = node.args;
-
-    // x, y引数を取得（em単位）
-    var x = 0.0;
-    var y = 0.0;
-
-    if (args.containsKey('x')) {
-      final xValue = args['x'];
-      if (xValue is num) {
-        x = xValue.toDouble();
-      } else if (xValue is String) {
-        x = double.tryParse(xValue) ?? 0.0;
-      }
-    }
-
-    if (args.containsKey('y')) {
-      final yValue = args['y'];
-      if (yValue is num) {
-        y = yValue.toDouble();
-      } else if (yValue is String) {
-        y = double.tryParse(yValue) ?? 0.0;
-      }
-    }
-
-    final children = builder.buildNodes(node.children);
+    // x, y引数を取得（em単位）。本家と同じくparseFloatで先頭の数値を読む。
+    final x = jsParseFloat(node.args['x']) ?? 0.0;
+    final y = jsParseFloat(node.args['y']) ?? 0.0;
 
     // emをピクセルに変換（祖先のサイズ変更を含む実効サイズを使用）
     final baseSize = builder.effectiveStyle.fontSize!;
-    final offsetX = x * baseSize;
-    final offsetY = y * baseSize;
+    final offset = Offset(x * baseSize, y * baseSize);
+    final child = builder.buildInlineRichText(
+      builder.buildNodes(node.children),
+    );
 
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
-      child: Transform.translate(
-        offset: Offset(offsetX, offsetY),
-        child: builder.buildInlineRichText(children),
-      ),
+      // Infinityは本家のCSSでは無効な値になり、x, yとも移動しない。
+      // px換算で溢れた場合も、座標がNaNにならないよう移動しない。
+      child: offset.isFinite
+          ? Transform.translate(offset: offset, child: child)
+          : child,
     );
   }
 
