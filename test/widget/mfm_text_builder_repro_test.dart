@@ -58,11 +58,6 @@ Future<List<Object>> _pumpCollectingErrors(
   final previous = FlutterError.onError;
   FlutterError.onError = (details) {
     errors.add(details.exception);
-    // ignore: avoid_print
-    print(
-      '[4] framework error: ${details.exception.runtimeType}; '
-      '${details.stack?.toString().split('\n').take(4).join(' | ')}',
-    );
   };
   try {
     await tester.pumpWidget(widget);
@@ -132,8 +127,6 @@ void main() {
         );
         sizes.add(_paintedGlyphSize(tester, _paragraphWithText(sample.label)));
       }
-      // ignore: avoid_print
-      print('[1] ${sample.name}: scale=1 ${sizes[0]}, scale=2 ${sizes[1]}');
       expect(sizes[1].width, closeTo(sizes[0].width * 2, .01));
       expect(sizes[1].height, closeTo(sizes[0].height * 2, .01));
     });
@@ -156,8 +149,6 @@ void main() {
       );
       heights.add((end.dy - start.dy).abs());
     }
-    // ignore: avoid_print
-    print('[1] search editor painted line heights: $heights');
     expect(heights[1], closeTo(heights[0] * 2, .01));
   });
 
@@ -215,8 +206,6 @@ void main() {
       final paragraph = tester.renderObject<RenderParagraph>(
         _paragraphWithText('abcdefghijklmnopqrst'),
       );
-      // ignore: avoid_print
-      print('[2] nowrap ${sample.name}: height=${paragraph.size.height}');
       expect(paragraph.size.height, closeTo(sample.height, .01));
     });
   }
@@ -324,8 +313,6 @@ void main() {
         liveCounts.add(tracker.liveCount);
       }
       await tester.pumpWidget(const SizedBox.shrink());
-      // ignore: avoid_print
-      print('[3] ${sample.name} live recognizers per build: $liveCounts');
       expect(liveCounts.first, greaterThan(0));
       expect(liveCounts, everyElement(lessThanOrEqualTo(liveCounts.first)));
     });
@@ -338,10 +325,6 @@ void main() {
       final errors = await _pumpCollectingErrors(
         tester,
         _host(MfmText(parsedNodes: _nestedBold(depth))),
-      );
-      // ignore: avoid_print
-      print(
-        '[4] depth=$depth errors=${errors.map((e) => e.runtimeType).toList()}',
       );
       expect(errors.map((e) => e.runtimeType.toString()).toList(), isEmpty);
       // Inspect layout as well as the span's text: the leaf must be visible.
