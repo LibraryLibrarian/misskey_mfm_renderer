@@ -176,7 +176,7 @@ void main() {
   for (final sample in [
     (source: ':custom:', size: 28.0, scale: 3.0),
     (source: r'$[x2 :custom:]', size: 56.0, scale: 6.0),
-    (source: '<small>:custom:</small>', size: 22.4, scale: 3.0),
+    (source: '<small>:custom:</small>', size: 28 / 1.2, scale: 3.0),
     (source: '> :custom:', size: 28.0, scale: 3.0),
     (source: '<center>:custom:</center>', size: 28.0, scale: 3.0),
   ]) {

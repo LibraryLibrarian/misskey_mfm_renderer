@@ -95,41 +95,46 @@ void main() {
 
   for (final testCase in [
     (text: ':missing:', color: _red, size: 20.0, opacity: 1.0),
-    (text: '<small>:missing:</small>', color: _red, size: 16.0, opacity: 0.7),
+    (
+      text: '<small>:missing:</small>',
+      color: _red,
+      size: 20 / 1.2,
+      opacity: 0.7,
+    ),
     (
       text: '<small><small>:missing:</small></small>',
       color: _red,
-      size: 12.8,
+      size: 20 / 1.2 / 1.2,
       opacity: 0.49,
     ),
     (
       text: r'$[fg.color=00f <small>:missing:</small>]',
       color: const Color(0xff0000ff),
-      size: 16.0,
+      size: 20 / 1.2,
       opacity: 0.7,
     ),
     (
       text: r'<small>$[fg.color=00f :missing:]</small>',
       color: const Color(0xff0000ff),
-      size: 16.0,
+      size: 20 / 1.2,
       opacity: 0.7,
     ),
     (
       text: '> <small><small>:missing:</small></small>',
       color: _red,
-      size: 12.8,
+      size: 20 / 1.2 / 1.2,
       opacity: 0.343,
     ),
     (
       text: '<small>[:missing:](https://example.test)</small>',
       color: const Color(0xff0000ff),
-      size: 16.0,
+      size: 20 / 1.2,
       opacity: 0.7,
     ),
     (
       text: r'$[rainbow <small>:missing:</small>]',
       color: _red,
-      size: 16.0,
+      size: 20 / 1.2,
       opacity: 0.7,
     ),
   ]) {
@@ -197,7 +202,7 @@ void main() {
     expect(contexts, hasLength(2));
     for (final context in contexts) {
       final raw = context.textStyle!;
-      expect(raw.fontSize, 16);
+      expect(raw.fontSize, closeTo(20 / 1.2, 1e-6));
       expect(raw.fontFamily, 'Courier');
       expect(raw.fontWeight, FontWeight.bold);
       expect(raw.fontStyle, FontStyle.italic);

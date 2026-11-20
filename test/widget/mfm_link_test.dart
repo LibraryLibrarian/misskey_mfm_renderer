@@ -316,13 +316,13 @@ void main() {
 
   for (final entry in [
     (text: '[LABEL]($_url)', alpha: 1.0, size: 20.0),
-    (text: '<small>[LABEL]($_url)</small>', alpha: .7, size: 16.0),
+    (text: '<small>[LABEL]($_url)</small>', alpha: .7, size: 20 / 1.2),
     (
       text: '<small><small>[LABEL]($_url)</small></small>',
       alpha: .49,
-      size: 12.8,
+      size: 20 / 1.2 / 1.2,
     ),
-    (text: '> <small>[LABEL]($_url)</small>', alpha: .49, size: 16.0),
+    (text: '> <small>[LABEL]($_url)</small>', alpha: .49, size: 20 / 1.2),
   ]) {
     testWidgets('label icon applies cumulative opacity once ${entry.text}', (
       tester,

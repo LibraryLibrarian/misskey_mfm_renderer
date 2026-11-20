@@ -262,7 +262,7 @@ void main() {
         name: 'smallの継承サイズとalpha',
         text: r'<small>$[spin abc]</small>',
         patch: TextStyle(
-          fontSize: 14 * 0.8,
+          fontSize: 14 / 1.2,
           color: Colors.blue.withValues(alpha: 0.7),
         ),
       ),

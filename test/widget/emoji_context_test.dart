@@ -131,7 +131,7 @@ void main() {
         (text: r'$[scale.x=3,y=3 $[x2 EMOJI]]', fontSize: 28.0, scale: 6.0),
         (text: r'$[tada EMOJI]', fontSize: 21.0, scale: 1.0),
         (text: r'$[x2 $[tada EMOJI]]', fontSize: 42.0, scale: 2.0),
-        (text: '<small>EMOJI</small>', fontSize: 11.2, scale: 1.0),
+        (text: '<small>EMOJI</small>', fontSize: 14 / 1.2, scale: 1.0),
       ];
       for (final testCase in cases) {
         testWidgets(testCase.text, (tester) async {

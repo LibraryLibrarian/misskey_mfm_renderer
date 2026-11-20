@@ -173,23 +173,23 @@ void main() {
   group('MfmText smallの親相対サイズと減光', () {
     const baseStyle = TextStyle(fontSize: 14, color: Colors.blue);
     final textCases = [
-      (name: '単独', text: '<small>abc</small>', size: 11.2, alpha: 0.7),
+      (name: '単独', text: '<small>abc</small>', size: 14 / 1.2, alpha: 0.7),
       (
         name: 'サイズ関数の内側',
         text: r'$[x2 <small>abc</small>]',
-        size: 22.4,
+        size: 28 / 1.2,
         alpha: 0.7,
       ),
       (
         name: '二重のsmall',
         text: '<small><small>abc</small></small>',
-        size: 8.96,
+        size: 14 / 1.2 / 1.2,
         alpha: 0.49,
       ),
       (
         name: 'サイズ関数を挟む二重のsmall',
         text: r'<small>$[x2 <small>abc</small>]</small>',
-        size: 17.92,
+        size: 28 / 1.2 / 1.2,
         alpha: 0.49,
       ),
     ];
@@ -355,7 +355,7 @@ void main() {
 
       final richText = _rootRichText(tester);
       final style = _effectiveStyleForText(richText.text as TextSpan, 'abc');
-      expect(style!.fontSize, closeTo(11.2, 0.000001));
+      expect(style!.fontSize, closeTo(14 / 1.2, 0.000001));
       expect(style.color, const Color(0xFF000000).withValues(alpha: 0.7));
     });
 
@@ -430,7 +430,10 @@ void main() {
           );
           expect(formula?.text, 'x');
           final style = _effectiveStyleForText(root, 'x')!;
-          expect(style.fontSize, closeTo([14.0, 11.2, 8.96][depth], 0.000001));
+          expect(
+            style.fontSize,
+            closeTo([14.0, 14 / 1.2, 14 / 1.2 / 1.2][depth], 0.000001),
+          );
           expect(style.color!.a, closeTo([1.0, 0.7, 0.49][depth], 0.000001));
           expect(_firstWidgetSpan(root), isNull);
           expect(find.byType(Container), findsNothing);
@@ -570,7 +573,7 @@ void main() {
             final style = tester.widget<Text>(find.text('code')).style!;
             expect(
               style.fontSize,
-              closeTo([14.0, 11.2, 8.96][depth], 0.000001),
+              closeTo([14.0, 14 / 1.2, 14 / 1.2 / 1.2][depth], 0.000001),
             );
             expect(style.color!.withValues(alpha: 1), const Color(0xFF2196F3));
             expect(style.color!.a, closeTo(alpha, 0.000001));
@@ -641,7 +644,7 @@ void main() {
         final innerText = container.child! as RichText;
         expect(
           innerText.text.style!.fontSize,
-          closeTo(depth == 0 ? 14 : 11.2, 0.000001),
+          closeTo(depth == 0 ? 14 : 14 / 1.2, 0.000001),
         );
         expect(innerText.text.style!.color!.a, closeTo(expected, 0.000001));
         expect(
@@ -688,7 +691,7 @@ void main() {
       expect(richTextFinder, findsOneWidget);
       final richText = tester.widget<RichText>(richTextFinder);
       final style = _effectiveStyleForText(richText.text as TextSpan, 'abc ');
-      expect(style!.fontSize, closeTo(17.92, 0.000001));
+      expect(style!.fontSize, closeTo(28 / 1.2 / 1.2, 0.000001));
       expect(style.color!.a, closeTo(0.49, 0.000001));
       expect(
         find.ancestor(of: richTextFinder, matching: find.byType(Opacity)),
@@ -976,7 +979,7 @@ void main() {
       final iconFinder = _externalLinkIconFinder();
       expect(iconFinder, findsOneWidget);
       final icon = tester.widget<Icon>(iconFinder);
-      expect(icon.size, closeTo(10.08, 0.000001));
+      expect(icon.size, closeTo(14 / 1.2 * 0.9, 0.000001));
       expect(icon.color!.a, closeTo(0.42, 0.000001));
       expect(icon.semanticLabel, 'External link');
       final widgetSpan = _firstWidgetSpan(root)!;

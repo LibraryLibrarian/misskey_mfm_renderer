@@ -489,7 +489,7 @@ void main() {
     (r'$[x4 😀]', 84.0),
     (r'$[scale.x=3,y=1 😀]', 14.0),
     (r'$[tada 😀]', 21.0),
-    ('<small>😀</small>', 11.2),
+    ('<small>😀</small>', 14 / 1.2),
   ];
   for (final entry in sizes) {
     for (final advanced in [true, false]) {

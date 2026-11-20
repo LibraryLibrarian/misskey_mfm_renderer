@@ -23,6 +23,10 @@ import '../widgets/mfm_search.dart';
 
 const _maxNodeDepth = 100;
 
+// 本家の<small>はUAのfont-size: smallerを使用する。
+// Blink font_description.ccのSmallerSizeとFirefoxに合わせ、親サイズを1.2で割る。
+const double _smallFontSizeRatio = 1 / 1.2;
+
 /// MfmNodeをWidgetに変換するビルダー
 class MfmNodeBuilder {
   MfmNodeBuilder({
@@ -333,7 +337,7 @@ class MfmNodeBuilder {
     final color = effectiveStyle.color ?? const Color(0xFF000000);
 
     final patch = _dimmedSecondaryColors(0.7).copyWith(
-      fontSize: effectiveStyle.fontSize! * 0.8,
+      fontSize: effectiveStyle.fontSize! * _smallFontSizeRatio,
       color: foreground == null ? color.withValues(alpha: color.a * 0.7) : null,
       foreground: foreground == null
           ? null
@@ -342,7 +346,9 @@ class MfmNodeBuilder {
                 alpha: foreground.color.a * 0.7,
               )),
     );
-    final rawPatch = TextStyle(fontSize: unattenuatedStyle.fontSize! * 0.8);
+    final rawPatch = TextStyle(
+      fontSize: unattenuatedStyle.fontSize! * _smallFontSizeRatio,
+    );
     final smaller = _copyWith(opacity: opacity * 0.7);
     if (rainbowForeground) {
       // smallは色の指定ではなく減光なので、虹色の継承を解除しない。

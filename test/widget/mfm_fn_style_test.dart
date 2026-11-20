@@ -42,7 +42,7 @@ void main() {
       name: 'smallと半透明の継承色',
       wrap: (String text) => '<small>$text</small>',
       style: _baseStyle.copyWith(
-        fontSize: 16,
+        fontSize: 20 / 1.2,
         color: _baseStyle.color!.withValues(alpha: _baseStyle.color!.a * 0.7),
       ),
       opacity: 0.7,
@@ -51,7 +51,7 @@ void main() {
       name: 'small内側のfg',
       wrap: (String text) => '<small>\$[fg.color=ff0000 $text]</small>',
       style: _baseStyle.copyWith(
-        fontSize: 16,
+        fontSize: 20 / 1.2,
         color: const Color(0xFFFF0000).withValues(alpha: 0.7),
       ),
       opacity: 0.7,
@@ -60,7 +60,7 @@ void main() {
       name: 'fg内側のsmall',
       wrap: (String text) => '\$[fg.color=ff0000 <small>$text</small>]',
       style: _baseStyle.copyWith(
-        fontSize: 16,
+        fontSize: 20 / 1.2,
         color: const Color(0xFFFF0000).withValues(alpha: 0.7),
       ),
       opacity: 0.7,
@@ -266,7 +266,7 @@ void main() {
       final text = tester.widget<RichText>(label);
       expect(
         text.text.style!.fontSize,
-        closeTo(20 * 1.5 * 2 * 0.8 * 0.9, 1e-6),
+        closeTo(20 * 1.5 * 2 / 1.2 * 0.9, 1e-6),
       );
       final paragraph = tester.renderObject<RenderParagraph>(label);
       const selection = TextSelection(baseOffset: 0, extentOffset: 1);
@@ -291,8 +291,8 @@ void main() {
 
   for (final sample in [
     (text: r'$[x2 $[position.x=1,y=-0.5 A]]', size: 40.0),
-    (text: r'<small>$[position.x=1,y=-0.5 A]</small>', size: 16.0),
-    (text: r'$[x2 <small>$[position.x=1,y=-0.5 A]</small>]', size: 32.0),
+    (text: r'<small>$[position.x=1,y=-0.5 A]</small>', size: 20 / 1.2),
+    (text: r'$[x2 <small>$[position.x=1,y=-0.5 A]</small>]', size: 40 / 1.2),
   ]) {
     testWidgets('positionのemは実効サイズ${sample.size}で計算する', (tester) async {
       await tester.pumpWidget(_host(sample.text));
