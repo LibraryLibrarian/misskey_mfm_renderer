@@ -120,8 +120,9 @@ void main() {
         sizes.add(_glyphSize(tester, sample.label));
         expect(tester.takeException(), isNull);
       }
-      expect(sizes[1].width, closeTo(sizes[0].width * 2, .01));
-      expect(sizes[1].height, closeTo(sizes[0].height * 2, .01));
+      // Glyph rounding differs slightly per SDK; double scaling would be 4x.
+      expect(sizes[1].width, closeTo(sizes[0].width * 2, .05));
+      expect(sizes[1].height, closeTo(sizes[0].height * 2, .05));
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
