@@ -7,7 +7,6 @@ import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import '../builder/mfm_node_builder.dart';
 import '../config/mfm_unixtime_options.dart';
 import '../utils/color_parser.dart';
-import '../utils/nyaize.dart';
 import '../utils/unixtime.dart';
 import '../widgets/mfm_border.dart';
 import '../widgets/mfm_unixtime_label.dart';
@@ -23,6 +22,7 @@ import 'animated/mfm_spin_widget.dart';
 import 'animated/mfm_tada_widget.dart';
 import 'animated/mfm_twitch_widget.dart';
 import 'mfm_border_options.dart';
+import 'ruby/mfm_ruby.dart';
 
 /// fn関数のハンドラー
 class MfmFnHandler {
@@ -61,7 +61,7 @@ class MfmFnHandler {
       case 'blur':
         return _buildBlur(node, builder);
       case 'ruby':
-        return _buildRuby(node, builder);
+        return buildMfmRuby(node, builder);
       case 'unixtime':
         return _buildUnixtime(node, builder);
       case 'clickable':
@@ -733,77 +733,6 @@ class MfmFnHandler {
     );
   }
 
-  static InlineSpan _buildRuby(FnNode node, MfmNodeBuilder builder) {
-    // ruby構文: $[ruby ベーステキスト ルビテキスト]
-    if (node.children.isEmpty) {
-      return TextSpan(children: builder.buildNodes(node.children));
-    }
-
-    final InlineSpan baseSpan;
-    final String rubyText;
-    final lastChild = node.children.last;
-    if (node.children.length == 1 && lastChild is TextNode) {
-      // テキストのみの場合、本家と同じく全文をnyaizeしてから空白分割し、
-      // 2番目だけをルビにする。分割前に変換しないとnyaizeの
-      // 空白依存パターンが分割位置に影響されてしまう。
-      final raw = builder.shouldNyaize
-          ? nyaize(lastChild.text)
-          : lastChild.text;
-      final parts = raw.split(' ');
-      if (parts.length < 2 || parts[1].isEmpty) {
-        return TextSpan(children: builder.buildNodes(node.children));
-      }
-      baseSpan = TextSpan(text: parts[0]);
-      rubyText = parts[1];
-    } else {
-      // 最後の子をルビ、それ以外を装飾を保持したベースとして描画する。
-      // TextPainterではルビ側の非テキストノードを描けないため、そのまま表示する。
-      if (lastChild is! TextNode || lastChild.text.trim().isEmpty) {
-        return TextSpan(children: builder.buildNodes(node.children));
-      }
-      baseSpan = TextSpan(
-        children: builder.buildNodes(
-          node.children.sublist(0, node.children.length - 1),
-        ),
-      );
-      // 本家と同じくnyaizeしてからトリムする。
-      // ベース側はbuildNodes経由でnyaizeされる。
-      rubyText =
-          (builder.shouldNyaize ? nyaize(lastChild.text) : lastChild.text)
-              .trim();
-
-      // TextPainter単体ではWidgetSpanを描けない。ネストしたものも検出する。
-      if (!baseSpan.visitChildren((span) => span is! WidgetSpan)) {
-        return TextSpan(children: builder.buildNodes(node.children));
-      }
-    }
-
-    final baseStyle = builder.effectiveStyle;
-    final rubyFontSize = baseStyle.fontSize! * 0.5;
-    final rubyStyle = baseStyle.copyWith(
-      fontSize: rubyFontSize,
-      height: 1,
-    );
-
-    final ruby = _RubyTextWidget(
-      baseSpan: baseSpan,
-      rubyText: rubyText,
-      baseStyle: baseStyle,
-      rubyStyle: rubyStyle,
-      rubyFontSize: rubyFontSize,
-      rainbowScope: builder.rainbowScope,
-      rainbowOpacity: builder.rainbowForeground
-          ? builder.foregroundOpacity
-          : null,
-    );
-    return WidgetSpan(
-      alignment: PlaceholderAlignment.baseline,
-      baseline: TextBaseline.alphabetic,
-      // 実効スタイルの文字色は既にsmallのalphaを含んでいる。
-      child: ruby,
-    );
-  }
-
   static InlineSpan _buildUnixtime(FnNode node, MfmNodeBuilder builder) {
     final timestamp = parseUnixtime(node.children);
 
@@ -911,242 +840,6 @@ class MfmFnHandler {
         child: builder.buildInlineRichText(children),
       ),
     );
-  }
-}
-
-/// Rubyテキストを表示するカスタムウィジェット
-/// ベーステキストのベースラインを維持しながら、ルビテキストを上に配置
-class _RubyTextWidget extends LeafRenderObjectWidget {
-  const _RubyTextWidget({
-    required this.baseSpan,
-    required this.rubyText,
-    required this.baseStyle,
-    required this.rubyStyle,
-    required this.rubyFontSize,
-    this.rainbowScope,
-    this.rainbowOpacity,
-  });
-
-  final InlineSpan baseSpan;
-  final String rubyText;
-  final TextStyle? baseStyle;
-  final TextStyle rubyStyle;
-  final double rubyFontSize;
-  final MfmRainbowScope? rainbowScope;
-  final double? rainbowOpacity;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) {
-    return _RenderRubyText(
-      baseSpan: baseSpan,
-      rubyText: rubyText,
-      baseStyle: baseStyle,
-      rubyStyle: rubyStyle,
-      rubyFontSize: rubyFontSize,
-      rainbowScope: rainbowScope,
-      rainbowOpacity: rainbowOpacity,
-    );
-  }
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderRubyText renderObject,
-  ) {
-    renderObject
-      ..baseSpan = baseSpan
-      ..rubyText = rubyText
-      ..baseStyle = baseStyle
-      ..rubyStyle = rubyStyle
-      ..rubyFontSize = rubyFontSize
-      ..rainbowScope = rainbowScope
-      ..rainbowOpacity = rainbowOpacity;
-  }
-}
-
-class _RenderRubyText extends RenderBox {
-  _RenderRubyText({
-    required InlineSpan baseSpan,
-    required String rubyText,
-    required TextStyle? baseStyle,
-    required TextStyle rubyStyle,
-    required double rubyFontSize,
-    MfmRainbowScope? rainbowScope,
-    double? rainbowOpacity,
-  }) : _rainbowScope = rainbowScope,
-       _rainbowOpacity = rainbowOpacity,
-       _baseSpan = baseSpan,
-       _rubyText = rubyText,
-       _baseStyle = baseStyle,
-       _rubyStyle = rubyStyle,
-       _rubyFontSize = rubyFontSize;
-
-  InlineSpan _baseSpan;
-  InlineSpan get baseSpan => _baseSpan;
-  set baseSpan(InlineSpan value) {
-    if (_baseSpan != value) {
-      _baseSpan = value;
-      _basePainter = null;
-      markNeedsLayout();
-    }
-  }
-
-  String _rubyText;
-  String get rubyText => _rubyText;
-  set rubyText(String value) {
-    if (_rubyText != value) {
-      _rubyText = value;
-      _rubyPainter = null;
-      markNeedsLayout();
-    }
-  }
-
-  TextStyle? _baseStyle;
-  TextStyle? get baseStyle => _baseStyle;
-  set baseStyle(TextStyle? value) {
-    if (_baseStyle != value) {
-      _baseStyle = value;
-      _basePainter = null;
-      markNeedsLayout();
-    }
-  }
-
-  TextStyle _rubyStyle;
-  TextStyle get rubyStyle => _rubyStyle;
-  set rubyStyle(TextStyle value) {
-    if (_rubyStyle != value) {
-      _rubyStyle = value;
-      _rubyPainter = null;
-      markNeedsLayout();
-    }
-  }
-
-  double _rubyFontSize;
-  double get rubyFontSize => _rubyFontSize;
-  set rubyFontSize(double value) {
-    if (_rubyFontSize != value) {
-      _rubyFontSize = value;
-      markNeedsLayout();
-    }
-  }
-
-  MfmRainbowScope? _rainbowScope;
-  MfmRainbowScope? get rainbowScope => _rainbowScope;
-  set rainbowScope(MfmRainbowScope? value) {
-    if (identical(value, _rainbowScope)) return;
-    _rainbowScope = value;
-    _basePainter = null;
-    _rubyPainter = null;
-    markNeedsLayout();
-  }
-
-  double? _rainbowOpacity;
-  double? get rainbowOpacity => _rainbowOpacity;
-  set rainbowOpacity(double? value) {
-    if (value == _rainbowOpacity) return;
-    _rainbowOpacity = value;
-    markNeedsPaint();
-  }
-
-  TextPainter? _basePainter;
-  TextPainter? _rubyPainter;
-
-  TextPainter _getBasePainter() {
-    _basePainter ??= TextPainter(
-      text: TextSpan(style: _baseStyle, children: [_baseSpan]),
-      textDirection: TextDirection.ltr,
-    );
-    return _basePainter!;
-  }
-
-  TextPainter _getRubyPainter() {
-    _rubyPainter ??= TextPainter(
-      text: TextSpan(text: _rubyText, style: _rubyStyle),
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
-    return _rubyPainter!;
-  }
-
-  @override
-  void performLayout() {
-    final basePainter = _getBasePainter();
-    final rubyPainter = _getRubyPainter();
-
-    // 制約内でレイアウト
-    basePainter.layout(maxWidth: constraints.maxWidth);
-    rubyPainter.layout(maxWidth: constraints.maxWidth);
-
-    final maxWidth = math.max(basePainter.width, rubyPainter.width);
-    final totalHeight = rubyPainter.height + basePainter.height;
-
-    // 制約を考慮してサイズを決定
-    size = constraints.constrain(Size(maxWidth, totalHeight));
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    final basePainter = _getBasePainter();
-    final rubyPainter = _getRubyPainter();
-
-    final maxWidth = math.max(basePainter.width, rubyPainter.width);
-
-    final rubyOrigin = Offset((maxWidth - rubyPainter.width) / 2, 0);
-    final baseOrigin = Offset(
-      (maxWidth - basePainter.width) / 2,
-      rubyPainter.height,
-    );
-    final scope = _rainbowScope;
-    if (scope != null) {
-      final opacity = _rainbowOpacity;
-      final base = opacity == null
-          ? TextSpan(style: _baseStyle, children: [_baseSpan])
-          : MfmRainbowSpan(
-              opacity: opacity,
-              style: _baseStyle,
-              children: [_baseSpan],
-            );
-      final ruby = opacity == null
-          ? TextSpan(text: _rubyText, style: _rubyStyle)
-          : MfmRainbowSpan(
-              opacity: opacity,
-              text: _rubyText,
-              style: _rubyStyle,
-            );
-      basePainter
-        ..text = scope.colorize(base, this, origin: baseOrigin)
-        ..layout(maxWidth: constraints.maxWidth);
-      rubyPainter
-        ..text = scope.colorize(ruby, this, origin: rubyOrigin)
-        ..layout(maxWidth: constraints.maxWidth);
-    } else {
-      rubyPainter.paint(context.canvas, offset + rubyOrigin);
-      basePainter.paint(context.canvas, offset + baseOrigin);
-      return;
-    }
-    // ルビを上部中央に、ベーステキストをその下に配置する。
-    final canvas = context.canvas
-      ..save()
-      ..translate(offset.dx + rubyOrigin.dx, offset.dy + rubyOrigin.dy);
-    rubyPainter.paint(canvas, Offset.zero);
-    canvas
-      ..restore()
-      ..save()
-      ..translate(offset.dx + baseOrigin.dx, offset.dy + baseOrigin.dy);
-    basePainter.paint(canvas, Offset.zero);
-    canvas.restore();
-  }
-
-  @override
-  double computeDistanceToActualBaseline(TextBaseline baseline) {
-    final basePainter = _getBasePainter();
-    final rubyPainter = _getRubyPainter();
-
-    // ベーステキストのベースラインを計算
-    final baseBaseline = basePainter.computeDistanceToActualBaseline(baseline);
-
-    // ルビテキストの高さを加えた位置がベーステキストのベースライン
-    return rubyPainter.height + baseBaseline;
   }
 }
 

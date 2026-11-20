@@ -84,13 +84,13 @@ void main() {
       await tester.pumpWidget(_host(sample.wrap(r'$[ruby AB CD]')));
       final ruby = _insideMfm(
         find.byWidgetPredicate(
-          (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+          (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
         ),
       );
-      final renderObject = tester.renderObject(ruby);
-      expect((renderObject as dynamic).baseStyle, sample.style);
+      final styles = _rubyStyles(tester, ruby);
+      expect(styles.base, sample.style);
       expect(
-        (renderObject as dynamic).rubyStyle,
+        styles.ruby,
         sample.style.copyWith(
           fontSize: sample.style.fontSize! * 0.5,
           height: 1,
@@ -154,10 +154,10 @@ void main() {
       final expectedAlpha = (usePaint ? paint.color.a : 1.0) * 0.7 * 0.7;
       final ruby = _insideMfm(
         find.byWidgetPredicate(
-          (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+          (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
         ),
       );
-      final renderObject = tester.renderObject(ruby);
+      final styles = _rubyStyles(tester, ruby);
       final row = _insideMfm(find.byType(Row));
       final text = tester.widget<RichText>(
         find
@@ -168,8 +168,8 @@ void main() {
             .last,
       );
       for (final actual in [
-        (renderObject as dynamic).baseStyle as TextStyle,
-        (renderObject as dynamic).rubyStyle as TextStyle,
+        styles.base,
+        styles.ruby,
         text.text.style!,
       ]) {
         final color = actual.foreground?.color ?? actual.color!;
@@ -214,15 +214,15 @@ void main() {
         );
         final ruby = _insideMfm(
           find.byWidgetPredicate(
-            (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+            (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
           ),
         );
-        final renderObject = tester.renderObject(ruby);
+        final styles = _rubyStyles(tester, ruby);
         final label = tester.widget<Text>(_insideMfm(find.byType(Text)));
         final opacity = quote ? 0.49 : 0.7;
         for (final style in [
-          (renderObject as dynamic).baseStyle as TextStyle,
-          (renderObject as dynamic).rubyStyle as TextStyle,
+          styles.base,
+          styles.ruby,
           label.style!,
         ]) {
           final background = style.background?.color ?? style.backgroundColor!;
@@ -303,4 +303,19 @@ void main() {
       expect(transform.transform.storage[13], -sample.size * 0.5);
     });
   }
+}
+
+({TextStyle base, TextStyle ruby}) _rubyStyles(
+  WidgetTester tester,
+  Finder finder,
+) {
+  final texts = tester
+      .widgetList<RichText>(
+        find.descendant(
+          of: finder,
+          matching: find.byWidgetPredicate((widget) => widget is RichText),
+        ),
+      )
+      .toList();
+  return (base: texts.first.text.style!, ruby: texts.last.text.style!);
 }

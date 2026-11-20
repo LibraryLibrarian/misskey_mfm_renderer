@@ -659,7 +659,7 @@ void main() {
       onLinkTap: calls.add,
     );
     final ruby = find.byWidgetPredicate(
-      (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+      (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
     );
     final rect = tester.getRect(ruby);
     await tester.tapAt(Offset(rect.center.dx, rect.bottom - 3));

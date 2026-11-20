@@ -85,14 +85,15 @@ void _expectReadingAboveBase(({Rect red, Rect blue}) ink) {
   );
 }
 
-String _semanticsLabels(WidgetTester tester) {
-  final labels = <String>[];
+List<SemanticsNode> _semanticsNodes(WidgetTester tester) {
+  final nodes = <SemanticsNode>[];
   void visit(SemanticsNode node) {
-    labels.add(node.label);
-    node.visitChildren((child) {
-      visit(child);
-      return true;
-    });
+    nodes.add(node);
+    node
+        .debugListChildrenInOrder(
+          DebugSemanticsDumpOrder.traversalOrder,
+        )
+        .forEach(visit);
   }
 
   visit(
@@ -102,8 +103,11 @@ String _semanticsLabels(WidgetTester tester) {
         .semanticsOwner!
         .rootSemanticsNode!,
   );
-  return labels.join('\n');
+  return nodes;
 }
+
+String _semanticsLabels(WidgetTester tester) =>
+    _semanticsNodes(tester).map((node) => node.label).join('\n');
 
 void main() {
   group('MfmText ruby', () {
@@ -328,6 +332,128 @@ void main() {
         closeTo(expected, 1),
         reason: 'Ruby must follow the surrounding Directionality for its base.',
       );
+    });
+
+    for (final linked in [false, true]) {
+      testWidgets('reads the base before the reading (linked: $linked)', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(
+            _host(
+              MfmText(
+                text: linked
+                    ? r'$[ruby [kanji](https://example.com/) yomi]'
+                    : r'$[ruby kanji yomi]',
+                config: MfmRenderConfig(
+                  localHost: 'example.com',
+                  onLinkTap: (_) {},
+                ),
+              ),
+            ),
+          );
+          final labelled = _semanticsNodes(
+            tester,
+          ).where((node) => node.label.isNotEmpty).toList();
+          expect(labelled.map((node) => node.label), ['kanji', 'yomi']);
+          if (linked) {
+            final base = labelled.first.getSemanticsData();
+            expect(base.flagsCollection.isLink, isTrue);
+            expect(base.hasAction(ui.SemanticsAction.tap), isTrue);
+          }
+        } finally {
+          semantics.dispose();
+        }
+      });
+    }
+
+    testWidgets('taps both parts of an outer link once per tap', (
+      tester,
+    ) async {
+      final taps = <String>[];
+      await tester.pumpWidget(
+        _host(
+          MfmText(
+            text: r'[$[ruby kanji yomi]](https://example.com/)',
+            config: MfmRenderConfig(
+              localHost: 'example.com',
+              onLinkTap: taps.add,
+            ),
+          ),
+        ),
+      );
+      Finder textPart(String text) => find.byWidgetPredicate(
+        (widget) => widget is RichText && widget.text.toPlainText() == text,
+      );
+      await tester.tap(textPart('kanji'));
+      expect(taps, ['https://example.com/']);
+      await tester.tap(textPart('yomi'));
+      expect(taps, ['https://example.com/', 'https://example.com/']);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('keeps dry sizes and baselines consistent with layout', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const SizedBox(
+            width: 120,
+            child: MfmText(text: r'$[ruby abcdefghij yomi]'),
+          ),
+        ),
+      );
+      final rootFinder = find.byType(RichText).first;
+      final root = tester.renderObject<RenderParagraph>(rootFinder);
+      expect(root.getDryLayout(root.constraints), root.size);
+      final rootSpan = tester.widget<RichText>(rootFinder).text as TextSpan;
+      final rubySpan = rootSpan.children!.single as WidgetSpan;
+
+      // Baselineが実layout中に問い合わせたbaselineを、子の配置から求める。
+      const baseline = 100.0;
+      await tester.pumpWidget(
+        _host(
+          Baseline(
+            baseline: baseline,
+            baselineType: TextBaseline.alphabetic,
+            child: SizedBox(width: 60, child: rubySpan.child),
+          ),
+        ),
+      );
+      final rubyFinder = find.byWidgetPredicate(
+        (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
+      );
+      final ruby = tester.renderObject<RenderBox>(rubyFinder);
+      final actualBaseline =
+          baseline -
+          (tester.getTopLeft(rubyFinder) -
+                  tester.getTopLeft(find.byType(Baseline)))
+              .dy;
+      expect(ruby.size, const Size(60, 90));
+      expect(ruby.getDryLayout(ruby.constraints), ruby.size);
+      expect(
+        ruby.getDryBaseline(ruby.constraints, TextBaseline.alphabetic),
+        closeTo(actualBaseline, 1e-6),
+      );
+      expect(ruby.getMinIntrinsicWidth(double.infinity), 200);
+      expect(ruby.getMaxIntrinsicWidth(double.infinity), 200);
+      expect(ruby.getMinIntrinsicHeight(60), 90);
+      expect(ruby.getMaxIntrinsicHeight(60), 90);
+
+      // 別幅でのdry計測が、実layoutの寸法や配置を変更しないことも確認する。
+      final actualPosition = tester.getTopLeft(rubyFinder);
+      expect(
+        ruby.getDryLayout(const BoxConstraints(maxWidth: 120)),
+        const Size(120, 50),
+      );
+      ruby.getDryBaseline(
+        const BoxConstraints(maxWidth: 120),
+        TextBaseline.alphabetic,
+      );
+      expect(ruby.size, const Size(60, 90));
+      expect(tester.getTopLeft(rubyFinder), actualPosition);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets(

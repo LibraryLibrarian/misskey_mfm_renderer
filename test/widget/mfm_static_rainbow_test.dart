@@ -542,7 +542,7 @@ void main() {
         ),
       );
       final ruby = find.byWidgetPredicate(
-        (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+        (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
       );
       final rect = tester.getRect(ruby);
       final base = await _pixel(tester, rect.topLeft + const Offset(10, 20));
@@ -582,9 +582,14 @@ void main() {
       final Offset point;
       if (text.contains('ruby')) {
         final ruby = find.byWidgetPredicate(
-          (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+          (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
         );
-        point = tester.getRect(ruby).topLeft + const Offset(8, 16);
+        point = _letterCenter(
+          tester.renderObject<RenderParagraph>(
+            find.descendant(of: ruby, matching: find.byType(RichText)).first,
+          ),
+          0,
+        );
       } else {
         final paragraph = tester.renderObject<RenderParagraph>(
           find
@@ -615,11 +620,11 @@ void main() {
       ),
     );
     final ruby = find.byWidgetPredicate(
-      (widget) => widget.runtimeType.toString() == '_RubyTextWidget',
+      (widget) => widget.runtimeType.toString() == '_MfmRubyLayout',
     );
-    final renderObject = tester.renderObject(ruby);
-    final baseStyle = (renderObject as dynamic).baseStyle as TextStyle;
-    final rubyStyle = (renderObject as dynamic).rubyStyle as TextStyle;
+    final styles = _rubyStyles(tester, ruby);
+    final baseStyle = styles.base;
+    final rubyStyle = styles.ruby;
     expect(baseStyle.fontSize, closeTo(40 / 1.2, 1e-6));
     expect(rubyStyle.fontSize, closeTo(20 / 1.2, 1e-6));
     final rect = tester.getRect(ruby);
@@ -730,4 +735,19 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+}
+
+({TextStyle base, TextStyle ruby}) _rubyStyles(
+  WidgetTester tester,
+  Finder finder,
+) {
+  final texts = tester
+      .widgetList<RichText>(
+        find.descendant(
+          of: finder,
+          matching: find.byWidgetPredicate((widget) => widget is RichText),
+        ),
+      )
+      .toList();
+  return (base: texts.first.text.style!, ruby: texts.last.text.style!);
 }

@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Released the decoded image handle received while measuring a custom emoji aspect ratio, including when the emoji caches were cleared before the image arrived
 - Announced custom emoji as `:name:` while their image is shown or loading, not only after a failure; widgets returned by `loadingBuilder`, `fallbackBuilder` and `errorBuilder` keep their own semantics and actions
 - Placed the `search` field and button rounded corners and button border on the correct sides in right-to-left layouts
+- Rendered ruby annotations over bases containing inline widgets, including animated or rotated MFM and custom emoji images, exposed both base and reading in the accessibility tree, enabled taps on links within the base, and followed the ambient text direction
 
 ## [0.6.0-beta.4] - 2026-09-23
 

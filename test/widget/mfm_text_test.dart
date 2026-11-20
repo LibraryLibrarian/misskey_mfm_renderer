@@ -510,8 +510,17 @@ void main() {
                   )
                   .style!;
             } else {
-              final renderObject = tester.renderObject(find.byWidget(child));
-              style = (renderObject as dynamic).baseStyle as TextStyle;
+              style = tester
+                  .widget<RichText>(
+                    find
+                        .descendant(
+                          of: find.byWidget(child),
+                          matching: find.byType(RichText),
+                        )
+                        .first,
+                  )
+                  .text
+                  .style!;
             }
             expect(style.color!.a, closeTo([1.0, 0.7, 0.49][depth], 0.000001));
           } else if (depth == 0) {
