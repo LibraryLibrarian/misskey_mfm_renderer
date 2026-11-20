@@ -66,6 +66,33 @@ Offset _firstGlyph(WidgetTester tester) {
   return paragraph.localToGlobal(box.toRect().center);
 }
 
+SemanticsNode _firstTapNode(WidgetTester tester) {
+  final root = tester
+      .renderObject(find.byType(MfmText))
+      .owner!
+      .semanticsOwner!
+      .rootSemanticsNode!;
+  final nodes = <SemanticsNode>[];
+  void visit(SemanticsNode node) {
+    if (node.getSemanticsData().hasAction(SemanticsAction.tap)) nodes.add(node);
+    node.visitChildren((child) {
+      visit(child);
+      return true;
+    });
+  }
+
+  visit(root);
+  return nodes.first;
+}
+
+void _performSemanticsTap(WidgetTester tester, SemanticsNode node) {
+  tester
+      .renderObject(find.byType(MfmText))
+      .owner!
+      .semanticsOwner!
+      .performAction(node.id, SemanticsAction.tap);
+}
+
 class _RecognizerTracker {
   final created = <TapGestureRecognizer>{};
   final disposed = <TapGestureRecognizer>{};
@@ -174,6 +201,39 @@ void main() {
     (name: 'mention', a: '@alice', b: '@bob', target: '@alice'),
     (name: 'hashtag', a: '#tag', b: '#other', target: 'tag'),
   ]) {
+    testWidgets('${sample.name} semantics uses the latest callback', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        final before = <String>[];
+        final after = <String>[];
+        // Self links omit the icon WidgetSpan so it cannot refresh semantics.
+        final localHost = sample.name == 'URL' || sample.name == 'link'
+            ? 'outside.test'
+            : null;
+        await tester.pumpWidget(
+          _host(sample.a, _config(before.add, localHost: localHost)),
+        );
+        final original = _recognizers(tester).single;
+        final node = _firstTapNode(tester);
+        _performSemanticsTap(tester, node);
+        expect(before, [sample.target]);
+        before.clear();
+
+        await tester.pumpWidget(
+          _host(sample.a, _config(after.add, localHost: localHost)),
+        );
+        expect(_recognizers(tester).single, same(original));
+        expect(_firstTapNode(tester).id, node.id);
+        _performSemanticsTap(tester, node);
+        expect(before, isEmpty);
+        expect(after, [sample.target]);
+      } finally {
+        semantics.dispose();
+      }
+    });
+
     testWidgets('${sample.name} reuses identity with the latest callback', (
       tester,
     ) async {
@@ -292,4 +352,47 @@ void main() {
     expect(details.single.isNote, isTrue);
     expect(details.single.path, '/tags/tag');
   });
+
+  testWidgets(
+    'hashtag semantics uses the latest isNote and detailed callback',
+    (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        final before = <MfmHashtagTapDetails>[];
+        final after = <MfmHashtagTapDetails>[];
+        await tester.pumpWidget(
+          _host('#tag', MfmRenderConfig(onHashtagTapDetails: before.add)),
+        );
+        final original = _recognizers(tester).single;
+        final node = _firstTapNode(tester);
+        _performSemanticsTap(tester, node);
+        expect(before.single.isNote, isTrue);
+        before.clear();
+
+        final config = MfmRenderConfig(onHashtagTapDetails: after.add);
+        await tester.pumpWidget(_host('#tag', config, isNote: false));
+        expect(_recognizers(tester).single, same(original));
+        expect(_firstTapNode(tester).id, node.id);
+        _performSemanticsTap(tester, node);
+        expect(before, isEmpty);
+        expect(after.single.tag, 'tag');
+        expect(after.single.isNote, isFalse);
+        expect(after.single.path, '/user-tags/tag');
+        after.clear();
+
+        await tester.pumpWidget(_host('#tag', config));
+        expect(_recognizers(tester).single, same(original));
+        expect(_firstTapNode(tester).id, node.id);
+        _performSemanticsTap(tester, node);
+        expect(before, isEmpty);
+        expect(after.single.tag, 'tag');
+        expect(after.single.isNote, isTrue);
+        expect(after.single.path, '/tags/tag');
+      } finally {
+        semantics.dispose();
+      }
+    },
+  );
 }

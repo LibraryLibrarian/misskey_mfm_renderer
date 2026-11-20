@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Released superseded animation curves when `speed`, `delay` or other animation arguments change, so long-lived animated MFM no longer accumulates controller status listeners
 - Corrected the `spin.x` / `spin.y` perspective direction to match Misskey's `perspective(128px)`, so the near side of the rotating content is enlarged and the far side reduced
 - Prevent crashes from excessively nested `parsedNodes` by flattening content beyond 100 levels, and reuse parsed text across rebuilds when the source and parser mode are unchanged
-- Reuse tap recognizers for unchanged link, text mention, and hashtag targets, dispose them when removed or unmounted, and prevent in-flight taps from activating replacement links
+- Reuse tap recognizers for unchanged URL, labelled-link, text mention, and hashtag targets with the latest callbacks and hashtag context for pointer and accessibility taps, dispose them when removed or unmounted, and prevent in-flight taps from activating replacement links
 - Normalize CRLF and CR to LF in text outside `plain` as well, matching the original renderer
 - Route actual labelled-link glyph and passive inline-widget taps to the raw URL callback, preserving child gestures and existing accessible content/actions while isolating widget-label actions from surrounding prose and other links
 - Prevent doubled alpha at 3D border band/diagonal joins on web by assigning shade colors within one composited ring instead of blending independently rasterized partitions

@@ -7,6 +7,8 @@ enum MfmTapRecognizerKind { url, link, mention, hashtag }
 class MfmTapRecognizerPool {
   final _recognizers =
       <(MfmTapRecognizerKind, String, int), TapGestureRecognizer>{};
+  final _callbacks =
+      <(MfmTapRecognizerKind, String, int), GestureTapCallback>{};
   final _occurrences = <(MfmTapRecognizerKind, String), int>{};
   final _used = <(MfmTapRecognizerKind, String, int)>{};
 
@@ -25,15 +27,20 @@ class MfmTapRecognizerPool {
     _occurrences[identity] = occurrence + 1;
     final key = (kind, target, occurrence);
     _used.add(key);
+    _callbacks[key] = onTap;
     // A new target must not inherit an in-flight tap from the old target.
-    return (_recognizers.putIfAbsent(key, TapGestureRecognizer.new))
-      ..onTap = onTap;
+    return _recognizers.putIfAbsent(
+      key,
+      // Semantics may retain onTap across builds; keep this forwarder stable.
+      () => TapGestureRecognizer()..onTap = () => _callbacks[key]?.call(),
+    );
   }
 
   void endBuild() {
     _recognizers.removeWhere((key, recognizer) {
       if (_used.contains(key)) return false;
       recognizer.dispose();
+      _callbacks.remove(key);
       return true;
     });
   }
@@ -43,6 +50,7 @@ class MfmTapRecognizerPool {
       recognizer.dispose();
     }
     _recognizers.clear();
+    _callbacks.clear();
     _occurrences.clear();
     _used.clear();
   }
