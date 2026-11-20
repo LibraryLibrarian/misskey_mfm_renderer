@@ -114,6 +114,156 @@ void main() {
     }
   });
 
+  group('巨大なtimeの飽和', () {
+    const maxMicroseconds = 9007199254740991;
+    for (final digits in [307, 310]) {
+      for (final sign in ['', '-']) {
+        test('$digits桁の${sign.isEmpty ? '正数' : '負数'}を上限へ飽和させる', () {
+          final value = '$sign${'9' * digits}s';
+          final expected = Duration(
+            microseconds: sign.isEmpty ? maxMicroseconds : -maxMicroseconds,
+          );
+          expect(MfmAnimatedWrapper.parseTime(value), expected);
+          expect(
+            MfmAnimatedWrapper.parseSpeed(
+              value,
+              fallback: const Duration(seconds: 1),
+            ),
+            expected,
+          );
+        });
+      }
+    }
+
+    for (final entry in const <String, int>{
+      '9007199254.740988s': 9007199254740988,
+      '9007199254.740990s': 9007199254740990,
+      '9007199254.740991s': maxMicroseconds,
+      '9007199254.740992s': maxMicroseconds,
+      '9007199254.740993s': maxMicroseconds,
+    }.entries) {
+      for (final sign in ['', '-']) {
+        test('$sign${entry.key}を安全なマイクロ秒範囲に収める', () {
+          final value = '$sign${entry.key}';
+          final expected = Duration(
+            microseconds: sign.isEmpty ? entry.value : -entry.value,
+          );
+          expect(MfmAnimatedWrapper.parseTime(value), expected);
+          expect(
+            MfmAnimatedWrapper.parseSpeed(
+              value,
+              fallback: const Duration(seconds: 1),
+            ),
+            expected,
+          );
+        });
+      }
+    }
+  });
+
+  group('長い正のdelay', () {
+    const timerLimit = Duration(milliseconds: 0x7fffffff);
+    const tail = Duration(seconds: 2);
+    final longDelay = timerLimit * 2 + tail;
+
+    Widget wrapper({
+      required Duration delay,
+      Duration duration = const Duration(seconds: 1),
+      bool enabled = true,
+      MfmAnimatedBuilder? builder,
+    }) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: MfmAnimatedWrapper(
+        duration: duration,
+        delay: delay,
+        enabled: enabled,
+        builder: builder ?? (context, child, controller, progress) => child,
+        child: const Text('delayed'),
+      ),
+    );
+
+    for (final delay in [timerLimit, longDelay]) {
+      testWidgets('delay=$delayは分割待機後に開始する', (tester) async {
+        await tester.pumpWidget(wrapper(delay: delay));
+        expect(tester.hasRunningAnimations, isFalse);
+        if (delay > timerLimit) {
+          await tester.pump(timerLimit);
+          expect(tester.hasRunningAnimations, isFalse);
+          await tester.pump(timerLimit);
+          expect(tester.hasRunningAnimations, isFalse);
+        }
+        final lastPart = delay > timerLimit ? tail : timerLimit;
+        await tester.pump(lastPart - const Duration(milliseconds: 1));
+        expect(tester.hasRunningAnimations, isFalse);
+        await tester.pump(const Duration(milliseconds: 1));
+        expect(tester.takeException(), isNull);
+        expect(tester.hasRunningAnimations, isTrue);
+      });
+    }
+
+    testWidgets('分割待機中のdelay変更は元の開始予定をキャンセルする', (tester) async {
+      AnimationController? current;
+      Widget host(Duration delay) => wrapper(
+        delay: delay,
+        builder: (context, child, controller, progress) {
+          current = controller;
+          return child;
+        },
+      );
+      await tester.pumpWidget(host(longDelay));
+      await tester.pump(timerLimit * 2);
+      await tester.pumpWidget(host(const Duration(milliseconds: 100)));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(current!.isAnimating, isTrue);
+      await tester.pump(const Duration(seconds: 2));
+      expect(current!.lastElapsedDuration, const Duration(seconds: 2));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('分割待機中のduration変更は待機を最初からやり直す', (tester) async {
+      await tester.pumpWidget(wrapper(delay: longDelay));
+      await tester.pump(timerLimit * 2);
+      await tester.pumpWidget(
+        wrapper(delay: longDelay, duration: const Duration(seconds: 2)),
+      );
+      await tester.pump(tail);
+      expect(tester.hasRunningAnimations, isFalse);
+      await tester.pump(longDelay - tail);
+      expect(tester.takeException(), isNull);
+      expect(tester.hasRunningAnimations, isTrue);
+    });
+
+    testWidgets('分割待機中の無効化はTimerをキャンセルし再有効化で待機し直す', (tester) async {
+      await tester.pumpWidget(wrapper(delay: longDelay));
+      await tester.pump(timerLimit * 2);
+      await tester.pumpWidget(wrapper(delay: longDelay, enabled: false));
+      await tester.pump(tail);
+      expect(tester.hasRunningAnimations, isFalse);
+      await tester.pumpWidget(wrapper(delay: longDelay));
+      await tester.pump(longDelay - const Duration(milliseconds: 1));
+      expect(tester.hasRunningAnimations, isFalse);
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(tester.takeException(), isNull);
+      expect(tester.hasRunningAnimations, isTrue);
+    });
+
+    for (final enabled in [false, true]) {
+      testWidgets('分割待機を${enabled ? '破棄' : '無効化'}した後にTimerを残さない', (
+        tester,
+      ) async {
+        await tester.pumpWidget(wrapper(delay: longDelay));
+        await tester.pump(timerLimit);
+        await tester.pumpWidget(
+          enabled
+              ? const SizedBox.shrink()
+              : wrapper(delay: longDelay, enabled: false),
+        );
+        expect(tester.takeException(), isNull);
+        // テスト終了時の pending Timer 検査でもキャンセルを確認する。
+      });
+    }
+  });
+
   group('speedとdelayの書式', () {
     const defaultDurations = <String, Duration>{
       'spin': Duration(milliseconds: 1500),

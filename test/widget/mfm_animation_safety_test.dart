@@ -12,6 +12,8 @@ void main() {
     for (final entry in <String, String>{
       '乗算がInfinityになる正数': hugeSeconds,
       '乗算がInfinityになる負数': '-$hugeSeconds',
+      '変換時にInfinityになる正数': '${'9' * 310}s',
+      '変換時にInfinityになる負数': '-${'9' * 310}s',
       'Durationの範囲を超える正数': '1000000000000000s',
       'Durationの範囲を超える負数': '-1000000000000000s',
     }.entries) {
@@ -23,6 +25,38 @@ void main() {
           await tester.pump(const Duration(milliseconds: 137));
           expect(tester.takeException(), isNull);
           expect(_fontSizes(tester), isNotEmpty);
+        });
+      }
+    }
+    for (final digits in [307, 310]) {
+      for (final reverse in [false, true]) {
+        testWidgets('$digits桁の負のdelayでもreverse=$reverseの位相は有限になる', (
+          tester,
+        ) async {
+          _cleanUp(tester);
+          double? value;
+          await tester.pumpWidget(
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: MfmAnimatedWrapper(
+                duration: const Duration(milliseconds: 750),
+                delay: MfmAnimatedWrapper.parseTime('-${'9' * digits}s')!,
+                reverse: reverse,
+                builder: (context, child, controller, progress) {
+                  value = progress.value;
+                  return child;
+                },
+                child: const Text('x'),
+              ),
+            ),
+          );
+          expect(value, isNotNull);
+          expect(value!.isFinite, isTrue);
+          expect(value, inInclusiveRange(0, 1));
+          await tester.pump(const Duration(milliseconds: 137));
+          expect(tester.takeException(), isNull);
+          expect(value!.isFinite, isTrue);
+          expect(value, inInclusiveRange(0, 1));
         });
       }
     }
