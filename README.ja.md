@@ -205,7 +205,8 @@ Microsoft Visual C++ Runtime（`VCRUNTIME140.dll`）が必要です。
 超えるため、このライブラリは既定で線の太さを1024 logical pxに収めます。より太い線を描く場合は
 `MfmRenderConfig.maxBorderWidth` を指定してください（例: `MfmRenderConfig(maxBorderWidth: 4096)`）。
 指定値は33,554,432（本家を表示するChromiumが線の太さを飽和させる値）以下に収め、
-null・0・負の値・非有限の値は既定の1024として扱います。
+nullは未指定として親の `MfmConfig` を継承し、継承後も未指定なら1024です。
+明示した0・負の値・非有限の値は親の値より優先し、既定の1024として扱います。
 
 ## 開発版と未公開の変更
 

@@ -221,7 +221,9 @@ make the paragraph too tall to lay out, this library caps the border width at
 1024 logical px by default. Set `MfmRenderConfig.maxBorderWidth` to draw thicker
 borders, for example `MfmRenderConfig(maxBorderWidth: 4096)`. The value is
 capped at 33,554,432 (where Chromium, which renders upstream, saturates border
-widths); null, zero, negative and non-finite values use the default 1024.
+widths). Null means unset and inherits from an enclosing `MfmConfig` (falling
+back to 1024); explicit zero, negative and non-finite values override the
+inherited value and use the default 1024.
 
 ## Development and unreleased changes
 
