@@ -65,6 +65,39 @@ void main() {
         reason: '旧progressが保持するcontrollerのstatus listenerを解放する',
       );
     });
+
+    testWidgets('負のdelayへの切替とunmountでもCurvedAnimationを破棄する', (tester) async {
+      _cleanUp(tester);
+      Animation<double>? current;
+
+      Widget wrapper(Duration delay) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: MfmAnimatedWrapper(
+          duration: const Duration(seconds: 1),
+          delay: delay,
+          child: const Text('x'),
+          builder: (context, child, controller, progress) {
+            current = progress;
+            return child;
+          },
+        ),
+      );
+
+      await tester.pumpWidget(wrapper(Duration.zero));
+      final first = current! as CurvedAnimation;
+
+      // 負のdelayは独自の反復progressへ切り替わり、旧CurvedAnimationは不要になる。
+      await tester.pumpWidget(wrapper(const Duration(milliseconds: -250)));
+      expect(current, isNot(isA<CurvedAnimation>()));
+      expect(first.isDisposed, isTrue);
+
+      await tester.pumpWidget(wrapper(Duration.zero));
+      final last = current! as CurvedAnimation;
+      expect(last.isDisposed, isFalse);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(last.isDisposed, isTrue);
+    });
   });
 
   group('P2 MediaQuery.disableAnimations', () {

@@ -138,6 +138,9 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late Animation<double> _progress;
+  // CurvedAnimation は生成時に親 controller へ status listener を登録するため、
+  // 差し替え時と State の破棄時に dispose する。
+  CurvedAnimation? _curvedProgress;
   Timer? _delayTimer;
 
   Duration get _controllerDuration => widget.duration > Duration.zero
@@ -233,6 +236,7 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
   }
 
   void _updateProgress() {
+    final previousCurvedProgress = _curvedProgress;
     if (widget.repeat && widget.delay.isNegative) {
       _progress = _MfmRepeatingProgressAnimation(
         parent: _controller,
@@ -242,18 +246,21 @@ class _MfmAnimatedWrapperState extends State<MfmAnimatedWrapper>
         curve: widget.curve,
         reverseCurve: widget.reverseCurve ?? widget.curve,
       );
+      _curvedProgress = null;
     } else {
-      _progress = CurvedAnimation(
+      _progress = _curvedProgress = CurvedAnimation(
         parent: _controller,
         curve: widget.curve,
         reverseCurve: widget.reverseCurve ?? widget.curve,
       );
     }
+    previousCurvedProgress?.dispose();
   }
 
   @override
   void dispose() {
     _delayTimer?.cancel();
+    _curvedProgress?.dispose();
     _controller.dispose();
     super.dispose();
   }
