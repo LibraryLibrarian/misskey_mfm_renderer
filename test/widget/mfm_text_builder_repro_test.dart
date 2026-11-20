@@ -221,56 +221,63 @@ void main() {
     });
   }
 
-  testWidgets('[2] investigate unlimited-line RichText ellipsis', (
-    tester,
-  ) async {
-    for (final source in [
-      'abcdefghijklmnopqrst\nshort\nabcdefghijklmnopqrst',
-      'short\nabcdefghijklmnopqrst\nshort',
-      'short\nshort\nshort',
-    ]) {
-      await tester.pumpWidget(
-        _host(
-          RichText(
-            text: TextSpan(text: source, style: _style),
-            softWrap: false,
-            overflow: TextOverflow.ellipsis,
-          ),
-          width: 100,
+  testWidgets(
+    '[2] Flutter drops lines after the first overflowing line with ellipsis '
+    'but keeps them with clip',
+    (tester) async {
+      for (final sample in [
+        (
+          source: 'abcdefghijklmnopqrst\nshort\nabcdefghijklmnopqrst',
+          ellipsisLines: 1,
         ),
-      );
-      final paragraph = tester.renderObject<RenderParagraph>(
-        find.byType(RichText),
-      );
-      var offset = 0;
-      final rowBoxes = <String>[];
-      for (final line in source.split('\n')) {
-        final boxes = paragraph.getBoxesForSelection(
-          TextSelection(baseOffset: offset, extentOffset: offset + line.length),
-        );
-        rowBoxes.add(boxes.toString());
-        offset += line.length + 1;
+        (source: 'short\nabcdefghijklmnopqrst\nshort', ellipsisLines: 2),
+        (source: 'short\nshort\nshort', ellipsisLines: 3),
+      ]) {
+        for (final overflow in [TextOverflow.ellipsis, TextOverflow.clip]) {
+          await tester.pumpWidget(
+            _host(
+              RichText(
+                text: TextSpan(text: sample.source, style: _style),
+                softWrap: false,
+                overflow: overflow,
+              ),
+              width: 100,
+            ),
+          );
+          final richText = tester.widget<RichText>(find.byType(RichText));
+          final paragraph = tester.renderObject<RenderParagraph>(
+            find.byType(RichText),
+          );
+          final lines = sample.source.split('\n');
+          final visibleLines = overflow == TextOverflow.ellipsis
+              ? sample.ellipsisLines
+              : lines.length;
+          expect(richText.maxLines, isNull);
+          expect(paragraph.size.height, 14 * visibleLines);
+          expect(
+            paragraph.didExceedMaxLines,
+            overflow == TextOverflow.ellipsis && sample.ellipsisLines < 3,
+          );
+          var offset = 0;
+          for (var i = 0; i < lines.length; i++) {
+            // The first glyph remains inside the viewport even on long lines.
+            final boxes = paragraph.getBoxesForSelection(
+              TextSelection(baseOffset: offset, extentOffset: offset + 1),
+            );
+            if (i < visibleLines) {
+              expect(boxes, hasLength(1));
+              expect(boxes.single.top, 14 * i);
+              expect(boxes.single.bottom, 14 * (i + 1));
+            } else {
+              expect(boxes, isEmpty);
+            }
+            offset += lines[i].length + 1;
+          }
+          expect(tester.takeException(), isNull);
+        }
       }
-      final painter = TextPainter(
-        text: TextSpan(text: source, style: _style),
-        textDirection: TextDirection.ltr,
-        ellipsis: '…',
-      )..layout(maxWidth: 100);
-      final metrics = painter.computeLineMetrics().map(
-        (line) =>
-            '(line=${line.lineNumber}, width=${line.width}, '
-            'height=${line.height}, hardBreak=${line.hardBreak})',
-      );
-      // ignore: avoid_print
-      print(
-        '[2] ellipsis ${source.replaceAll('\n', r'\n')}: '
-        'size=${paragraph.size}, exceeded=${paragraph.didExceedMaxLines}, '
-        'rowBoxes=$rowBoxes, '
-        'lineMetrics=${metrics.toList()}',
-      );
-      painter.dispose();
-    }
-  });
+    },
+  );
 
   for (final sample in [
     (name: 'URL', source: 'https://example.com/'),
