@@ -75,7 +75,7 @@ class MfmNodeBuilder {
   /// 本家MkMfmのplain表示を使うか。
   final bool plain;
 
-  /// 1行に収める表示を使うか。
+  /// 明示的な改行を保持し、自動折り返しを止めるか。
   final bool nowrap;
 
   /// ハッシュタグをノート用の遷移先へ向けるか。
@@ -202,16 +202,19 @@ class MfmNodeBuilder {
           )
         : TextSpan(style: effectiveStyle, children: children);
     final scope = rainbowScope;
+    // 両方とも既定のoverflow: clipを維持し、nowrapでも明示改行を残す。
     return scope == null
         ? RichText(
             key: paragraphSemanticsKey(text),
             textAlign: textAlign,
+            softWrap: !nowrap,
             text: text,
           )
         : MfmRainbowRichText(
             key: paragraphSemanticsKey(text),
             scope: scope,
             textAlign: textAlign,
+            softWrap: !nowrap,
             text: text,
           );
   }
@@ -436,6 +439,8 @@ class MfmNodeBuilder {
     final backgroundColor = colorScheme.bg;
     final text = Text(
       node.code,
+      softWrap: !nowrap,
+      overflow: nowrap ? TextOverflow.clip : null,
       style: effectiveStyle.copyWith(
         fontFamily: 'Consolas',
         fontFamilyFallback: const [

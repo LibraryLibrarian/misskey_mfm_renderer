@@ -12,6 +12,8 @@ import 'utils/paragraph_semantics.dart';
 import 'utils/parse_text.dart';
 import 'utils/tap_recognizer_pool.dart';
 
+final _forcedLineBreak = RegExp(r'[\n\u2028\u2029]');
+
 /// MFMテキストをレンダリングするウィジェット
 class MfmText extends StatelessWidget {
   const MfmText({
@@ -48,7 +50,9 @@ class MfmText extends StatelessWidget {
   /// 本家MkMfmのplain表示を使うか。
   final bool plain;
 
-  /// 1行に収め、はみ出した内容を省略記号で表示するか。
+  /// 自動で折り返さず、明示的な改行を保持するか。
+  /// 改行を含まない本文が1行に収まらない場合は省略記号を表示し、
+  /// 改行を含む場合ははみ出した部分を切り取る。
   final bool nowrap;
 
   /// ルートでの累積スケール。
@@ -147,12 +151,21 @@ class _MfmTextBodyState extends State<_MfmTextBody> {
 
     // RichTextでレンダリング
     final textSpan = TextSpan(style: rootStyle, children: spans);
+    final overflow =
+        mfm.nowrap &&
+            !_forcedLineBreak.hasMatch(
+              textSpan.toPlainText(
+                includeSemanticsLabels: false,
+                includePlaceholders: false,
+              ),
+            )
+        ? TextOverflow.ellipsis
+        : TextOverflow.clip;
     return _MfmTextNoScaling(
       child: RichText(
         key: paragraphSemanticsKey(textSpan),
-        maxLines: mfm.nowrap ? 1 : null,
         softWrap: !mfm.nowrap,
-        overflow: mfm.nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
+        overflow: overflow,
         text: textSpan,
       ),
     );

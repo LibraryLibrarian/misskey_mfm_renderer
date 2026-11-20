@@ -421,7 +421,14 @@ void main() {
         onLinkTap: calls.add,
         nowrap: true,
       );
-      expect(tester.widget<RichText>(find.byType(RichText).first).maxLines, 1);
+      final root = find.byType(RichText).first;
+      final rich = tester.widget<RichText>(root);
+      expect(rich.maxLines, isNull);
+      expect(rich.softWrap, isFalse);
+      expect(rich.overflow, TextOverflow.ellipsis);
+      final nowrapParagraph = tester.renderObject<RenderParagraph>(root);
+      expect(nowrapParagraph.size.height, 30);
+      expect(nowrapParagraph.didExceedMaxLines, isTrue);
     },
   );
 
