@@ -181,7 +181,7 @@ class _MfmCustomEmojiState extends State<MfmCustomEmoji> {
   void _resolveEmoji() {
     final url = widget.url;
     final future = url != null
-        ? Future<Uri?>.value(url)
+        ? Future<Uri?>.syncValue(url)
         : widget.resolver!(widget.name).then((emoji) => emoji?.url);
     _emojiFuture = future;
     _retryOnUpdate = false;

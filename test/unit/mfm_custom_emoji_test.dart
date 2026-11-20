@@ -392,7 +392,7 @@ void main() {
       var resolveCount = 0;
       Future<EmojiImage?> resolver(String _) {
         resolveCount++;
-        return resolveCount == 1 ? Future.value(image) : pending.future;
+        return resolveCount == 1 ? Future.syncValue(image) : pending.future;
       }
 
       await tester.pumpWidget(
