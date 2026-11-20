@@ -13,7 +13,7 @@ sidebar_label: 快速开始
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.4
+  misskey_mfm_renderer: ^0.6.0-beta.5
 ```
 
 然后在应用目录中解析依赖：

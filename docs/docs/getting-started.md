@@ -13,7 +13,7 @@ Add this entry alongside the Flutter SDK dependency in your application's `pubsp
 
 ```yaml
 dependencies:
-  misskey_mfm_renderer: ^0.6.0-beta.4
+  misskey_mfm_renderer: ^0.6.0-beta.5
 ```
 
 Then resolve dependencies from the application directory:
