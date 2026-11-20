@@ -22,6 +22,14 @@ import '../widgets/mfm_mention_text_span.dart';
 import '../widgets/mfm_search.dart';
 
 const _maxNodeDepth = 100;
+final _leadingLineBreak = RegExp(r'^[\n\u2028\u2029]');
+final _trailingLineBreak = RegExp(r'[\n\u2028\u2029]$');
+
+// Rendered blocks whose parsers consume the surrounding line breaks.
+bool _isBlockNode(MfmNode node) => switch (node) {
+  CenterNode() || QuoteNode() || CodeBlockNode() || SearchNode() => true,
+  _ => false,
+};
 
 // 本家の<small>はUAのfont-size: smallerを使用する。
 // Blink font_description.ccのSmallerSizeとFirefoxに合わせ、親サイズを1.2で割る。
@@ -247,7 +255,26 @@ class MfmNodeBuilder {
         ),
       ];
     }
-    return nodes.map(nested._buildNode).toList();
+    final spans = nodes.map(nested._buildNode).toList();
+    if (!nowrap || spans.length < 2) return spans;
+
+    final separated = <InlineSpan>[spans.first];
+    for (var i = 1; i < spans.length; i++) {
+      if (_isBlockNode(nodes[i - 1]) || _isBlockNode(nodes[i])) {
+        // Keep WidgetSpan placeholders: an internal newline cannot separate
+        // the widget from its siblings in the containing paragraph.
+        final previous = spans[i - 1].toPlainText(
+          includeSemanticsLabels: false,
+        );
+        final current = spans[i].toPlainText(includeSemanticsLabels: false);
+        if (!_trailingLineBreak.hasMatch(previous) &&
+            !_leadingLineBreak.hasMatch(current)) {
+          separated.add(const TextSpan(text: '\n'));
+        }
+      }
+      separated.add(spans[i]);
+    }
+    return separated;
   }
 
   /// 単一ノードでもリストと同じ深さ制限を適用する。
@@ -400,7 +427,7 @@ class MfmNodeBuilder {
       );
     }
 
-    // nowrapでは1行に収めるため、引用も全幅化せずインライン幅で描画する。
+    // nowrapでは引用を全幅化せず、内容の自然幅で描画する。
     return WidgetSpan(
       child: nowrap
           ? buildQuoteContainer()

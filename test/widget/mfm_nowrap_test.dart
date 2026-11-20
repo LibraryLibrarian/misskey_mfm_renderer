@@ -5,6 +5,7 @@ import 'package:misskey_mfm_parser/misskey_mfm_parser.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_rainbow_text.dart';
 import 'package:misskey_mfm_renderer/src/widgets/mfm_code_block.dart';
+import 'package:misskey_mfm_renderer/src/widgets/mfm_search.dart';
 
 const _baseStyle = TextStyle(
   fontFamily: 'Ahem',
@@ -34,6 +35,213 @@ void main() {
         ),
         isNotEmpty,
       );
+    });
+
+    for (final sample in [
+      (
+        name: 'center',
+        source: '<center>b</center>',
+        node: const CenterNode([TextNode('b')]),
+        placeholder: '\uFFFC',
+        label: 'b',
+      ),
+      (
+        name: 'quote',
+        source: '> q',
+        node: const QuoteNode([TextNode('q')]),
+        placeholder: '\uFFFC',
+        label: 'q',
+      ),
+      (
+        name: 'code block',
+        source: '```\ncode\n```',
+        node: const CodeBlockNode(code: 'code'),
+        placeholder: '\uFFFC',
+        label: 'code',
+      ),
+      (
+        name: 'search',
+        source: 'query Search',
+        node: const SearchNode(query: 'query', content: 'query Search'),
+        placeholder: '\uFFFC',
+        label: 'query',
+      ),
+    ]) {
+      testWidgets('${sample.name} stays between visible separate lines', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          _host(MfmText(text: 'a\n${sample.source}\nc', nowrap: true)),
+        );
+        _expectBlockLines(tester, sample.placeholder);
+        if (sample.name == 'search') {
+          expect(find.byType(MfmSearch), findsOneWidget);
+          expect(
+            tester
+                .widget<EditableText>(find.byType(EditableText))
+                .controller
+                .text,
+            sample.label,
+          );
+          final block = tester.getRect(find.byType(MfmSearch));
+          final root = tester.getRect(find.byType(RichText).first);
+          expect(root.intersect(block), block);
+        } else if (sample.placeholder == '\uFFFC') {
+          final glyph = _richTextWith(sample.label);
+          expect(glyph, findsOneWidget);
+          expect(_glyphRect(tester, glyph, 0).isEmpty, isFalse);
+          final root = tester.getRect(find.byType(RichText).first);
+          expect(root.contains(_glyphRect(tester, glyph, 0).center), isTrue);
+        }
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('${sample.name} keeps existing boundary line breaks', (
+        tester,
+      ) async {
+        for (final newline in ['\n', '\r\n', '\r', '\u2028', '\u2029']) {
+          await tester.pumpWidget(
+            _host(
+              MfmText(
+                parsedNodes: [
+                  BoldNode([TextNode('a$newline')]),
+                  sample.node,
+                  BoldNode([TextNode('${newline}c')]),
+                ],
+                nowrap: true,
+              ),
+            ),
+          );
+          final normalized = newline.startsWith('\r') ? '\n' : newline;
+          _expectBlockLines(tester, sample.placeholder, newline: normalized);
+        }
+      });
+
+      testWidgets('${sample.name} adds no boundary breaks with nowrap false', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          _host(MfmText(text: 'a\n${sample.source}\nc')),
+        );
+        final rich = tester.widget<RichText>(find.byType(RichText).first);
+        expect(rich.text.toPlainText(), 'a${sample.placeholder}c');
+        expect(rich.softWrap, isTrue);
+        expect(rich.overflow, TextOverflow.clip);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('${sample.name} adds no leading or trailing blank line', (
+        tester,
+      ) async {
+        for (final nodes in [
+          [sample.node],
+          [sample.node, const TextNode('c')],
+          [const TextNode('a'), sample.node],
+          [sample.node, sample.node],
+        ]) {
+          await tester.pumpWidget(
+            _host(MfmText(parsedNodes: nodes, nowrap: true)),
+          );
+          final text = tester
+              .widget<RichText>(find.byType(RichText).first)
+              .text
+              .toPlainText();
+          expect(text.startsWith('\n'), isFalse);
+          expect(text.endsWith('\n'), isFalse);
+          expect(text, isNot(contains('\n\n')));
+          expect('\n'.allMatches(text), hasLength(nodes.length - 1));
+        }
+      });
+    }
+
+    for (final nowrap in [true, false]) {
+      testWidgets('math block keeps all glyphs inline with nowrap=$nowrap', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          _host(MfmText(text: 'a\n\\[b\\]\nc', nowrap: nowrap)),
+        );
+        final finder = find.byType(RichText);
+        final rich = tester.widget<RichText>(finder);
+        expect(rich.text.toPlainText(), 'abc');
+        expect(rich.softWrap, !nowrap);
+        expect(
+          rich.overflow,
+          nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
+        );
+        final bounds = tester.getRect(finder);
+        final paragraph = tester.renderObject<RenderParagraph>(finder);
+        final first = _glyphRect(tester, finder, 0);
+        var previousRight = first.left;
+        for (final offset in [0, 1, 2]) {
+          final glyph = _glyphRect(tester, finder, offset);
+          // The code font may have different ascent/descent from body text.
+          expect(glyph.top, lessThan(first.bottom));
+          expect(glyph.bottom, greaterThan(first.top));
+          expect(glyph.left, greaterThanOrEqualTo(previousRight));
+          previousRight = glyph.right;
+          expect(bounds.contains(glyph.center), isTrue);
+        }
+        expect(paragraph.didExceedMaxLines, isFalse);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('math block preserves explicit sibling line breaks', (
+      tester,
+    ) async {
+      for (final newline in ['\n', '\r\n', '\r', '\u2028', '\u2029']) {
+        await tester.pumpWidget(
+          _host(
+            MfmText(
+              parsedNodes: [
+                TextNode('a$newline'),
+                const MathBlockNode('b'),
+                TextNode('${newline}c'),
+              ],
+              nowrap: true,
+            ),
+          ),
+        );
+        final normalized = newline.startsWith('\r') ? '\n' : newline;
+        _expectBlockLines(tester, 'b', newline: normalized);
+      }
+    });
+
+    testWidgets('nested bold separates its center from its sibling glyphs', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const MfmText(
+            parsedNodes: [
+              BoldNode([
+                TextNode('a'),
+                CenterNode([TextNode('b')]),
+                TextNode('c'),
+              ]),
+            ],
+            nowrap: true,
+          ),
+        ),
+      );
+      _expectBlockLines(tester, '\uFFFC');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('parsed quote separates blocks inside its child paragraph', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const MfmText(
+            text: '> a\n> <center>b</center>\n> c',
+            nowrap: true,
+          ),
+        ),
+      );
+      _expectBlockLines(tester, '\uFFFC', root: _richTextWith('a\n\uFFFC\nc'));
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('引用を全幅化せず1行内の自然幅で表示する', (tester) async {
@@ -306,4 +514,47 @@ Finder _quoteFinder() {
     final decoration = widget.decoration;
     return decoration is BoxDecoration && decoration.border is Border;
   });
+}
+
+Finder _richTextWith(String text) => find.byWidgetPredicate(
+  (widget) => widget is RichText && widget.text.toPlainText() == text,
+);
+
+Rect _glyphRect(WidgetTester tester, Finder finder, int offset) {
+  final paragraph = tester.renderObject<RenderParagraph>(finder);
+  final boxes = paragraph.getBoxesForSelection(
+    TextSelection(baseOffset: offset, extentOffset: offset + 1),
+  );
+  expect(boxes, hasLength(1));
+  return boxes.single.toRect().shift(paragraph.localToGlobal(Offset.zero));
+}
+
+void _expectBlockLines(
+  WidgetTester tester,
+  String blockText, {
+  String newline = '\n',
+  Finder? root,
+}) {
+  final finder = root ?? find.byType(RichText).first;
+  final rich = tester.widget<RichText>(finder);
+  final text = 'a$newline$blockText${newline}c';
+  expect(rich.text.toPlainText(), text);
+  expect(rich.softWrap, isFalse);
+  expect(rich.overflow, TextOverflow.clip);
+  final first = _glyphRect(tester, finder, 0);
+  final block = _glyphRect(tester, finder, 1 + newline.length);
+  final last = _glyphRect(tester, finder, text.length - 1);
+  expect(first.bottom, lessThanOrEqualTo(block.top));
+  expect(block.bottom, lessThanOrEqualTo(last.top));
+  final bounds = tester.getRect(finder);
+  for (final rect in [first, block, last]) {
+    expect(bounds.contains(rect.center), isTrue);
+  }
+  final paragraph = tester.renderObject<RenderParagraph>(finder);
+  expect(paragraph.didExceedMaxLines, isFalse);
+  // All three glyph/placeholder rows are present, with no extra blank row.
+  expect(
+    bounds.height,
+    closeTo(first.height + block.height + last.height, .01),
+  );
 }
