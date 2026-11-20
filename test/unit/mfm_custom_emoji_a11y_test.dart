@@ -187,7 +187,10 @@ void main() {
               : null;
           Future<EmojiImage?> resolver(String name) async {
             expect(name, _name);
-            if (phase == 'resolver placeholder') return pendingResolver.future;
+            if (phase == 'resolver placeholder') {
+              final pending = await pendingResolver.future;
+              return pending;
+            }
             if (phase == 'default fallback') return null;
             return EmojiImage(
               url: Uri.parse(url),
@@ -269,7 +272,7 @@ void main() {
               aspectRatio: 2,
               semanticLabel: 'Party parrot',
               resolver: (_) async => switch (phase) {
-                'placeholder' => pendingResolver.future,
+                'placeholder' => await pendingResolver.future,
                 'default fallback' => null,
                 _ => EmojiImage(
                   url: Uri.parse(url),
