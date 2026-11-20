@@ -27,7 +27,7 @@ import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 class MotionExample extends StatelessWidget {
   const MotionExample({super.key, required this.userPrefersAnimation});
 
-  /// Préférence de l’application, initialisée par exemple depuis le réglage du système.
+  /// Application preference, for example initialized from the OS setting.
   final bool userPrefersAnimation;
 
   @override
@@ -36,7 +36,7 @@ class MotionExample extends StatelessWidget {
       text: r'$[tada Hello] $[rainbow Color]',
       config: MfmRenderConfig(
         enableAnimation: userPrefersAnimation,
-        // La préférence de l’application tient déjà compte du réglage du système.
+        // The application preference already reflects the OS setting.
         followPlatformReducedMotion: false,
       ),
     );
