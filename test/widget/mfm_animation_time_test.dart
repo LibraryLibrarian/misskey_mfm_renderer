@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
@@ -200,6 +202,32 @@ void main() {
         expect(tester.hasRunningAnimations, isTrue);
       });
     }
+
+    testWidgets('Timerへ渡す待機時間はWebのsetTimeout上限を超えない', (tester) async {
+      // FakeAsyncは任意の長さのTimerを受け付けるため、作成されたTimerの長さを
+      // Zoneで記録し、1本のTimerで待つ実装を検出する。連鎖するTimerも
+      // 登録時のZoneで実行されるので同じく記録される。
+      final durations = <Duration>[];
+      await runZoned(
+        () async {
+          await tester.pumpWidget(wrapper(delay: longDelay));
+          await tester.pump(timerLimit);
+          await tester.pump(timerLimit);
+          await tester.pump(tail);
+        },
+        zoneSpecification: ZoneSpecification(
+          createTimer: (self, parent, zone, duration, callback) {
+            durations.add(duration);
+            return parent.createTimer(zone, duration, callback);
+          },
+        ),
+      );
+
+      expect(tester.hasRunningAnimations, isTrue);
+      expect(durations, everyElement(lessThanOrEqualTo(timerLimit)));
+      expect(durations.where((d) => d == timerLimit), hasLength(2));
+      expect(durations, contains(tail));
+    });
 
     testWidgets('分割待機中のdelay変更は元の開始予定をキャンセルする', (tester) async {
       AnimationController? current;
