@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Treat CSS-invalid animation speeds such as `1.s` and `1.2.3s` as static content while keeping invalid delays at zero, matching Misskey
 - Released superseded animation curves when `speed`, `delay` or other animation arguments change, so long-lived animated MFM no longer accumulates controller status listeners
 - Corrected the `spin.x` / `spin.y` perspective direction to match Misskey's `perspective(128px)`, so the near side of the rotating content is enlarged and the far side reduced
+- Normalize CRLF and CR to LF in text outside `plain` as well, matching the original renderer
 - Route actual labelled-link glyph and passive inline-widget taps to the raw URL callback, preserving child gestures and existing accessible content/actions while isolating widget-label actions from surrounding prose and other links
 - Prevent doubled alpha at 3D border band/diagonal joins on web by assigning shade colors within one composited ring instead of blending independently rasterized partitions
 - Resolve border numeric prefixes and CSS RGBA locally, suppress hidden/invalid/zero borders without hairlines or insets, normalize radii before inner clipping, and bound extreme widths/pattern work while preserving child state, natural baselines and cumulative opacity

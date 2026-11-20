@@ -247,9 +247,8 @@ class MfmNodeBuilder {
   InlineSpan _buildText(TextNode node) {
     // styleをnullにして親のスタイルを継承
     // ルートのTextSpanでbaseTextStyleが設定されているため、ここで再設定する必要はない
-    final normalized = plain
-        ? node.text.replaceAll(RegExp(r'\r\n|\r|\n'), '\n')
-        : node.text;
+    // 本家と同じく、plainに関係なくCRLF/CRをLFへ正規化する。
+    final normalized = node.text.replaceAll(RegExp(r'\r\n?'), '\n');
     final nyaized = shouldNyaize ? nyaize(normalized) : normalized;
     return TextSpan(text: plain ? nyaized.replaceAll('\n', ' ') : nyaized);
   }
