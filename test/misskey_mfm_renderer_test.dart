@@ -129,6 +129,14 @@ void main() {
       expect(config.codeCopiedMessage, 'Source copied');
     });
 
+    test('copyWithがborderの太さの上限を保持し上書きできる', () {
+      const config = MfmRenderConfig(maxBorderWidth: 4096);
+      expect(const MfmRenderConfig().maxBorderWidth, isNull);
+      expect(config.copyWith(enableAnimation: false).maxBorderWidth, 4096);
+      expect(config.copyWith(maxBorderWidth: 2048).maxBorderWidth, 2048);
+      expect(config.maxBorderWidth, 4096);
+    });
+
     test('copyWith preserves and overrides mention context', () {
       const author = MfmAuthorContext(host: 'remote.example');
       const config = MfmRenderConfig(

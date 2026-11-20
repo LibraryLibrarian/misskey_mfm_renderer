@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `MfmMentionOptions` with capsule/text presentation, independent viewer identity, opt-in avatar providers and a validated local avatar origin; options inherit as a whole
 - Added optional `MfmEmojiContext.textStyle` and `MfmCustomEmoji.fallbackTextStyle` for shortcode fallbacks with inherited typography and original colors before cumulative small/quote opacity
 - Added `MfmCustomEmoji.semanticLabel` to override the default `:name:` accessibility label of the emoji image, standard loading placeholder and standard shortcode fallback
+- Added `MfmRenderConfig.maxBorderWidth` to raise or lower the default 1024 logical px cap on `border` widths, up to 33,554,432 (where Chromium saturates border widths); null, zero, negative and non-finite values keep the default. It is inherited through `MfmConfig` and preserved by `copyWith`, including `MfmEmojiConfigHandle`
 
 ### Changed
 - **Breaking:** `MfmText` now follows the OS reduced-motion setting by default: while `MediaQuery.disableAnimations` is on, MFM renders exactly as with `enableAnimation: false` (enlarged static `tada`, static rainbow gradient, sparkle without particles) and follows changes to the setting. Migration: set `followPlatformReducedMotion: false` to keep animating regardless of the OS setting

@@ -270,6 +270,7 @@ MfmRenderConfig _mergeConfigs(
     codeCopyTooltip: explicit.codeCopyTooltip ?? inherited.codeCopyTooltip,
     codeCopiedMessage:
         explicit.codeCopiedMessage ?? inherited.codeCopiedMessage,
+    maxBorderWidth: explicit.maxBorderWidth ?? inherited.maxBorderWidth,
   );
 }
 
@@ -307,7 +308,8 @@ bool _isDefaultConfig(MfmRenderConfig config) {
       config.showCodeBlockCopyButton == defaults.showCodeBlockCopyButton &&
       config.onCodeCopied == defaults.onCodeCopied &&
       config.codeCopyTooltip == defaults.codeCopyTooltip &&
-      config.codeCopiedMessage == defaults.codeCopiedMessage;
+      config.codeCopiedMessage == defaults.codeCopiedMessage &&
+      config.maxBorderWidth == defaults.maxBorderWidth;
 }
 
 Brightness _resolveBrightness(

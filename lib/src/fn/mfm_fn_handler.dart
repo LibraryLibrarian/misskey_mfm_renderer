@@ -622,6 +622,7 @@ class MfmFnHandler {
     final options = MfmBorderOptions.resolve(
       node.args,
       builder.colorScheme.accent,
+      maxWidth: builder.config.maxBorderWidth,
     );
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,

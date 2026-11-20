@@ -216,6 +216,13 @@ does not expand ancestor hit regions. Border styles, numeric/color parsing and
 clipping behavior have further **unreleased** changes; consult the migration
 notes below rather than assuming the development behavior is in the published version.
 
+Upstream uses the `width` argument directly as pixels. Because huge widths would
+make the paragraph too tall to lay out, this library caps the border width at
+1024 logical px by default. Set `MfmRenderConfig.maxBorderWidth` to draw thicker
+borders, for example `MfmRenderConfig(maxBorderWidth: 4096)`. The value is
+capped at 33,554,432 (where Chromium, which renders upstream, saturates border
+widths); null, zero, negative and non-finite values use the default 1024.
+
 ## Development and unreleased changes
 
 The guides and installation example target the published package. The `develop`

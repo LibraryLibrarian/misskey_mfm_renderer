@@ -266,17 +266,74 @@ void main() {
     });
   }
 
-  testWidgets('仕様未決: border.width=2000は1024に制限する現状を記録する', (tester) async {
-    // 仕様未決: 本家のwidthは2000pxで上限なし。現状の上限を記録する。
-    tester.view.physicalSize = const Size(6000, 6000);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await _pumpMfm(tester, r'$[border.width=2000 x]');
+  group('borderの太さの上限', () {
+    testWidgets('既定ではborder.width=2000を1024に収める', (tester) async {
+      _useLargeView(tester);
+      await _pumpMfm(tester, r'$[border.width=2000 x]');
 
-    final border = tester.widget<MfmBorder>(find.byType(MfmBorder));
-    expect(border.options.width, 1024);
-  }, skip: true);
+      expect(_borderWidth(tester), 1024);
+    });
+
+    testWidgets('maxBorderWidthを指定すると本家どおりの太さで描く', (tester) async {
+      _useLargeView(tester);
+      await _pumpMfm(
+        tester,
+        r'$[border.width=2000 x]',
+        config: const MfmRenderConfig(maxBorderWidth: 4096),
+      );
+
+      expect(_borderWidth(tester), 2000);
+    });
+
+    testWidgets('明示したmaxBorderWidthが継承した値を上書きする', (tester) async {
+      _useLargeView(tester);
+      Future<double> pump(MfmRenderConfig? explicit) async {
+        await tester.pumpWidget(
+          MfmConfig(
+            config: const MfmRenderConfig(maxBorderWidth: 3000),
+            child: MaterialApp(
+              home: Scaffold(
+                body: MfmText(
+                  text: r'$[border.width=2000 x]',
+                  config: explicit ?? const MfmRenderConfig(),
+                ),
+              ),
+            ),
+          ),
+        );
+        return _borderWidth(tester);
+      }
+
+      expect(await pump(null), 2000);
+      expect(await pump(MfmRenderConfig(onLinkTap: (_) {})), 2000);
+      expect(await pump(const MfmRenderConfig(maxBorderWidth: 1500)), 1500);
+    });
+
+    for (final style in ['solid', 'dotted', 'groove']) {
+      testWidgets('上限を最大にしても巨大なwidthで例外を出さない（$style）', (tester) async {
+        for (final width in ['1e8', '1e38', '1e300', '1e308']) {
+          for (final list in [false, true]) {
+            final text = MfmText(
+              text: '\$[border.width=$width,style=$style x]',
+              config: const MfmRenderConfig(maxBorderWidth: double.maxFinite),
+            );
+            await tester.pumpWidget(
+              MaterialApp(
+                home: Scaffold(
+                  body: list ? ListView(children: [text]) : text,
+                ),
+              ),
+            );
+
+            expect(tester.takeException(), isNull, reason: '$width $list');
+            expect(_borderWidth(tester), 33554432);
+            final size = tester.getSize(find.byType(MfmText));
+            expect(size.isFinite, isTrue, reason: '$width $list');
+          }
+        }
+      });
+    }
+  });
 }
 
 Future<void> _pumpMfm(
@@ -358,3 +415,14 @@ class _LifecycleProbeState extends State<_LifecycleProbe> {
   @override
   Widget build(BuildContext context) => const SizedBox(width: 20, height: 20);
 }
+
+void _useLargeView(WidgetTester tester) {
+  // 太いborderが既定の800x600からはみ出さないよう、画面を広げる。
+  tester.view.physicalSize = const Size(6000, 6000);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
+double _borderWidth(WidgetTester tester) =>
+    tester.widget<MfmBorder>(find.byType(MfmBorder)).options.width;

@@ -63,6 +63,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
          onCodeCopied: config.onCodeCopied,
          codeCopyTooltip: config.codeCopyTooltip,
          codeCopiedMessage: config.codeCopiedMessage,
+         maxBorderWidth: config.maxBorderWidth,
        );
 
   final _MfmEmojiConfigLifecycle _lifecycle;
@@ -119,6 +120,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
     void Function(String code)? onCodeCopied,
     String? codeCopyTooltip,
     String? codeCopiedMessage,
+    double? maxBorderWidth,
   }) {
     final config = super.copyWith(
       baseTextStyle: baseTextStyle,
@@ -157,6 +159,7 @@ class MfmEmojiConfigHandle extends MfmRenderConfig {
       onCodeCopied: onCodeCopied,
       codeCopyTooltip: codeCopyTooltip,
       codeCopiedMessage: codeCopiedMessage,
+      maxBorderWidth: maxBorderWidth,
     );
     return MfmEmojiConfigHandle._(config: config, lifecycle: _lifecycle);
   }

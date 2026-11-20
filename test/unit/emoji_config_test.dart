@@ -215,6 +215,14 @@ void main() {
     expect(config.onCodeCopied, isNull);
     expect(config.codeCopyTooltip, isNull);
     expect(config.codeCopiedMessage, isNull);
+
+    final bordered = config.copyWith(maxBorderWidth: 4096);
+    for (final value in [bordered, bordered.copyWith(enableAnimation: false)]) {
+      expect(value, isA<MfmEmojiConfigHandle>());
+      expect(value.maxBorderWidth, 4096);
+    }
+    expect(bordered.copyWith(maxBorderWidth: 2048).maxBorderWidth, 2048);
+    expect(config.maxBorderWidth, isNull);
   });
 
   test(

@@ -167,4 +167,35 @@ void main() {
       expect(resolve({'noclip': value}).noclip, isTrue);
     }
   });
+
+  test(
+    'maxWidth: null/nonpositive/non-finite use 1024, others cap at 2^25',
+    () {
+      double width(Object? value, double? maxWidth) => MfmBorderOptions.resolve(
+        {'width': value},
+        accent,
+        maxWidth: maxWidth,
+      ).width;
+      for (final maxWidth in <double?>[
+        null,
+        0,
+        -1,
+        double.infinity,
+        double.negativeInfinity,
+        double.nan,
+      ]) {
+        expect(width('2000', maxWidth), 1024, reason: '$maxWidth');
+      }
+      expect(width('2000', 4096), 2000);
+      expect(width('2000', 10), 10);
+      expect(width('2000', 0.5), 0.5);
+      for (final value in ['1e8', '1e38', '1e300', '1.7e308']) {
+        expect(width(value, double.maxFinite), 33554432, reason: value);
+      }
+      expect(width('33554431', 1000000000), 33554431);
+      // Non-finite widths stay invalid regardless of the configured limit.
+      expect(width('Infinity', 1000000000), 0);
+      expect(width('1e400', 1000000000), 0);
+    },
+  );
 }

@@ -152,6 +152,7 @@ class MfmRenderConfig {
     this.onCodeCopied,
     this.codeCopyTooltip,
     this.codeCopiedMessage,
+    this.maxBorderWidth,
   }) : searchButtonLabel = useLocaleSearchButtonLabel
            ? null
            : searchButtonLabel;
@@ -356,6 +357,15 @@ class MfmRenderConfig {
   /// それ以外は"Copied to clipboard"を使用。[onCodeCopied]指定時は使用しない。
   final String? codeCopiedMessage;
 
+  /// border fnの線の太さの上限（logical px）。
+  ///
+  /// nullの場合は既定の1024を使う。本家は`width`の値をそのままpxとして使うが、
+  /// 巨大な値では段落の高さが表現できる範囲を超えて例外になるため、
+  /// このライブラリは既定で1024に収める。より太い線を本家に近づけて描く場合に
+  /// 大きな値を指定する。指定値は33,554,432（本家を表示するChromiumが
+  /// 線の太さを飽和させる値）以下に収め、0以下と非有限の値は既定値として扱う。
+  final double? maxBorderWidth;
+
   /// 設定をコピーして新しいインスタンスを作成。
   ///
   /// {@template mfm_render_config_copy_with_mention_context}
@@ -403,6 +413,7 @@ class MfmRenderConfig {
     void Function(String code)? onCodeCopied,
     String? codeCopyTooltip,
     String? codeCopiedMessage,
+    double? maxBorderWidth,
   }) {
     if (clearUnixtimeOptions && unixtimeOptions != null) {
       throw ArgumentError.value(
@@ -483,6 +494,7 @@ class MfmRenderConfig {
       onCodeCopied: onCodeCopied ?? this.onCodeCopied,
       codeCopyTooltip: codeCopyTooltip ?? this.codeCopyTooltip,
       codeCopiedMessage: codeCopiedMessage ?? this.codeCopiedMessage,
+      maxBorderWidth: maxBorderWidth ?? this.maxBorderWidth,
     );
   }
 }
