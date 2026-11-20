@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_animated_wrapper.dart';
 import 'package:misskey_mfm_renderer/src/fn/animated/mfm_rainbow_text.dart';
+import 'package:misskey_mfm_renderer/src/fn/animated/mfm_sparkle_widget.dart';
 
 void main() {
   group('P1 巨大なspeedとdelayの安全性', () {
@@ -207,6 +208,212 @@ void main() {
         orderedEquals(before),
         reason: 'TickerMode停止中は粒子生成TimerのsetStateも停止する',
       );
+    });
+  });
+
+  group('sparkleのTicker時計', () {
+    Widget host({bool enabled = true, bool tickerEnabled = true}) =>
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: TickerMode(
+            enabled: tickerEnabled,
+            child: Center(
+              child: MfmSparkleWidget(
+                enabled: enabled,
+                child: const SizedBox(width: 100, height: 30),
+              ),
+            ),
+          ),
+        );
+
+    CustomPainter painter(WidgetTester tester) => tester
+        .widget<CustomPaint>(
+          find.descendant(
+            of: find.byType(MfmSparkleWidget),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .painter!;
+
+    List<({Duration startTime, Duration duration, double progress})> frames(
+      WidgetTester tester,
+    ) => MfmSparkleWidget.debugParticleFrames(painter(tester));
+
+    testWidgets('最初の粒子は500〜999ms待ち、描画進行は全寿命を分母にする', (tester) async {
+      _cleanUp(tester);
+      await tester.pumpWidget(host());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 499));
+      expect(frames(tester), isEmpty);
+      await tester.pump(const Duration(milliseconds: 500));
+      final first = frames(tester).single;
+      expect(first.startTime, const Duration(milliseconds: 999));
+      expect(first.progress, 0);
+
+      await tester.pump(const Duration(milliseconds: 100));
+      final progressed = frames(tester).single;
+      expect(
+        progressed.progress,
+        closeTo(100000 / first.duration.inMicroseconds, 1e-10),
+      );
+    });
+
+    testWidgets('粒子はstart + duration - 100msのフレームで削除する', (tester) async {
+      _cleanUp(tester);
+      await tester.pumpWidget(host());
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      final first = frames(tester).single;
+      final lifetime = first.duration - const Duration(milliseconds: 100);
+      await tester.pump(lifetime - const Duration(microseconds: 1));
+      expect(
+        frames(
+          tester,
+        ).where((particle) => particle.startTime == first.startTime),
+        hasLength(1),
+      );
+      await tester.pump(const Duration(microseconds: 1));
+      expect(
+        frames(
+          tester,
+        ).where((particle) => particle.startTime == first.startTime),
+        isEmpty,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    for (final pause in [const Duration(seconds: 3), const Duration(days: 1)]) {
+      testWidgets('粒子がある状態で$pause muteしても変更せず、復帰時に最大1個生成する', (
+        tester,
+      ) async {
+        _cleanUp(tester);
+        await tester.pumpWidget(host());
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        expect(frames(tester), hasLength(1));
+        await tester.pumpWidget(host(tickerEnabled: false));
+        final frozenPainter = painter(tester);
+        final frozenParticles = frames(tester);
+        await tester.pump(pause);
+        expect(painter(tester), same(frozenPainter));
+        expect(frames(tester), frozenParticles);
+
+        await tester.pumpWidget(host());
+        await tester.pump();
+        final resumed = frames(tester).single;
+        expect(
+          resumed.startTime,
+          greaterThan(frozenParticles.single.startTime),
+        );
+        expect(resumed.progress, 0);
+        // 次の生成は復帰tickから新たに500〜999ms待つ。
+        await tester.pump(const Duration(milliseconds: 499));
+        expect(frames(tester), hasLength(1));
+        await tester.pump(const Duration(milliseconds: 500));
+        final next = frames(tester).where(
+          (particle) => particle.startTime > resumed.startTime,
+        );
+        expect(next, hasLength(1));
+        expect(frames(tester).length, lessThanOrEqualTo(2));
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    for (final initiallyMuted in [false, true]) {
+      testWidgets('enabledの再始動は粒子と生成時計をリセットする (mute: $initiallyMuted)', (
+        tester,
+      ) async {
+        _cleanUp(tester);
+        await tester.pumpWidget(host());
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        expect(frames(tester), hasLength(1));
+        await tester.pumpWidget(host(enabled: false));
+        expect(find.byType(CustomPaint), findsNothing);
+        await tester.pump(const Duration(seconds: 10));
+        await tester.pumpWidget(host(tickerEnabled: !initiallyMuted));
+        if (initiallyMuted) {
+          await tester.pump(const Duration(seconds: 10));
+          expect(frames(tester), isEmpty);
+          await tester.pumpWidget(host());
+        }
+        await tester.pump();
+        expect(frames(tester), isEmpty);
+        await tester.pump(const Duration(milliseconds: 499));
+        expect(frames(tester), isEmpty);
+        await tester.pump(const Duration(milliseconds: 500));
+        final first = frames(tester).single;
+        expect(first.startTime, const Duration(milliseconds: 999));
+        expect(first.progress, 0);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('dispose後はTickerもTimerも残らない', (tester) async {
+      await tester.pumpWidget(host());
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(frames(tester), hasLength(1));
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(tester.binding.transientCallbackCount, 0);
+      await tester.pump(const Duration(seconds: 10));
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      expect(tester.takeException(), isNull);
+      // testWidgetsのpending Timer検査も通すため、削除待ちTimerは許容しない。
+    });
+
+    for (final lifecycle in [
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.detached,
+    ]) {
+      testWidgets('$lifecycleでフレーム供給が止まる間は粒子を更新しない', (tester) async {
+        _cleanUp(tester);
+        addTearDown(() {
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.resumed,
+          );
+        });
+        await tester.pumpWidget(host());
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        tester.binding.handleAppLifecycleStateChanged(lifecycle);
+        // 停止前に予約された1フレームだけを同じ時刻で消化する。
+        await tester.pump();
+        final before = painter(tester);
+        final particles = frames(tester);
+        await tester.pump(const Duration(seconds: 3));
+        expect(painter(tester), same(before));
+        expect(frames(tester), particles);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pump();
+        expect(frames(tester), hasLength(1));
+        expect(
+          frames(tester).single.startTime,
+          greaterThan(particles.single.startTime),
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('inactiveはフレーム供給が続くため描画も進む', (tester) async {
+      _cleanUp(tester);
+      addTearDown(() {
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+      });
+      await tester.pumpWidget(host());
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      final before = painter(tester);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(painter(tester), isNot(same(before)));
+      expect(frames(tester).single.progress, greaterThan(0));
+      expect(tester.takeException(), isNull);
     });
   });
 
