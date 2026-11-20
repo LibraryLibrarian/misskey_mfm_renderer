@@ -101,7 +101,11 @@ class _MfmTextBodyState extends State<_MfmTextBody> {
     // 明示スタイルは環境とマージせず、未指定のフォントサイズのみ補完する
     final rawStyle =
         mergedConfig.baseTextStyle ?? DefaultTextStyle.of(context).style;
-    final rootStyle = rawStyle.copyWith(fontSize: rawStyle.fontSize ?? 14.0);
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final rootStyle = rawStyle.copyWith(
+      fontSize: scaler.scale(rawStyle.fontSize ?? 14.0),
+    );
 
     // OSの「動きを減らす」設定は、追従が有効でアニメーションが有効な場合だけ参照する。
     // 参照時はMediaQueryのdisableAnimationsだけに依存し、その変更で再buildされる。
@@ -143,12 +147,14 @@ class _MfmTextBodyState extends State<_MfmTextBody> {
 
     // RichTextでレンダリング
     final textSpan = TextSpan(style: rootStyle, children: spans);
-    return RichText(
-      key: paragraphSemanticsKey(textSpan),
-      maxLines: mfm.nowrap ? 1 : null,
-      softWrap: !mfm.nowrap,
-      overflow: mfm.nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
-      text: textSpan,
+    return _MfmTextNoScaling(
+      child: RichText(
+        key: paragraphSemanticsKey(textSpan),
+        maxLines: mfm.nowrap ? 1 : null,
+        softWrap: !mfm.nowrap,
+        overflow: mfm.nowrap ? TextOverflow.ellipsis : TextOverflow.clip,
+        text: textSpan,
+      ),
     );
   }
 
@@ -163,6 +169,23 @@ class _MfmTextBodyState extends State<_MfmTextBody> {
     _parseKey = key;
     _parsedTextNodes = nodes;
     return nodes;
+  }
+}
+
+/// Keeps the full MediaQuery dependency outside the span-building State.
+class _MfmTextNoScaling extends StatelessWidget {
+  const _MfmTextNoScaling({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.maybeOf(context);
+    if (mediaQuery == null) return child;
+    return MediaQuery(
+      data: mediaQuery.copyWith(textScaler: TextScaler.noScaling),
+      child: child,
+    );
   }
 }
 

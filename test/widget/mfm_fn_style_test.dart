@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
@@ -256,16 +257,33 @@ void main() {
         ),
       );
       final row = _insideMfm(find.byType(Row));
-      final text = tester.widget<RichText>(
-        find
-            .descendant(
-              of: row,
-              matching: find.byWidgetPredicate((widget) => widget is RichText),
-            )
-            .last,
+      final label = find
+          .descendant(
+            of: row,
+            matching: find.byWidgetPredicate((widget) => widget is RichText),
+          )
+          .last;
+      final text = tester.widget<RichText>(label);
+      expect(
+        text.text.style!.fontSize,
+        closeTo(20 * 1.5 * 2 * 0.8 * 0.9, 1e-6),
       );
-      expect(text.text.style!.fontSize, closeTo(20 * 2 * 0.8 * 0.9, 1e-6));
-      expect(text.textScaler.scale(20), 30);
+      final paragraph = tester.renderObject<RenderParagraph>(label);
+      const selection = TextSelection(baseOffset: 0, extentOffset: 1);
+      final glyph = paragraph.getBoxesForSelection(selection).first;
+      final painter = TextPainter(
+        text: TextSpan(
+          text: text.text.toPlainText(),
+          style: text.text.style,
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final expected = painter.getBoxesForSelection(selection).first;
+      final start = paragraph.localToGlobal(Offset(glyph.left, glyph.top));
+      final end = paragraph.localToGlobal(Offset(glyph.right, glyph.bottom));
+      expect(end.dx - start.dx, closeTo(expected.right - expected.left, .01));
+      expect(end.dy - start.dy, closeTo(expected.bottom - expected.top, .01));
+      painter.dispose();
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     });

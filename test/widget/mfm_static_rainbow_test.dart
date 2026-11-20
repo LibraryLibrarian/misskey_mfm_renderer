@@ -159,7 +159,8 @@ void main() {
         ),
       );
       final paragraph = _paragraph(tester, 'AAA');
-      expect(paragraph.textScaler, const TextScaler.linear(2));
+      expect(paragraph.textScaler, TextScaler.noScaling);
+      expect(paragraph.text.style!.fontSize, _style.fontSize! * 2);
       expected ??= paragraph.size;
       expect(paragraph.size, expected);
       expect(tester.takeException(), isNull);
