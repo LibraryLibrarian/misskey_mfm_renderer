@@ -1,8 +1,8 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:misskey_mfm_renderer/misskey_mfm_renderer.dart';
 
@@ -325,7 +325,7 @@ void main() {
                 fontFamily: 'Ahem',
                 fontSize: 20,
                 height: 1,
-                color: Colors.green,
+                color: Color(0xFF4CAF50),
               ),
             ),
           ),
@@ -501,7 +501,8 @@ void main() {
             ),
           ),
         );
-        return _ink(tester);
+        final ink = await _ink(tester);
+        return ink;
       }
 
       final wrapped = await pump(nowrap: false);
