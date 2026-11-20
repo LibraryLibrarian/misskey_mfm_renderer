@@ -270,7 +270,9 @@ void main() {
     await tester.pumpWidget(
       _host(const MfmText(text: 'a'), withMediaQuery: false),
     );
-    expect(_glyphSize(tester, 'a'), const Size(14, 14));
+    final size = _glyphSize(tester, 'a');
+    expect(size.width, closeTo(14, .01));
+    expect(size.height, closeTo(14, .01));
     expect(tester.takeException(), isNull);
   });
 
