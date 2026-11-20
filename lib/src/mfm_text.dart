@@ -8,6 +8,7 @@ import 'config/mfm_color_scheme.dart';
 import 'config/mfm_inherited_config.dart';
 import 'config/mfm_render_config.dart';
 import 'utils/mention_display.dart';
+import 'utils/nowrap_paragraph.dart';
 import 'utils/paragraph_semantics.dart';
 import 'utils/parse_text.dart';
 import 'utils/tap_recognizer_pool.dart';
@@ -53,6 +54,7 @@ class MfmText extends StatelessWidget {
   /// 自動で折り返さず、明示的な改行を保持するか。
   /// 改行を含まない本文が1行に収まらない場合は省略記号を表示し、
   /// 改行を含む場合ははみ出した部分を切り取る。
+  /// 省略で行頭のinline widgetまで消える場合は、1行の境界で切り取る。
   final bool nowrap;
 
   /// ルートでの累積スケール。
@@ -161,13 +163,16 @@ class _MfmTextBodyState extends State<_MfmTextBody> {
             )
         ? TextOverflow.ellipsis
         : TextOverflow.clip;
+    final paragraph = RichText(
+      key: paragraphSemanticsKey(textSpan),
+      softWrap: !mfm.nowrap,
+      overflow: overflow,
+      text: textSpan,
+    );
     return _MfmTextNoScaling(
-      child: RichText(
-        key: paragraphSemanticsKey(textSpan),
-        softWrap: !mfm.nowrap,
-        overflow: overflow,
-        text: textSpan,
-      ),
+      child: overflow == TextOverflow.ellipsis
+          ? MfmNowrapParagraph(child: paragraph)
+          : paragraph,
     );
   }
 
