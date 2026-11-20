@@ -109,6 +109,12 @@ List<SemanticsNode> _semanticsNodes(WidgetTester tester) {
 String _semanticsLabels(WidgetTester tester) =>
     _semanticsNodes(tester).map((node) => node.label).join('\n');
 
+// Flutter 3.38.1のLinuxではAhemのglyph幅に浮動小数の誤差が出るため、寸法は許容誤差付きで比べる。
+void _expectSize(Size actual, Size expected) {
+  expect(actual.width, closeTo(expected.width, 1e-3));
+  expect(actual.height, closeTo(expected.height, 1e-3));
+}
+
 void main() {
   group('MfmText ruby', () {
     for (final example in [
@@ -406,7 +412,7 @@ void main() {
       );
       final rootFinder = find.byType(RichText).first;
       final root = tester.renderObject<RenderParagraph>(rootFinder);
-      expect(root.getDryLayout(root.constraints), root.size);
+      _expectSize(root.getDryLayout(root.constraints), root.size);
       final rootSpan = tester.widget<RichText>(rootFinder).text as TextSpan;
       final rubySpan = rootSpan.children!.single as WidgetSpan;
 
@@ -430,20 +436,20 @@ void main() {
           (tester.getTopLeft(rubyFinder) -
                   tester.getTopLeft(find.byType(Baseline)))
               .dy;
-      expect(ruby.size, const Size(60, 90));
-      expect(ruby.getDryLayout(ruby.constraints), ruby.size);
+      _expectSize(ruby.size, const Size(60, 90));
+      _expectSize(ruby.getDryLayout(ruby.constraints), ruby.size);
       expect(
         ruby.getDryBaseline(ruby.constraints, TextBaseline.alphabetic),
         closeTo(actualBaseline, 1e-6),
       );
-      expect(ruby.getMinIntrinsicWidth(double.infinity), 200);
-      expect(ruby.getMaxIntrinsicWidth(double.infinity), 200);
-      expect(ruby.getMinIntrinsicHeight(60), 90);
-      expect(ruby.getMaxIntrinsicHeight(60), 90);
+      expect(ruby.getMinIntrinsicWidth(double.infinity), closeTo(200, 1e-3));
+      expect(ruby.getMaxIntrinsicWidth(double.infinity), closeTo(200, 1e-3));
+      expect(ruby.getMinIntrinsicHeight(60), closeTo(90, 1e-3));
+      expect(ruby.getMaxIntrinsicHeight(60), closeTo(90, 1e-3));
 
       // 別幅でのdry計測が、実layoutの寸法や配置を変更しないことも確認する。
       final actualPosition = tester.getTopLeft(rubyFinder);
-      expect(
+      _expectSize(
         ruby.getDryLayout(const BoxConstraints(maxWidth: 120)),
         const Size(120, 50),
       );
@@ -451,7 +457,7 @@ void main() {
         const BoxConstraints(maxWidth: 120),
         TextBaseline.alphabetic,
       );
-      expect(ruby.size, const Size(60, 90));
+      _expectSize(ruby.size, const Size(60, 90));
       expect(tester.getTopLeft(rubyFinder), actualPosition);
       expect(tester.takeException(), isNull);
     });
