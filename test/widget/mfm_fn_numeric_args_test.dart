@@ -56,7 +56,7 @@ void main() {
         await _pumpMfm(tester, '\$[rotate.deg=$deg x]');
 
         expect(tester.takeException(), isNull);
-        expect(_findTransform(), findsNothing);
+        expect(_transform(tester).transform, Matrix4.identity());
         expect(find.text('x', findRichText: true), findsOneWidget);
       });
     }
@@ -75,7 +75,7 @@ void main() {
         await _pumpMfm(tester, '\$[position.$args x]');
 
         expect(tester.takeException(), isNull);
-        expect(_findTransform(), findsNothing);
+        expect(_transform(tester).transform, Matrix4.identity());
         final origin = tester
             .renderObject<RenderBox>(find.text('x', findRichText: true))
             .localToGlobal(Offset.zero);
@@ -149,7 +149,7 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(_findTransform(), findsNothing);
+      expect(_transform(tester).transform, Matrix4.identity());
       // Math.max(-Infinity, 3) = 3
       expect(contexts.single.scale, 3);
       expect(contexts.single.useOriginalSize, isTrue);
@@ -161,7 +161,7 @@ void main() {
         r'$[scale.x=-Infinity,y=-Infinity :e:]',
       );
 
-      expect(_findTransform(), findsNothing);
+      expect(_transform(tester).transform, Matrix4.identity());
       expect(contexts.single.scale, double.negativeInfinity);
       expect(contexts.single.useOriginalSize, isFalse);
     });
@@ -178,6 +178,37 @@ void main() {
       expect(context.useOriginalSize, isFalse);
       expect(context, context);
     });
+  });
+
+  group('無効な数値に切り替えても子のStateを保つ', () {
+    const cases = {
+      'rotate': ['deg=45', 'deg=Infinity'],
+      'position': ['x=2', 'x=Infinity'],
+      'scale': ['x=2', 'x=-Infinity'],
+    };
+    for (final MapEntry(key: name, value: args) in cases.entries) {
+      testWidgets('$nameの${args[0]}と${args[1]}を切り替えてもStateを作り直さない', (
+        tester,
+      ) async {
+        var created = 0;
+        var disposed = 0;
+        final config = MfmRenderConfig(
+          baseTextStyle: const TextStyle(fontSize: 20),
+          emojiBuilder: (name, context) => _LifecycleProbe(
+            onInit: () => created++,
+            onDispose: () => disposed++,
+          ),
+        );
+        for (final arg in [args[0], args[1], args[0]]) {
+          await _pumpMfm(tester, '\$[$name.$arg :e:]', config: config);
+        }
+
+        expect(
+          (created: created, disposed: disposed),
+          (created: 1, disposed: 0),
+        );
+      });
+    }
   });
 
   for (final family in ['emoji', 'math']) {
@@ -299,4 +330,31 @@ Iterable<InlineSpan> _allSpans(InlineSpan root) sync* {
   for (final child in children) {
     yield* _allSpans(child);
   }
+}
+
+class _LifecycleProbe extends StatefulWidget {
+  const _LifecycleProbe({required this.onInit, required this.onDispose});
+
+  final VoidCallback onInit;
+  final VoidCallback onDispose;
+
+  @override
+  State<_LifecycleProbe> createState() => _LifecycleProbeState();
+}
+
+class _LifecycleProbeState extends State<_LifecycleProbe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onInit();
+  }
+
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(width: 20, height: 20);
 }

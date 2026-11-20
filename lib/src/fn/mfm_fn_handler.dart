@@ -187,15 +187,8 @@ class MfmFnHandler {
     );
 
     // Infinityは本家のCSSでは無効な値になり、回転しない。
-    if (!degrees.isFinite) {
-      return WidgetSpan(
-        alignment: PlaceholderAlignment.baseline,
-        baseline: TextBaseline.alphabetic,
-        child: child,
-      );
-    }
-
-    var radians = degrees * math.pi / 180.0;
+    // 子のStateを保つため、Transform自体は残して角度を0にする。
+    var radians = degrees.isFinite ? degrees * math.pi / 180.0 : 0.0;
     if (!radians.isFinite) {
       // 有限でもラジアンへの変換で溢れる巨大な角度は、同じ向きの角度に直す。
       radians = degrees % 360 * math.pi / 180.0;
@@ -512,22 +505,16 @@ class MfmFnHandler {
     );
 
     // -Infinityは本家のCSSでは無効な値になり、変形しない。
-    if (!scaleX.isFinite || !scaleY.isFinite) {
-      return WidgetSpan(
-        alignment: PlaceholderAlignment.baseline,
-        baseline: TextBaseline.alphabetic,
-        child: child,
-      );
-    }
-
+    // 子のStateを保つため、Transform自体は残して等倍にする。
+    final valid = scaleX.isFinite && scaleY.isFinite;
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: Transform.scale(
         // 極端な負の値では変形行列の逆行列が非有限になり、hit testなどが
         // 壊れるため、描画にだけライブラリ独自の下限をかける。
-        scaleX: math.max(scaleX, _minPaintScale),
-        scaleY: math.max(scaleY, _minPaintScale),
+        scaleX: valid ? math.max(scaleX, _minPaintScale) : 1.0,
+        scaleY: valid ? math.max(scaleY, _minPaintScale) : 1.0,
         child: child,
       ),
     );
@@ -558,9 +545,11 @@ class MfmFnHandler {
       baseline: TextBaseline.alphabetic,
       // Infinityは本家のCSSでは無効な値になり、x, yとも移動しない。
       // px換算で溢れた場合も、座標がNaNにならないよう移動しない。
-      child: offset.isFinite
-          ? Transform.translate(offset: offset, child: child)
-          : child,
+      // 子のStateを保つため、Transform自体は残す。
+      child: Transform.translate(
+        offset: offset.isFinite ? offset : Offset.zero,
+        child: child,
+      ),
     );
   }
 
