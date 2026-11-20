@@ -70,7 +70,7 @@ void main() {
         matching: find.text(':not_exist_emoji:'),
       );
       final text = tester.widget<Text>(fallback);
-      expect(text.style!.fontSize, i == 0 ? 20 : 16);
+      expect(text.style!.fontSize, closeTo(i == 0 ? 20 : 20 / 1.2, 1e-9));
       expect(
         text.style!.fontWeight,
         i == 0 ? isNot(FontWeight.bold) : FontWeight.bold,
@@ -80,7 +80,7 @@ void main() {
         find.descendant(of: fallback, matching: find.byType(RichText)),
       );
       expect(box.size, paragraph.size);
-      expect(box.size.height, i == 0 ? 20 : 16);
+      expect(box.size.height, i == 0 ? 20 : (20 / 1.2).ceilToDouble());
       expect(
         box.getDryBaseline(box.constraints, TextBaseline.alphabetic),
         paragraph.getDryBaseline(
